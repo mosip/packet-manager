@@ -1,7 +1,10 @@
-package io.mosip.registration.dto.json.metadata;
+package io.mosip.registration.processor.core.packet.dto;
 
 import lombok.Data;
 
+/**
+ * Instantiates a new digital id dto.
+ */
 @Data
 public class DigitalId {
 
@@ -12,4 +15,5 @@ public class DigitalId {
 	private String dpId;
 	private String dp;
 	private String dateTime;
+
 }
