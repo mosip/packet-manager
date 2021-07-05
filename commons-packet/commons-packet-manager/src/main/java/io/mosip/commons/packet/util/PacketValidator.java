@@ -109,7 +109,7 @@ public class PacketValidator {
 
                 }
             }
-            String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(id, process).getOperation()));
+            String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
             LinkedHashMap finalMap = new LinkedHashMap();
             finalMap.put(IDENTITY, objectMap);
             JSONObject finalIdObject = new JSONObject(finalMap);
