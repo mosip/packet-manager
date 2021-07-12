@@ -60,6 +60,13 @@ jobs:
       with:
         name: release
         path: ./release.zip
+    - uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+        if: failure() # Pick up events even if the job fails or is canceled.
   
   #publish_to_nexus:
   #  needs: build
@@ -151,7 +158,15 @@ jobs:
     - name: Analyze with SonarCloud
       run: mvn -B verify sonar:sonar -Dsonar.projectKey=${{ secrets.PROJECT_KEY }} -Dsonar.organization=${{ secrets.ORG_KEY }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=${{ secrets.SONAR_TOKEN }}
       env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}     
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    - uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+        if: failure() # Pick up events even if the job fails or is canceled.
+
   #docker-id-repository-vid-service:
    # needs: build
 
@@ -289,11 +304,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -310,6 +328,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-syncdata-service:
     needs: build
@@ -342,11 +367,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -395,11 +423,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -416,6 +447,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-ridgenerator-service:
     needs: build
@@ -448,11 +486,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -469,6 +510,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-notification-service:
     needs: build
@@ -501,11 +549,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -522,6 +573,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-auth-service:
     needs: build
@@ -554,11 +612,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -575,6 +636,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-keymanager-service:
     needs: build
@@ -607,11 +675,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -628,6 +699,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-pridgenerator-service:
     needs: build
@@ -660,11 +738,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -681,6 +762,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-otpmanager-service:
     needs: build
@@ -713,11 +801,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -734,6 +825,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
 
   docker-kernel-idgenerator-service:
     needs: build
@@ -766,11 +864,14 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -787,6 +888,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
         
   docker-kernel-salt-generator:
      needs: build
@@ -819,11 +927,14 @@ jobs:
       
       - name: Unzip and extract the kernel-salt-generator
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
@@ -840,6 +951,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
           
   docker-commons-packet-service:
     needs: build
@@ -872,15 +990,21 @@ jobs:
       
       - name: Unzip and extract the id-repository-vid-service
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}} --tag ${{ env.SERVICE_NAME }}
 
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
-        
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Push image
         run: |
           IMAGE_ID=$NAMESPACE/$SERVICE_NAME
@@ -893,6 +1017,13 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
   docker-kernel-keys-generator:
     needs: build
 
@@ -923,11 +1054,14 @@ jobs:
       
       - name: Unzip and extract the keys-generator
         run: unzip -uj "release.zip" "${{ env.SERVICE_LOCATION }}/target/*" -d "./${{ env.SERVICE_LOCATION }}/target"
-      
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
       - name: Build image
         run: |
           cd "./${{env.SERVICE_LOCATION}}"
-          docker build . --file Dockerfile --tag ${{ env.SERVICE_NAME }}
+          docker build . --file Dockerfile --build-arg SOURCE=mosip --build-arg COMMIT_HASH=$(git rev-parse HEAD) --build-arg COMMIT_ID=$(git rev-parse --short HEAD) --build-arg BUILD_TIME=${{steps.date.outputs.date}}  --tag ${{ env.SERVICE_NAME }}
       - name: Log into registry
         run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
         
@@ -943,3 +1077,10 @@ jobs:
           echo VERSION=$VERSION
           docker tag $SERVICE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+      - uses: 8398a7/action-slack@v3
+          with:
+            status: ${{ job.status }}
+            fields: repo,message,commit,workflow,job # selectable (default: repo,message)
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+          if: failure() # Pick up events even if the job fails or is canceled.
