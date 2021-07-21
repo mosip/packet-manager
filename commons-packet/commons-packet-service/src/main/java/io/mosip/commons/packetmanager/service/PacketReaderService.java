@@ -183,7 +183,7 @@ public class PacketReaderService {
         InfoResponseDto infoResponseDto = infoInternal(id);
         List<ContainerInfoDto> info = infoResponseDto.getInfo();
         // sorting in reverse order by process name to search from latest iteration first.
-        Collections.sort(info, (i1, i2) -> i2.getProcess().compareTo(i1.getProcess()));
+        Collections.sort(info, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
         if (StringUtils.isEmpty(source)) {
             try {
                 if (defaultStrategy.equalsIgnoreCase(DefaultStrategy.DEFAULT_PRIORITY.getValue())) {
@@ -267,7 +267,7 @@ public class PacketReaderService {
 
     private ObjectDto searchProcessWithLatestIteration(String id, String source, String process) {
         List<ObjectDto> allObjects = packetReader.info(id);
-        Collections.sort(allObjects, (i1, i2) -> i2.getProcess().compareTo(i1.getProcess()));
+        Collections.sort(allObjects, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
 
         Optional<ObjectDto> objectDto = allObjects.stream().filter(obj ->
                 obj.getSource().equals(source)
@@ -488,5 +488,11 @@ public class PacketReaderService {
         }
 
         return mergedDocuments;
+    }
+
+    private int extractInt(String s) {
+        String num = s.replaceAll("\\D", "");
+        // return 0 if no digits found
+        return num.isEmpty() ? 0 : Integer.parseInt(num);
     }
 }
