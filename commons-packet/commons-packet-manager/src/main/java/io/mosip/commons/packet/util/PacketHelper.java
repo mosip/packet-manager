@@ -16,7 +16,7 @@ public class PacketHelper {
     private static final String SOURCE = "source";
     private static final String PROCESS = "process";
     private static final String CLASSNAME = "classname";
-    private static final char DASH = '-';
+    private static final String DASH = "-";
 
     private static List<ProviderDto> readerProvider = null;
 
@@ -133,13 +133,13 @@ public class PacketHelper {
      */
     public static String getProcessWithoutIteration(String process) {
         if (StringUtils.isNotEmpty(process)) {
-            char lastChar = process.charAt(process.length() - 1);
             // if number is present at the end preceded by '-' (DASH)
-            if (Character.isDigit(lastChar)
-                    && process.charAt(process.length() - 2) == DASH) {
+            String[] processArr = process.split(DASH);
+            String lastElement = processArr[processArr.length - 1];
+            if (StringUtils.isNumeric(lastElement)) {
                 StringBuffer sb = new StringBuffer();
                 sb.append(DASH);
-                sb.append(lastChar);
+                sb.append(lastElement);
                 process = process.replace(sb.toString(), "");
             }
         }
