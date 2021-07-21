@@ -120,7 +120,7 @@ public class IdObjectsSchemaValidationOperationMapper {
 					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-DEACTIVATED");
 			return IdObjectValidatorSupportedOperations.OTHER.getOperation();
 		}
-		return process;
+		return PacketHelper.getProcessWithoutIteration(process).toLowerCase();
 		
 	}
 
