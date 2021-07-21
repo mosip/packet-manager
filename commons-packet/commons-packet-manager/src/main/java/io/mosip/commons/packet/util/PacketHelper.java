@@ -2,6 +2,7 @@ package io.mosip.commons.packet.util;
 
 import io.mosip.commons.packet.dto.packet.ProviderDto;
 import io.mosip.commons.packet.exception.NoAvailableProviderException;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,9 +13,10 @@ import java.util.stream.Collectors;
 
 public class PacketHelper {
 
-    private static String SOURCE = "source";
-    private static String PROCESS = "process";
-    private static String CLASSNAME = "classname";
+    private static final String SOURCE = "source";
+    private static final String PROCESS = "process";
+    private static final String CLASSNAME = "classname";
+    private static final char DASH = '-';
 
     private static List<ProviderDto> readerProvider = null;
 
@@ -56,6 +58,8 @@ public class PacketHelper {
     public static boolean isSourceAndProcessPresent(String providerName, String providerSource, String providerProcess, Provider providerEnum) {
         List<ProviderDto> configurations = null;
 
+        String process = PacketHelper.getProcessWithoutIteration(providerProcess);
+
         if (Provider.READER.equals(providerEnum))
             configurations = getReader(readerConfiguration);
         else if (Provider.WRITER.equals(providerEnum))
@@ -65,7 +69,7 @@ public class PacketHelper {
             throw new NoAvailableProviderException();
 
         Optional<ProviderDto> providerDto = configurations.stream().filter(dto -> dto.getSource().toUpperCase().contains(providerSource.toUpperCase())
-                && dto.getProcess().toUpperCase().contains(providerProcess.toUpperCase())).findAny();
+                && dto.getProcess().toUpperCase().contains(process.toUpperCase())).findAny();
         return providerDto.isPresent() && providerDto.get() != null && providerName.contains(providerDto.get().getClassName());
     }
 
@@ -118,5 +122,27 @@ public class PacketHelper {
             writerProvider = providerDtos;
         }
         return writerProvider;
+    }
+
+    /**
+     * This method returns process without iteration. It search iteration pattern at the end of the process string.
+     * If found then this method removes iteration and only returns process.
+     *
+     * @param process
+     * @return
+     */
+    public static String getProcessWithoutIteration(String process) {
+        if (StringUtils.isNotEmpty(process)) {
+            char lastChar = process.charAt(process.length() - 1);
+            // if number is present at the end preceded by '-' (DASH)
+            if (Character.isDigit(lastChar)
+                    && process.charAt(process.length() - 2) == DASH) {
+                StringBuffer sb = new StringBuffer();
+                sb.append(DASH);
+                sb.append(lastChar);
+                process = process.replace(sb.toString(), "");
+            }
+        }
+        return process;
     }
 }
