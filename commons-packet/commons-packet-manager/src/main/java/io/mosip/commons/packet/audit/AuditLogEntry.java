@@ -1,13 +1,10 @@
 package io.mosip.commons.packet.audit;
 
-import io.mosip.commons.packet.constants.LoggerFileConstant;
-import io.mosip.commons.packet.dto.packet.AuditRequestDto;
-import io.mosip.commons.packet.util.PacketManagerLogger;
-import io.mosip.kernel.core.exception.ExceptionUtils;
-import io.mosip.kernel.core.http.RequestWrapper;
-import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
@@ -17,8 +14,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import io.mosip.commons.packet.constants.LoggerFileConstant;
+import io.mosip.commons.packet.dto.packet.AuditRequestDto;
+import io.mosip.commons.packet.util.PacketManagerLogger;
+import io.mosip.kernel.core.exception.ExceptionUtils;
+import io.mosip.kernel.core.http.RequestWrapper;
+import io.mosip.kernel.core.logger.spi.Logger;
+import io.mosip.kernel.core.util.DateUtils;
 
 @Component
 public class AuditLogEntry {
@@ -28,6 +30,7 @@ public class AuditLogEntry {
 
 	@Autowired
 	@Lazy
+	@Qualifier("restTemplate")
 	private RestTemplate restTemplate;
 
 	@Autowired
