@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -76,6 +77,7 @@ public class PacketReaderService {
     private PacketReader packetReader;
 
     @Autowired
+	@Qualifier("restTemplate")
     private RestTemplate restTemplate;
 
     @Autowired
