@@ -383,7 +383,7 @@ public class PacketReaderImpl implements IPacketReader {
 			List<BIR> birList) {
 		List<BIR> segments = new ArrayList<>();
 		if (CollectionUtils.isEmpty(modalities)) {
-			birList.forEach(bir -> segments.add(bir));
+			return birList;
 		} else {
 			// first search modalities in subtype and if not present search in type
 			for (BIR bir : birList) {
