@@ -117,7 +117,7 @@ public class PacketValidator {
             return idObjectValidator.validateIdObject(idSchemaUtils.getIdSchema(Double.valueOf(objectMap.get(
                     PacketManagerConstants.IDSCHEMA_VERSION).toString())), finalIdObject, Arrays.asList(fields.split(",")));
         } catch (IdObjectValidationFailedException | PacketKeeperException e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed :  " + ExceptionUtils.getStackTrace(e));
+        	LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed with errors:  " + e.getErrorTexts());
             return false;
         }
 
