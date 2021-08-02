@@ -117,7 +117,13 @@ public class PacketValidator {
             return idObjectValidator.validateIdObject(idSchemaUtils.getIdSchema(Double.valueOf(objectMap.get(
                     PacketManagerConstants.IDSCHEMA_VERSION).toString())), finalIdObject, Arrays.asList(fields.split(",")));
         } catch (IdObjectValidationFailedException | PacketKeeperException e) {
-        	LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed with errors:  " + e.getErrorTexts());
+			if (e instanceof IdObjectValidationFailedException) {
+				LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+						"Id object masterdata validation failed with errors:  " + e.getErrorTexts());
+			} else {
+				LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+						"Id object validation failed :  " + ExceptionUtils.getStackTrace(e));
+			}
             return false;
         }
 
