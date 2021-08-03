@@ -1,19 +1,18 @@
 package io.mosip.commons.packet.test.facade;
 
-import com.google.common.collect.Lists;
-import io.mosip.commons.packet.dto.Document;
-import io.mosip.commons.packet.exception.NoAvailableProviderException;
-import io.mosip.commons.packet.facade.PacketReader;
-import io.mosip.commons.packet.impl.PacketReaderImpl;
-import io.mosip.commons.packet.spi.IPacketReader;
-import io.mosip.commons.packet.util.PacketHelper;
-import io.mosip.kernel.biometrics.constant.BiometricType;
-import io.mosip.kernel.biometrics.constant.QualityType;
-import io.mosip.kernel.biometrics.entities.BDBInfo;
-import io.mosip.kernel.biometrics.entities.BIR;
-import io.mosip.kernel.biometrics.entities.BiometricRecord;
-import io.mosip.kernel.biometrics.entities.RegistryIDType;
-import io.mosip.kernel.core.cbeffutil.jaxbclasses.SingleType;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,16 +25,22 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.google.common.collect.Lists;
 
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
+import io.mosip.commons.khazana.dto.ObjectDto;
+import io.mosip.commons.packet.dto.Document;
+import io.mosip.commons.packet.exception.NoAvailableProviderException;
+import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.commons.packet.impl.PacketReaderImpl;
+import io.mosip.commons.packet.keeper.PacketKeeper;
+import io.mosip.commons.packet.spi.IPacketReader;
+import io.mosip.commons.packet.util.PacketHelper;
+import io.mosip.kernel.biometrics.constant.BiometricType;
+import io.mosip.kernel.biometrics.constant.QualityType;
+import io.mosip.kernel.biometrics.entities.BDBInfo;
+import io.mosip.kernel.biometrics.entities.BIR;
+import io.mosip.kernel.biometrics.entities.BiometricRecord;
+import io.mosip.kernel.biometrics.entities.RegistryIDType;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({PacketHelper.class})
@@ -53,6 +58,9 @@ public class PacketReaderTest {
     private static final String source = "reg-client";
     private static final String process = "NEW";
     private static final String id = "110111101120191111121111";
+    
+    @Mock
+	private PacketKeeper packetKeeper;
 
     @Before
     public void setup() {
@@ -201,5 +209,32 @@ public class PacketReaderTest {
         PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(),anyString(),anyString(),any())).thenReturn(false);
 
         packetReader.validatePacket(id, source, process);
+    }
+    
+    @Test
+    public void testGetTags() {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+      
+        Mockito.when(packetKeeper.getTags(any())).thenReturn(tags);
+
+        Map<String, String> expectedTags= packetReader.getTags("id");
+
+        assertEquals(expectedTags,tags); 
+    }
+
+    @Test
+    public void testInfo() {
+        ObjectDto objectDto = new ObjectDto("source1", "process1", "object1", new Date());
+        ObjectDto objectDto2 = new ObjectDto("source2", "process2", "object2", new Date());
+        ObjectDto objectDto3 = new ObjectDto("source3", "process3", "object3", new Date());
+        List<ObjectDto> objectDtos = Lists.newArrayList(objectDto, objectDto2, objectDto3);
+
+
+        Mockito.when(packetKeeper.getAll(any())).thenReturn(objectDtos);
+
+        List<ObjectDto> result = packetReader.info("id");
+
+        assertEquals(objectDtos.size(), result.size());
     }
 }

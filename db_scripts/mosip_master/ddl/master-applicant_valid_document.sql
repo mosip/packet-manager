@@ -8,7 +8,9 @@
 -- 
 -- Modified Date        Modified By         Comments / Remarks
 -- ------------------------------------------------------------------------------------------
--- 
+-- Jan-2021		Ram Bhatt	    Set is_deleted flag to not null and default false
+-- Mar-2021		Ram Bhatt	    Reverting is_deleted not null changes
+-- Apr-2021		Ram Bhatt	    Lang_code nullable and/or removed from pk constraint
 -- ------------------------------------------------------------------------------------------
 
 -- object: master.applicant_valid_document | type: TABLE --
@@ -17,13 +19,13 @@ CREATE TABLE master.applicant_valid_document(
 	apptyp_code character varying(36) NOT NULL,
 	doccat_code character varying(36) NOT NULL,
 	doctyp_code character varying(36) NOT NULL,
-	lang_code character varying(3) NOT NULL,
+	lang_code character varying(3) ,
 	is_active boolean NOT NULL,
 	cr_by character varying(256) NOT NULL,
 	cr_dtimes timestamp NOT NULL,
 	upd_by character varying(256),
 	upd_dtimes timestamp,
-	is_deleted boolean,
+	is_deleted boolean DEFAULT FALSE,
 	del_dtimes timestamp,
 	CONSTRAINT pk_avaldoc_code PRIMARY KEY (apptyp_code,doccat_code,doctyp_code)
 

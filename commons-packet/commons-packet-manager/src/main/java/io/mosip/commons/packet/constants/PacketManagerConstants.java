@@ -18,7 +18,8 @@ public class PacketManagerConstants {
 	public static final String CBEFF_DEFAULT_ALG_TYPE = "SHA-256";
 	public static final String CBEFF_FILENAME = "%s_bio_CBEFF";
 	public static final String CBEFF_FILENAME_WITH_EXT = CBEFF_FILENAME.concat(".xml");
-	
+	public static final String CBEFF_EXT = ".xml";
+
 	public static final String DEMOGRAPHIC_SEQ = "demographicSequence";
 	public static final String BIOMETRIC_SEQ = "biometricSequence";
 	public static final String OPERATIONS_SEQ = "otherFiles";
@@ -91,6 +92,8 @@ public class PacketManagerConstants {
 	public static final String RESPONSE = "response";
 
 	public static final String META_INFO_OPERATIONS_DATA = "operationsData";
+	public static final String METAINFO = "metaInfo";
+	public static final String AUDITS = "audits";
 
 	public static final String OFFICER_BIOMETRIC = "officerBiometricFileName";
 	public static final String SUPERVISOR_BIOMETRIC = "supervisorBiometricFileName";

@@ -8,7 +8,9 @@
 -- 
 -- Modified Date        Modified By         Comments / Remarks
 -- ------------------------------------------------------------------------------------------
--- 
+-- Jan-2021		Ram Bhatt	    Set is_deleted flag to not null and default false
+-- Mar-2021		Ram Bhatt	    Reverting is_deleted not null changes
+-- May-2021		Ram Bhatt	    Change LANG code TO NULLABLE AND remove from Primary Key
 -- ------------------------------------------------------------------------------------------
 
 -- object: master.user_detail_h | type: TABLE --
@@ -21,7 +23,7 @@ CREATE TABLE master.user_detail_h(
 	mobile character varying(16),
 	status_code character varying(36) NOT NULL,
 	regcntr_id character varying(10),
-	lang_code character varying(3) NOT NULL,
+	lang_code character varying(3),
 	last_login_dtimes timestamp,
 	last_login_method character varying(64),
 	is_active boolean NOT NULL,
@@ -29,7 +31,7 @@ CREATE TABLE master.user_detail_h(
 	cr_dtimes timestamp NOT NULL,
 	upd_by character varying(256),
 	upd_dtimes timestamp,
-	is_deleted boolean,
+	is_deleted boolean DEFAULT FALSE,
 	del_dtimes timestamp,
 	eff_dtimes timestamp NOT NULL,
 	CONSTRAINT pk_usrdtl_h_id PRIMARY KEY (id,eff_dtimes)

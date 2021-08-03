@@ -1,23 +1,20 @@
 package io.mosip.commons.packet.test.facade;
 
-import io.mosip.commons.packet.dto.Document;
-import io.mosip.commons.packet.dto.PacketInfo;
-import io.mosip.commons.packet.dto.packet.PacketDto;
-import io.mosip.commons.packet.exception.NoAvailableProviderException;
-import io.mosip.commons.packet.exception.PacketCreatorException;
-import io.mosip.commons.packet.facade.PacketWriter;
-import io.mosip.commons.packet.impl.PacketWriterImpl;
-import io.mosip.commons.packet.spi.IPacketWriter;
-import io.mosip.commons.packet.util.PacketHelper;
-import io.mosip.kernel.biometrics.constant.BiometricType;
-import io.mosip.kernel.biometrics.constant.QualityType;
-import io.mosip.kernel.biometrics.entities.BDBInfo;
-import io.mosip.kernel.biometrics.entities.BIR;
-import io.mosip.kernel.biometrics.entities.BiometricRecord;
-import io.mosip.kernel.biometrics.entities.RegistryIDType;
-import io.mosip.kernel.core.cbeffutil.jaxbclasses.SingleType;
-import org.junit.Before;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -29,18 +26,24 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
+import io.mosip.commons.packet.dto.Document;
+import io.mosip.commons.packet.dto.PacketInfo;
+import io.mosip.commons.packet.dto.TagDto;
+import io.mosip.commons.packet.dto.TagRequestDto;
+import io.mosip.commons.packet.dto.packet.PacketDto;
+import io.mosip.commons.packet.exception.NoAvailableProviderException;
+import io.mosip.commons.packet.exception.PacketCreatorException;
+import io.mosip.commons.packet.facade.PacketWriter;
+import io.mosip.commons.packet.impl.PacketWriterImpl;
+import io.mosip.commons.packet.keeper.PacketKeeper;
+import io.mosip.commons.packet.spi.IPacketWriter;
+import io.mosip.commons.packet.util.PacketHelper;
+import io.mosip.kernel.biometrics.constant.BiometricType;
+import io.mosip.kernel.biometrics.constant.QualityType;
+import io.mosip.kernel.biometrics.entities.BDBInfo;
+import io.mosip.kernel.biometrics.entities.BIR;
+import io.mosip.kernel.biometrics.entities.BiometricRecord;
+import io.mosip.kernel.biometrics.entities.RegistryIDType;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({PacketHelper.class})
@@ -58,6 +61,10 @@ public class PacketWriterTest {
     private static final String source = "reg-client";
     private static final String process = "NEW";
     private static final String id = "110111101120191111121111";
+    
+
+    @Mock
+	private PacketKeeper packetKeeper;
 
 
     @Before
@@ -246,4 +253,43 @@ public class PacketWriterTest {
 
         packetWriter.setField(id, "name", "mono", source, process);
     }
+    
+    @Test
+    public void testAddTags() {
+    	TagDto tagDto=new TagDto();
+    	tagDto.setId(id);
+    	Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+    	tagDto.setTags(tags);
+    	Mockito.when(packetKeeper.addTags(any())).thenReturn(tags);
+
+       	Map<String, String> expectedTags= packetWriter.addTags(tagDto);
+
+        assertEquals(expectedTags,tags); 
+    }
+    @Test
+    public void testUpdateTags() {
+    	TagDto tagDto=new TagDto();
+    	tagDto.setId(id);
+    	Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+    	tagDto.setTags(tags);
+    	Mockito.when(packetKeeper.addorUpdate(any())).thenReturn(tags);
+
+
+       	Map<String, String> expectedTags= packetWriter.addorUpdate(tagDto);
+
+        assertEquals(expectedTags,tags); 
+    }
+    @Test
+    public void testDeleteTags() {
+    	TagRequestDto tagDto=new TagRequestDto();
+    	tagDto.setId(id);
+    	List<String> tags = new ArrayList<>();
+    	tags.add("test");
+    	tagDto.setTagNames(tags);
+		packetWriter.deleteTags(tagDto);
+
+    }
+    
 }

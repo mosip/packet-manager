@@ -1,15 +1,11 @@
 package io.mosip.commons.packet.facade;
 
-import com.google.common.collect.Lists;
-import io.mosip.commons.packet.dto.Document;
-import io.mosip.commons.packet.exception.NoAvailableProviderException;
-import io.mosip.commons.packet.spi.IPacketReader;
-import io.mosip.commons.packet.util.PacketHelper;
-import io.mosip.commons.packet.util.PacketManagerLogger;
-import io.mosip.kernel.biometrics.constant.BiometricType;
-import io.mosip.kernel.biometrics.entities.BiometricRecord;
-import io.mosip.kernel.core.cbeffutil.entity.BIR;
-import io.mosip.kernel.core.logger.spi.Logger;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
@@ -18,10 +14,15 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import io.mosip.commons.khazana.dto.ObjectDto;
+import io.mosip.commons.packet.dto.Document;
+import io.mosip.commons.packet.exception.NoAvailableProviderException;
+import io.mosip.commons.packet.keeper.PacketKeeper;
+import io.mosip.commons.packet.spi.IPacketReader;
+import io.mosip.commons.packet.util.PacketHelper;
+import io.mosip.commons.packet.util.PacketManagerLogger;
+import io.mosip.kernel.biometrics.entities.BiometricRecord;
+import io.mosip.kernel.core.logger.spi.Logger;
 
 /**
  * The packet Reader facade
@@ -36,6 +37,9 @@ public class PacketReader {
     @Qualifier("referenceReaderProviders")
     @Lazy
     private List<IPacketReader> referenceReaderProviders;
+
+	@Autowired
+	private PacketKeeper packetKeeper;
 
     /**
      * Get a field from identity file
@@ -54,7 +58,7 @@ public class PacketReader {
         if (bypassCache)
             value = getProvider(source, process).getField(id, field, source, process);
         else {
-            Optional<Object> optionalValue = getAllFields(id, source, process).entrySet().stream().filter(m-> m.getKey().equalsIgnoreCase(field)).map(m -> m.getValue()).findAny();
+            Optional<Object> optionalValue = getAllFields(id, source, process).entrySet().stream().filter(m-> m.getKey().equalsIgnoreCase(field) && m.getValue()!=null).map(m -> m.getValue()).findAny();
             value = optionalValue.isPresent() ? optionalValue.get().toString() : null;
         }
         return value;
@@ -112,7 +116,7 @@ public class PacketReader {
      */
     @PreAuthorize("hasRole('BIOMETRIC_READ')")
     @Cacheable(value = "packets", key = "'biometrics'.concat('-').#id.concat('-').concat(#person).concat('-').concat(#modalities).concat('-').concat(#source).concat('-').concat(#process)", condition = "#bypassCache == false")
-    public BiometricRecord getBiometric(String id, String person, List<BiometricType> modalities, String source, String process, boolean bypassCache) {
+    public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getBiometric for source : " + source + " process : " + process);
         return getProvider(source, process).getBiometric(id, person, modalities, source, process);
@@ -132,6 +136,36 @@ public class PacketReader {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getMetaInfo for source : " + source + " process : " + process);
         return getProvider(source, process).getMetaInfo(id, source, process);
+    }
+
+    /**
+     * Get all field names from identity object
+     *
+     * @param id
+     * @param source
+     * @param process
+     * @return
+     */
+    @PreAuthorize("hasRole('DATA_READ')")
+    public List<ObjectDto> info(String id) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "info called");
+        return packetKeeper.getAll(id);
+    }
+
+    /**
+     * Get all field names from identity object
+     *
+     * @param id
+     * @param source
+     * @param process
+     * @return
+     */
+    @PreAuthorize("hasRole('DATA_READ')")
+    public Set<String> getAllKeys(String id, String source, String process) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getAllKeys for source : " + source + " process : " + process);
+        return getProvider(source, process).getAll(id, source, process).keySet();
     }
 
     /**
@@ -161,6 +195,12 @@ public class PacketReader {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getAllFields for source : " + source + " process : " + process);
         return getProvider(source, process).getAuditInfo(id, source, process);
+    }
+
+    @Cacheable(value = "tags", key = "{#id}")
+    public  Map<String, String>  getTags(String id) {
+        Map<String, String> tags = packetKeeper.getTags(id);
+        return tags;
     }
 
     public boolean validatePacket(String id, String source, String process) {

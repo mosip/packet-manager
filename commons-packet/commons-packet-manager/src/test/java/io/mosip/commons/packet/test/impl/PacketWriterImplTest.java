@@ -1,24 +1,16 @@
 package io.mosip.commons.packet.test.impl;
 
-import com.amazonaws.services.dynamodbv2.xspec.M;
-import io.mosip.commons.packet.dto.Document;
-import io.mosip.commons.packet.dto.PacketInfo;
-import io.mosip.commons.packet.exception.PacketKeeperException;
-import io.mosip.commons.packet.impl.PacketReaderImpl;
-import io.mosip.commons.packet.impl.PacketWriterImpl;
-import io.mosip.commons.packet.keeper.PacketKeeper;
-import io.mosip.commons.packet.spi.IPacketReader;
-import io.mosip.commons.packet.spi.IPacketWriter;
-import io.mosip.commons.packet.util.PacketManagerHelper;
-import io.mosip.commons.packet.util.ZipUtils;
-import io.mosip.kernel.biometrics.constant.BiometricType;
-import io.mosip.kernel.biometrics.constant.QualityType;
-import io.mosip.kernel.biometrics.entities.BDBInfo;
-import io.mosip.kernel.biometrics.entities.BIR;
-import io.mosip.kernel.biometrics.entities.BiometricRecord;
-import io.mosip.kernel.biometrics.entities.RegistryIDType;
-import io.mosip.kernel.core.cbeffutil.jaxbclasses.SingleType;
-import io.mosip.kernel.core.util.JsonUtils;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,16 +23,20 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.when;
+import io.mosip.commons.packet.dto.Document;
+import io.mosip.commons.packet.dto.PacketInfo;
+import io.mosip.commons.packet.impl.PacketWriterImpl;
+import io.mosip.commons.packet.keeper.PacketKeeper;
+import io.mosip.commons.packet.spi.IPacketWriter;
+import io.mosip.commons.packet.util.PacketManagerHelper;
+import io.mosip.commons.packet.util.ZipUtils;
+import io.mosip.kernel.biometrics.constant.BiometricType;
+import io.mosip.kernel.biometrics.constant.QualityType;
+import io.mosip.kernel.biometrics.entities.BDBInfo;
+import io.mosip.kernel.biometrics.entities.BIR;
+import io.mosip.kernel.biometrics.entities.BiometricRecord;
+import io.mosip.kernel.biometrics.entities.RegistryIDType;
+import io.mosip.kernel.core.util.JsonUtils;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ZipUtils.class, IOUtils.class, JsonUtils.class})
@@ -90,7 +86,7 @@ public class PacketWriterImplTest {
         fieldMap.put("gender", "[ {\r\n  \"language\" : \"eng\",\r\n  \"value\" : \"Male\"\r\n}, {\r\n  \"language\" : \"ara\",\r\n  \"value\" : \"الذكر\"\r\n} ]");
 
         Map<String, String> metaMap = new HashMap<>();
-        metaMap.put("metaData", "[ {\r\n  \"label\" : \"registrationId\",\r\n  \"value\" : \"10001100770000320200720092256\"\r\n}, {\r\n  \"label\" : \"creationDate\",\r\n  \"value\" : \"2020-07-20T14:54:49.823Z\"\r\n}, {\r\n  \"label\" : \"Registration Client Version Number\",\r\n  \"value\" : \"1.0.10-rc2\"\r\n}, {\r\n  \"label\" : \"registrationType\",\r\n  \"value\" : \"New\"\r\n}, {\r\n  \"label\" : \"preRegistrationId\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"machineId\",\r\n  \"value\" : \"10077\"\r\n}, {\r\n  \"label\" : \"centerId\",\r\n  \"value\" : \"10001\"\r\n}, {\r\n  \"label\" : \"dongleId\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"keyIndex\",\r\n  \"value\" : \"4F:38:72:D9:F8:DB:94:E7:22:48:96:D0:91:01:6D:3C:64:90:2E:14:DC:D2:F8:14:1F:2A:A4:19:1A:BC:91:41\"\r\n}, {\r\n  \"label\" : \"consentOfApplicant\",\r\n  \"value\" : \"Yes\"\r\n} ]");
+        metaMap.put("metaData", "[ {\r\n  \"label\" : \"registrationId\",\r\n  \"value\" : \"10001100770000320200720092256\"\r\n}, {\r\n  \"label\" : \"creationDate\",\r\n  \"value\" : \"2020-07-20T14:54:49.823Z\"\r\n}, {\r\n  \"label\" : \"Registration Client Version Number\",\r\n  \"value\" : \"1.0.10\"\r\n}, {\r\n  \"label\" : \"registrationType\",\r\n  \"value\" : \"New\"\r\n}, {\r\n  \"label\" : \"preRegistrationId\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"machineId\",\r\n  \"value\" : \"10077\"\r\n}, {\r\n  \"label\" : \"centerId\",\r\n  \"value\" : \"10001\"\r\n}, {\r\n  \"label\" : \"dongleId\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"keyIndex\",\r\n  \"value\" : \"4F:38:72:D9:F8:DB:94:E7:22:48:96:D0:91:01:6D:3C:64:90:2E:14:DC:D2:F8:14:1F:2A:A4:19:1A:BC:91:41\"\r\n}, {\r\n  \"label\" : \"consentOfApplicant\",\r\n  \"value\" : \"Yes\"\r\n} ]");
         metaMap.put("operationsData", "[ {\r\n  \"label\" : \"officerId\",\r\n  \"value\" : \"110122\"\r\n}, {\r\n  \"label\" : \"officerBiometricFileName\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"supervisorId\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"supervisorBiometricFileName\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"supervisorPassword\",\r\n  \"value\" : \"false\"\r\n}, {\r\n  \"label\" : \"officerPassword\",\r\n  \"value\" : \"true\"\r\n}, {\r\n  \"label\" : \"supervisorPIN\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"officerPIN\",\r\n  \"value\" : null\r\n}, {\r\n  \"label\" : \"supervisorOTPAuthentication\",\r\n  \"value\" : \"false\"\r\n}, {\r\n  \"label\" : \"officerOTPAuthentication\",\r\n  \"value\" : \"false\"\r\n} ]");
 
         Map<String, String> audit = new HashMap<>();

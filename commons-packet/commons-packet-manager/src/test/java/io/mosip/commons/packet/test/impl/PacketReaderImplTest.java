@@ -8,7 +8,6 @@ import io.mosip.commons.packet.exception.GetAllIdentityException;
 import io.mosip.commons.packet.exception.GetAllMetaInfoException;
 import io.mosip.commons.packet.exception.GetDocumentException;
 import io.mosip.commons.packet.exception.PacketKeeperException;
-import io.mosip.commons.packet.exception.PacketValidationFailureException;
 import io.mosip.commons.packet.impl.PacketReaderImpl;
 import io.mosip.commons.packet.keeper.PacketKeeper;
 import io.mosip.commons.packet.spi.IPacketReader;
@@ -215,11 +214,12 @@ public class PacketReaderImplTest {
         assertTrue("Should be true", result);
     }
 
-    @Test(expected = PacketValidationFailureException.class)
+    @Test
     public void validatePacketExceptionTest() throws JsonProcessingException, PacketKeeperException, InvalidIdSchemaException, IdObjectValidationFailedException, IdObjectIOException, IOException {
         when(packetValidator.validate(anyString(), anyString(), anyString(), anyMap())).thenThrow(new IOException("exception"));
         boolean result = iPacketReader.validatePacket("id",  "source","process");
 
+        assertFalse("Should be true", result);
     }
 
     @Test

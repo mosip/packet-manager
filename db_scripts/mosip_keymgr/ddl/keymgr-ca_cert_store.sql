@@ -8,7 +8,8 @@
 -- 
 -- Modified Date        Modified By         Comments / Remarks
 -- ------------------------------------------------------------------------------------------
--- 
+-- Jan-2021		Ram Bhatt	    Set is_deleted flag to not null and default false
+-- Mar-2021		Ram Bhatt	    Reverting is_deleted not null changes
 -- ------------------------------------------------------------------------------------------
 
 -- object: keymgr.ca_cert_store | type: TABLE --
@@ -21,7 +22,7 @@ CREATE TABLE keymgr.ca_cert_store(
 	cert_not_before timestamp,
 	cert_not_after timestamp,
 	crl_uri character varying(120),
-	cert_data character varying(2500),
+	cert_data character varying,
 	cert_thumbprint character varying(100),
 	cert_serial_no character varying(50),
 	partner_domain character varying(36),
@@ -29,7 +30,7 @@ CREATE TABLE keymgr.ca_cert_store(
 	cr_dtimes timestamp,
 	upd_by character varying(256),
 	upd_dtimes timestamp,
-	is_deleted boolean,
+	is_deleted boolean DEFAULT FALSE,
 	del_dtimes timestamp,
 	CONSTRAINT pk_cacs_id PRIMARY KEY (cert_id)
 

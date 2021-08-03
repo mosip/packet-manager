@@ -10,7 +10,6 @@ import io.mosip.commons.packet.spi.IPacketCryptoService;
 import io.mosip.kernel.core.exception.BaseUncheckedException;
 import io.mosip.kernel.core.util.DateUtils;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -146,7 +145,6 @@ public class PacketKeeperTest {
     }
 
     @Test(expected = PacketKeeperException.class)
-    @Ignore
     public void testPacketIntegrityFailure() throws PacketKeeperException {
         Mockito.when(onlineCrypto.verify(any(), any())).thenReturn(false);
 

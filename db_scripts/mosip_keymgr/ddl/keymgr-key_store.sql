@@ -9,6 +9,7 @@
 -- Modified Date        Modified By         Comments / Remarks
 -- ------------------------------------------------------------------------------------------
 -- Sep-2020             Sadanandegowda DM   Update private_key data type and added certificate_data attribute
+-- Jan-2021		Ram Bhatt	    Set is_deleted flag to not null and default false
 -- ------------------------------------------------------------------------------------------
 
 -- object: keymgr.key_store | type: TABLE --
@@ -17,12 +18,12 @@ CREATE TABLE keymgr.key_store(
 	id character varying(36) NOT NULL,
 	master_key character varying(36) NOT NULL,
 	private_key character varying(2500) NOT NULL,
-	certificate_data character varying(2500) NOT NULL,
+	certificate_data character varying NOT NULL,
 	cr_by character varying(256) NOT NULL,
 	cr_dtimes timestamp NOT NULL,
 	upd_by character varying(256),
 	upd_dtimes timestamp,
-	is_deleted boolean,
+	is_deleted boolean DEFAULT FALSE,
 	del_dtimes timestamp,
 	CONSTRAINT pk_keystr_id PRIMARY KEY (id)
 
