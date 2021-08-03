@@ -12,8 +12,7 @@ import org.springframework.context.annotation.ComponentScan;
  *
  */
 @SpringBootApplication
-@ComponentScan(basePackages = {"io.mosip.commons.packet.*" ,
-         "io.mosip.commons.packetmanager.*", "${mosip.auth.adapter.impl.basepackage}"})
+@ComponentScan(basePackages = { "io.mosip.*"})
 @EnableCaching
 public class PacketServiceApp {
 
