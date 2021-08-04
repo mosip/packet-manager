@@ -113,7 +113,8 @@ public class PacketKeeper {
      */
     public boolean checkSignature(Packet packet, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
         boolean result = disablePacketSignatureVerification ? true :
-        		getCryptoService().verify(packet.getPacketInfo().getRefId(), packet.getPacket()
+        		getCryptoService().verify(helper.getRefId(
+                        packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), packet.getPacket()
         				, CryptoUtil.decodeBase64(packet.getPacketInfo().getSignature()));
         if (result)
             result = checkIntegrity(packet.getPacketInfo(), encryptedSubPacket);
