@@ -122,6 +122,13 @@ public class PacketManagerHelper {
         return packetInfo;
     }
 
+    /**
+     * This code is added for backward compatibility
+     *
+     * @param id
+     * @param refId
+     * @return
+     */
     public String getRefId(String id, String refId) {
         if (refId != null)
             return refId;
