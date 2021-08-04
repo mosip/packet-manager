@@ -74,6 +74,9 @@ public class PacketWriterImpl implements IPacketWriter {
     @Value("${default.provider.version:v1.0}")
     private String defaultProviderVersion;
 
+    @Value("${mosip.utc-datetime-pattern:yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}")
+    private String dateTimePattern;
+
     @Value("${packetmanager.zip.datetime.pattern:yyyyMMddHHmmss}")
     private String zipDatetimePattern;
 
@@ -81,7 +84,7 @@ public class PacketWriterImpl implements IPacketWriter {
 
     public RegistrationPacket initialize(String id) {
         if (this.registrationPacket == null || !registrationPacket.getRegistrationId().equalsIgnoreCase(id)) {
-            this.registrationPacket = new RegistrationPacket();
+            this.registrationPacket = new RegistrationPacket(dateTimePattern);
             this.registrationPacket.setRegistrationId(id);
         }
         return registrationPacket;

@@ -65,6 +65,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     private boolean isPrependThumbprintEnabled;
 
     @Autowired
+	@Qualifier("restTemplate")
     private RestTemplate restTemplate;
 
     @Autowired

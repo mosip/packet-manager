@@ -3,27 +3,29 @@
  */
 package io.mosip.commons.packet.util;
 
-import io.mosip.commons.packet.constants.PacketManagerConstants;
-import io.mosip.commons.packet.exception.ApiNotAccessibleException;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.FIELDCATEGORY;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.PROPERTIES;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.RESPONSE;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.SCHEMA_JSON;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-
-import static io.mosip.commons.packet.constants.PacketManagerConstants.FIELDCATEGORY;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.PROPERTIES;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.RESPONSE;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.SCHEMA_JSON;
+import io.mosip.commons.packet.constants.PacketManagerConstants;
+import io.mosip.commons.packet.exception.ApiNotAccessibleException;
 
 /**
  * The Class IdSchemaUtils.
@@ -47,6 +49,7 @@ public class IdSchemaUtils {
     private String idschemaUrl;
 
     @Autowired
+	@Qualifier("restTemplate")
     private RestTemplate restTemplate;
 
 
