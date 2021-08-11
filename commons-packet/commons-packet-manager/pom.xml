@@ -37,7 +37,6 @@
         <hazelcast.kubernetes.version>1.3.1</hazelcast.kubernetes.version>
 
         <kernel-keymanager-service.version>1.2.0-SNAPSHOT</kernel-keymanager-service.version>
-        <kernel-idobjectvalidator.version>1.2.0-SNAPSHOT</kernel-idobjectvalidator.version>
         <kernel.core.version>1.2.0-SNAPSHOT</kernel.core.version>
         <kernel.biometrics.api.version>1.2.0-SNAPSHOT</kernel.biometrics.api.version>
         <kernel.cbeffutil.api.version>1.2.0-SNAPSHOT</kernel.cbeffutil.api.version>
@@ -54,7 +53,7 @@
         <dependency>
             <groupId>io.mosip.kernel</groupId>
             <artifactId>kernel-idobjectvalidator</artifactId>
-            <version>${kernel-idobjectvalidator.version}</version>
+            <version>1.2.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

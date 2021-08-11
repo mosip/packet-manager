@@ -1,12 +1,13 @@
 package io.mosip.commons.packet.audit;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
+import io.mosip.commons.packet.constants.LoggerFileConstant;
+import io.mosip.commons.packet.dto.packet.AuditRequestDto;
+import io.mosip.kernel.core.http.RequestWrapper;
+import io.mosip.kernel.core.util.DateUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -14,23 +15,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import io.mosip.commons.packet.constants.LoggerFileConstant;
-import io.mosip.commons.packet.dto.packet.AuditRequestDto;
-import io.mosip.commons.packet.util.PacketManagerLogger;
-import io.mosip.kernel.core.exception.ExceptionUtils;
-import io.mosip.kernel.core.http.RequestWrapper;
-import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Component
 public class AuditLogEntry {
 
 	/** The logger. */
-	private final Logger LOGGER = PacketManagerLogger.getLogger(AuditLogEntry.class);
+	private final Logger LOGGER = LoggerFactory.getLogger(AuditLogEntry.class);
 
 	@Autowired
-	@Lazy
-	@Qualifier("restTemplate")
 	private RestTemplate restTemplate;
 
 	@Autowired
@@ -85,8 +79,7 @@ public class AuditLogEntry {
 					String.class);
 
 		} catch (Exception arae) {
-		    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-		    		null, ExceptionUtils.getStackTrace(arae));  
+			LOGGER.error(arae.getMessage());
 		}
 		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
 				id,
