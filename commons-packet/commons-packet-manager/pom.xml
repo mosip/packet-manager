@@ -283,8 +283,8 @@
           </plugins>
         </build>
 		<scm>
-                <connection>scm:git:git://github.com/mosip/commons.git</connection>
-                <developerConnection>scm:git:ssh://github.com:mosip/commons.git</developerConnection>
+                <connection>scm:git:git://github.com/mosip/packet-manager.git</connection>
+                <developerConnection>scm:git:ssh://github.com:mosip/packet-manager.git</developerConnection>
                 <url>https://github.com/mosip/commons</url>
                 <tag>HEAD</tag>
         </scm>
