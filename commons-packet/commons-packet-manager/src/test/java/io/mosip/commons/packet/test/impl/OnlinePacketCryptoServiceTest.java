@@ -63,9 +63,9 @@ public class OnlinePacketCryptoServiceTest {
     public void setup() {
         ReflectionTestUtils.setField(onlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         ReflectionTestUtils.setField(onlinePacketCryptoService, "APPLICATION_VERSION", "v1");
-        ReflectionTestUtils.setField(onlinePacketCryptoService, "centerIdLength", 5);
+        //ReflectionTestUtils.setField(onlinePacketCryptoService, "centerIdLength", 5);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerDecryptUrl", "http://localhost");
-        ReflectionTestUtils.setField(onlinePacketCryptoService, "machineIdLength", 5);
+        //ReflectionTestUtils.setField(onlinePacketCryptoService, "machineIdLength", 5);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerEncryptUrl", "http://localhost");
         ReflectionTestUtils.setField(onlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
@@ -127,7 +127,7 @@ public class OnlinePacketCryptoServiceTest {
     @Test(expected = PacketDecryptionFailureException.class)
     public void encryptExceptionTest() throws IOException {
         String expected = "signature";
-        byte[] packet = "packet".getBytes();
+        byte[] packet = "packetpacketpacketpacket".getBytes();
 
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerEncryptUrl", "localhost");
 
@@ -159,7 +159,7 @@ public class OnlinePacketCryptoServiceTest {
     @Test(expected = PacketDecryptionFailureException.class)
     public void decryptExceptionTest() throws IOException {
         String expected = "signature";
-        byte[] packet = "packet".getBytes();
+        byte[] packet = "10001100770000320200720092256_packetwithsignatureandaad".getBytes();
 
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerDecryptUrl", "localhost");
 
@@ -172,7 +172,7 @@ public class OnlinePacketCryptoServiceTest {
     @Test
     public void verifyTest() throws IOException {
         String expected = "signature";
-        byte[] packet = "packet".getBytes();
+        byte[] packet = "packetpacketpacketpacket".getBytes();
         
         LinkedHashMap submap = new LinkedHashMap();
         submap.put("verified", true);
@@ -193,7 +193,7 @@ public class OnlinePacketCryptoServiceTest {
         
         Mockito.when(mapper.readValue(anyString(), any(Class.class))).thenReturn(responseMap);
 
-        boolean result = onlinePacketCryptoService.verify("10077",packet, expected.getBytes());
+        boolean result = onlinePacketCryptoService.verify("10077_10077",packet, expected.getBytes());
         assertTrue(result);
     }
 }
