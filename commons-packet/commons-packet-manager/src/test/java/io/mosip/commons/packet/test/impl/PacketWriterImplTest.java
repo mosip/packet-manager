@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -66,6 +67,8 @@ public class PacketWriterImplTest {
         ReflectionTestUtils.setField(packetWriter, "defaultProviderVersion", "v1.0");
         ReflectionTestUtils.setField(packetWriter, "defaultSubpacketName", "id");
         ReflectionTestUtils.setField(packetWriter, "defaultSubpacketName", "id");
+        ReflectionTestUtils.setField(packetWriter, "dateTimePattern", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        ReflectionTestUtils.setField(packetWriter, "zipDatetimePattern", "yyyyMMddHHmmss");
 
         PacketInfo packetInfo = new PacketInfo();
         packetInfo.setSource(source);

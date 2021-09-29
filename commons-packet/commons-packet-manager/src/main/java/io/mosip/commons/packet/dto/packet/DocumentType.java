@@ -10,5 +10,6 @@ public class DocumentType {
 	private String value;
 	private String type;
 	private String format;
+	private String refNumber;
 
 }
