@@ -7,12 +7,16 @@ import static org.mockito.ArgumentMatchers.anyString;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.util.PacketManagerHelper;
+import io.mosip.kernel.core.util.CryptoUtil;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -20,6 +24,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -61,6 +66,9 @@ public class PacketKeeperTest {
     @Qualifier("OnlinePacketCryptoServiceImpl")
     private IPacketCryptoService onlineCrypto;
 
+    @Mock
+    private PacketManagerHelper helper;
+
     /*@Mock
     private OfflinePacketCryptoServiceImpl offlineCrypto;*/
 
@@ -72,7 +80,7 @@ public class PacketKeeperTest {
     private static final String process = "process";
 
     @Before
-    public void setup() {
+    public void setup() throws NoSuchAlgorithmException {
         ReflectionTestUtils.setField(packetKeeper, "cryptoName", onlineCrypto.getClass().getSimpleName());
         ReflectionTestUtils.setField(packetKeeper, "adapterName", swiftAdapter.getClass().getSimpleName());
         ReflectionTestUtils.setField(packetKeeper, "PACKET_MANAGER_ACCOUNT", "PACKET_MANAGER_ACCOUNT");
@@ -82,11 +90,11 @@ public class PacketKeeperTest {
 
         packetInfo = new PacketInfo();
         packetInfo.setCreationDate(DateUtils.getCurrentDateTimeString());
-        packetInfo.setEncryptedHash("yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA");
+        packetInfo.setEncryptedHash("yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA=");
         packetInfo.setId(id);
         packetInfo.setProcess(process);
         packetInfo.setSource(source);
-        packetInfo.setSignature("sign");
+        packetInfo.setSignature("signatures");
         packetInfo.setSchemaVersion("0.1");
         packetInfo.setProviderVersion("1.0");
         packet = new Packet();
@@ -97,8 +105,8 @@ public class PacketKeeperTest {
         metaMap.put(PacketManagerConstants.ID, id);
         metaMap.put(PacketManagerConstants.SOURCE, source);
         metaMap.put(PacketManagerConstants.PROCESS, process);
-        metaMap.put(PacketManagerConstants.SIGNATURE, "signature");
-        metaMap.put(PacketManagerConstants.ENCRYPTED_HASH, "yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA");
+        metaMap.put(PacketManagerConstants.SIGNATURE, "signatures");
+        metaMap.put(PacketManagerConstants.ENCRYPTED_HASH, "yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA=");
 
         Mockito.when(onlineCrypto.encrypt(any(), any())).thenReturn("encryptedpacket".getBytes());
         Mockito.when(onlineCrypto.sign(any())).thenReturn("signed data".getBytes());
@@ -114,8 +122,6 @@ public class PacketKeeperTest {
         Map<String, String> tagsMap = new HashMap<>();
         tagsMap.put("osivalidation", "pass");
         Mockito.when(swiftAdapter.getTags(any(), any())).thenReturn(tagsMap);
-
-     
     }
 
     @Test
@@ -150,7 +156,7 @@ public class PacketKeeperTest {
 
     @Test
     public void testGetPacketSuccess() throws PacketKeeperException {
-        Packet result = packetKeeper.getPacket(packetInfo);
+         Packet result = packetKeeper.getPacket(packetInfo);
 
         assertTrue(result.getPacketInfo().getId().equals(id));
         assertTrue(result.getPacketInfo().getSource().equals(source));
