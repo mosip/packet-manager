@@ -29,7 +29,7 @@ The following command should be executed to run any service locally in specific 
 The following command should be executed to run a docker image - 
 `docker run -it -p <host-port>:<container-port> -e active_profile_env={profile} -e spring_config_label_env= {branch} -e spring_config_url_env={config_server_url} <docker-registry-IP:docker-registry-port/<dcker-image>`
 
-#### Run as Developer
+#### Run as Developer 
 For running services in a native environment developer has to run some core components
 [Instruction to follow for running core components](./StartKernelCoreComponents_instructions.md) 
 ### Configurations
