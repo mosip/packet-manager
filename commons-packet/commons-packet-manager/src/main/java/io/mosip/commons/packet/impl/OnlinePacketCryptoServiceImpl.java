@@ -257,8 +257,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     @Override
     public boolean verify(String refId, byte[] packet, byte[] signature) {
        try {
-           String machineId = refId.split("_")[1];
-    	   	String publicKey=getPublicKey(machineId);
+    	   	String publicKey=getPublicKey(refId);
             TpmSignVerifyRequestDto dto = new TpmSignVerifyRequestDto();
             dto.setData(CryptoUtil.encodeBase64(packet));
             dto.setSignature(CryptoUtil.encodeBase64(signature));
@@ -274,11 +273,15 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             ResponseEntity<String> response = restTemplate.exchange(keymanagerCsverifysignUrl, HttpMethod.POST, httpEntity,
                     String.class);
             LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
-            if (responseMap != null && responseMap.size() > 0)
-                return responseMap.get("verified") != null && responseMap.get("verified").toString().equalsIgnoreCase("true");
-            else {
-                LOGGER.error(PacketManagerLogger.SESSIONID, "SIGNATURE", new String(signature),
-                        "Failed to verify signature");
+            if (responseMap != null && responseMap.size() > 0) {
+                boolean result = responseMap.get("verified") != null && responseMap.get("verified").toString().equalsIgnoreCase("true");
+                if (!result)
+                    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                        "Signature verification Failed.");
+                return result;
+            } else {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                        "Failed to verify signature. Received error response from keymanager verify API.");
                 throw new SignatureException();
             }
         } catch (IOException e) {
@@ -292,15 +295,16 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
         }
     }
 
-	private String getPublicKey(String machineId) throws IOException {
+	private String getPublicKey(String refId) throws IOException {
+        String machineId = refId.split("_")[1];
 		ResponseEntity<String> response = restTemplate.exchange(syncdataGetTpmKeyUrl+machineId, HttpMethod.GET, null,
                 String.class);
 		 LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
 		 if (responseMap != null && responseMap.size() > 0)
-             return (String) responseMap.get("signingPublicKey") ;
+             return (String) responseMap.get("signingPublicKey");
          else {
-             LOGGER.error(PacketManagerLogger.SESSIONID, "PUBLIC_KEY", machineId,
-                     "Failed to get public key");
+             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                     "Failed to get public key. Error Response : " + response.getBody());
              throw new SignatureException();
          }
 	}

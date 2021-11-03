@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.util.PacketManagerHelper;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -44,6 +45,9 @@ public class PacketKeeperTest {
 
     @InjectMocks
     private PacketKeeper packetKeeper;
+
+    @Mock
+    private PacketManagerHelper helper;
 
     @Mock
     @Qualifier("SwiftAdapter")
@@ -97,7 +101,7 @@ public class PacketKeeperTest {
         metaMap.put(PacketManagerConstants.ID, id);
         metaMap.put(PacketManagerConstants.SOURCE, source);
         metaMap.put(PacketManagerConstants.PROCESS, process);
-        metaMap.put(PacketManagerConstants.SIGNATURE, "signature");
+        metaMap.put(PacketManagerConstants.SIGNATURE, "signaturesignaturesignaturesignaturesignaturesignaturesignaturesignaturesignaturesignature");
         metaMap.put(PacketManagerConstants.ENCRYPTED_HASH, "yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA");
 
         Mockito.when(onlineCrypto.encrypt(any(), any())).thenReturn("encryptedpacket".getBytes());
@@ -110,6 +114,7 @@ public class PacketKeeperTest {
         Mockito.when(swiftAdapter.getObject(any(), any(),any(), any(), any())).thenReturn(is);
         Mockito.when(onlineCrypto.decrypt(any(), any())).thenReturn("decryptedpacket".getBytes());
         Mockito.when(swiftAdapter.getMetaData(any(), any(),any(), any(), any())).thenReturn(metaMap);
+        Mockito.when(helper.getRefId(any(), any())).thenReturn("11001_11001");
         Mockito.when(onlineCrypto.verify(any(),any(), any())).thenReturn(true);
         Map<String, String> tagsMap = new HashMap<>();
         tagsMap.put("osivalidation", "pass");
