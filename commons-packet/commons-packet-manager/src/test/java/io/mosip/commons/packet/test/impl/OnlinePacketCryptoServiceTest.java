@@ -63,9 +63,7 @@ public class OnlinePacketCryptoServiceTest {
     public void setup() {
         ReflectionTestUtils.setField(onlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         ReflectionTestUtils.setField(onlinePacketCryptoService, "APPLICATION_VERSION", "v1");
-        ReflectionTestUtils.setField(onlinePacketCryptoService, "centerIdLength", 5);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerDecryptUrl", "http://localhost");
-        ReflectionTestUtils.setField(onlinePacketCryptoService, "machineIdLength", 5);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerEncryptUrl", "http://localhost");
         ReflectionTestUtils.setField(onlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
@@ -193,7 +191,7 @@ public class OnlinePacketCryptoServiceTest {
         
         Mockito.when(mapper.readValue(anyString(), any(Class.class))).thenReturn(responseMap);
 
-        boolean result = onlinePacketCryptoService.verify("10077",packet, expected.getBytes());
+        boolean result = onlinePacketCryptoService.verify("10077_10077",packet, expected.getBytes());
         assertTrue(result);
     }
 }

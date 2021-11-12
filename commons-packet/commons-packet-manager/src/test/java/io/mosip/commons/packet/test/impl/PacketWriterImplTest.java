@@ -66,6 +66,8 @@ public class PacketWriterImplTest {
         ReflectionTestUtils.setField(packetWriter, "defaultProviderVersion", "v1.0");
         ReflectionTestUtils.setField(packetWriter, "defaultSubpacketName", "id");
         ReflectionTestUtils.setField(packetWriter, "defaultSubpacketName", "id");
+        ReflectionTestUtils.setField(packetWriter, "dateTimePattern", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+        ReflectionTestUtils.setField(packetWriter, "zipDatetimePattern", "yyyyMMddHHmmss");
 
         PacketInfo packetInfo = new PacketInfo();
         packetInfo.setSource(source);
