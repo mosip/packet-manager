@@ -40,8 +40,8 @@ public class PacketWriterController {
 
     @Autowired
     private PacketWriterService packetWriterService;
-
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPutcreatepacket())")
+    //@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
     @ResponseFilter
     @PutMapping(path = "/createPacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "createPacket", description = "createPacket", tags = { "packet-writer-controller" })
@@ -66,7 +66,8 @@ public class PacketWriterController {
         return response;
     }
 
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaddtag())")
 	@ResponseFilter
 	@PostMapping(path = "/addTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "setTags", description = "setTags", tags = { "packet-writer-controller" })
@@ -83,8 +84,8 @@ public class PacketWriterController {
 		response.setResponse(tagResponse);
 		return response;
 	}
-
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaddorupdatetag())")
+	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
 	@ResponseFilter
 	@PostMapping(path = "/addOrUpdateTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "updateTags", description = "updateTags", tags = { "packet-writer-controller" })
@@ -100,8 +101,9 @@ public class PacketWriterController {
 		response.setResponse(tagResponse);
 		return response;
 	}
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
 	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostdeletetag())")
 	@PostMapping(path = "/deleteTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "deleteTags", description = "deleteTags", tags = { "packet-writer-controller" })
 	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
