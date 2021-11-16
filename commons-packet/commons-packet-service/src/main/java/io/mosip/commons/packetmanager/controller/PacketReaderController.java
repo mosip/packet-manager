@@ -173,7 +173,7 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+    //@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
     @ResponseFilter
     @PreAuthorize("hasAnyRole(@authorizedRoles.getPostaudits())")
     @PostMapping(path = "/audits", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
