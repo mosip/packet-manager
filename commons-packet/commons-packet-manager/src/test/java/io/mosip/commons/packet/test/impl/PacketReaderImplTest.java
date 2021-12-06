@@ -16,7 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.facade.PacketReader;
 import org.apache.commons.io.IOUtils;
+import org.json.JSONException;
 import org.json.simple.JSONObject;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -71,6 +73,9 @@ public class PacketReaderImplTest {
     private IPacketReader iPacketReader = new PacketReaderImpl();
 
     @Mock
+    private PacketReader packetReader;
+
+    @Mock
     private PacketValidator packetValidator;
 
     @Mock
@@ -84,6 +89,7 @@ public class PacketReaderImplTest {
 
     private static final String docName = "proofOfIdentity";
     private static final String biometricFieldName = "individualBiometrics";
+    Map<String, Object> keyValueMap = null;
 
     @Before
     public void setup() throws PacketKeeperException, IOException {
@@ -179,7 +185,7 @@ public class PacketReaderImplTest {
                 "  \"email\" : \"niyati.swami@technoforte.co.in\"\n" +
                 "} } ";
 
-        Map<String, Object> keyValueMap = new LinkedHashMap<>();
+        keyValueMap = new LinkedHashMap<>();
         keyValueMap.put("email", "niyati.swami@technoforte.co.in");
         keyValueMap.put("phone", "9606139887");
         keyValueMap.put("fullName", "[ {\r\n  \"language\" : \"eng\",\r\n  \"value\" : \"Test after fix\"\r\n}, {\r\n  \"language\" : \"ara\",\r\n  \"value\" : \"Test after fix\"\r\n} ]");
@@ -204,11 +210,12 @@ public class PacketReaderImplTest {
 
         when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(finalMap);
         when(idSchemaUtils.getSource(any(), any())).thenReturn("id");
+        when(idSchemaUtils.getIdschemaVersionFromMappingJson()).thenReturn("0.1");
 
     }
 
     @Test
-    public void validatePacketTest() throws JsonProcessingException, PacketKeeperException, InvalidIdSchemaException, IdObjectValidationFailedException, IdObjectIOException, IOException, NoSuchAlgorithmException {
+    public void validatePacketTest() throws JsonProcessingException, PacketKeeperException, InvalidIdSchemaException, IdObjectIOException, IOException, NoSuchAlgorithmException, JSONException, IdObjectValidationFailedException {
         when(packetValidator.validate(anyString(), anyString(), anyString())).thenReturn(true);
         boolean result = iPacketReader.validatePacket("id", "source", "process");
 
@@ -216,7 +223,7 @@ public class PacketReaderImplTest {
     }
 
     @Test(expected = PacketValidationFailureException.class)
-    public void validatePacketExceptionTest() throws JsonProcessingException, PacketKeeperException, InvalidIdSchemaException, IdObjectValidationFailedException, IdObjectIOException, IOException, NoSuchAlgorithmException {
+    public void validatePacketExceptionTest() throws JsonProcessingException, PacketKeeperException, InvalidIdSchemaException, IdObjectValidationFailedException, IdObjectIOException, IOException, NoSuchAlgorithmException, JSONException {
         when(packetValidator.validate(anyString(), anyString(), anyString())).thenThrow(new IOException("exception"));
         boolean result = iPacketReader.validatePacket("id",  "source","process");
 
@@ -268,6 +275,8 @@ public class PacketReaderImplTest {
     @Test
     public void getDocumentTest() {
         List<String> list = Lists.newArrayList("phone", "email");
+        when(packetReader.getField("id","0.1","source","process",false)).thenReturn("0.1");
+        when(packetReader.getField("id",docName,"source","process",false)).thenReturn(keyValueMap.get(docName).toString());
 
         Document result = iPacketReader.getDocument("id", docName, "source", "process");
 
@@ -277,6 +286,8 @@ public class PacketReaderImplTest {
     @Test(expected = GetDocumentException.class)
     public void getDocumentExceptionTest() throws IOException {
         List<String> list = Lists.newArrayList("phone", "email");
+        when(packetReader.getField("id","0.1","source","process",false)).thenReturn("0.1");
+        when(packetReader.getField("id",docName,"source","process",false)).thenReturn(keyValueMap.get(docName).toString());
 
         when(idSchemaUtils.getSource(any(), any())).thenThrow(new IOException("exception"));
 
@@ -310,6 +321,8 @@ public class PacketReaderImplTest {
         PowerMockito.mockStatic(CbeffValidator.class);
         birType.setBirs(Lists.newArrayList(bir1, bir2));
         when(CbeffValidator.getBIRFromXML(any())).thenReturn(birType);
+
+        when(packetReader.getField("id",biometricFieldName,"source","process",false)).thenReturn(keyValueMap.get(biometricFieldName).toString());
 
         BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process");
 
