@@ -85,6 +85,8 @@ public class PacketManagerControllerTest {
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
     }
 
 
