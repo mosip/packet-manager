@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.exception.ObjectDoesnotExistsException;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -45,6 +46,8 @@ public class PacketKeeper {
      * The reg proc logger.
      */
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketKeeper.class);
+    private static final String OBJECT_DOESNOT_EXISTS = "The specified key does not exist";
+    private static final String STATUS_404 = "Status Code: 404; Error Code: NoSuchKey";
 
     @Value("${packet.manager.account.name}")
     private String PACKET_MANAGER_ACCOUNT;
@@ -164,7 +167,9 @@ public class PacketKeeper {
             return packet;
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
-            if (e instanceof BaseCheckedException) {
+            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404))
+                throw new ObjectDoesnotExistsException();
+            else if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             }
