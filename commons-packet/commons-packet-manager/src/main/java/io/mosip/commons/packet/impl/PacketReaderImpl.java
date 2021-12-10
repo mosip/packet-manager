@@ -5,6 +5,7 @@ import static io.mosip.commons.packet.constants.PacketManagerConstants.ID;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.LABEL;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.META_INFO_OPERATIONS_DATA;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.REFNUMBER;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.TYPE;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.VALUE;
 
@@ -215,8 +216,9 @@ public class PacketReaderImpl implements IPacketReader {
 					Document document = new Document();
 					document.setDocument(IOUtils.toByteArray(documentStream));
 					document.setValue(value);
-					document.setType(documentMap.get(TYPE) != null ? documentMap.get(TYPE).toString() : null);
-					document.setFormat(documentMap.get(FORMAT) != null ? documentMap.get(FORMAT).toString() : null);
+					document.setType(documentMap.has(TYPE) ? documentMap.get(TYPE).toString() : null);
+					document.setFormat(documentMap.has(FORMAT) ? documentMap.get(FORMAT).toString() : null);
+					document.setRefNumber(documentMap.has(REFNUMBER) ? documentMap.get(REFNUMBER).toString() : null);
 					return document;
 				}
 			}

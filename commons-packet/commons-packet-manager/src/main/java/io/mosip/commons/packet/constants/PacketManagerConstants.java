@@ -86,6 +86,7 @@ public class PacketManagerConstants {
 	public static final String VALUE = "value";
 	public static final String TYPE = "type";
 	public static final String FORMAT = "format";
+	public static final String REFNUMBER = "refNumber";
 
 	public static final String IDSCHEMA_URL = "IDSCHEMA";
 	public static final String SCHEMA_JSON = "schemaJson";
