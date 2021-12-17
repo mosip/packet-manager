@@ -43,7 +43,8 @@ public class PacketReaderController {
     @Autowired
     private PacketReaderService packetReaderService;
 
-    @PreAuthorize("hasAnyRole('DATA_READ')")
+    //@PreAuthorize("hasAnyRole('DATA_READ')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfield())")
     @ResponseFilter
     @PostMapping(path = "/searchField", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
         public ResponseWrapper<FieldResponseDto> searchField(@RequestBody(required = true) RequestWrapper<FieldDto> fieldDto) {
@@ -61,7 +62,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('DATA_READ')")
+    //@PreAuthorize("hasAnyRole('DATA_READ')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfields())")
     @ResponseFilter
     @PostMapping(path = "/searchFields", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<FieldResponseDto> searchFields(@RequestBody(required = true) RequestWrapper<FieldDtos> request) {
@@ -84,7 +86,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('DOCUMENT_READ')")
+   // @PreAuthorize("hasAnyRole('DOCUMENT_READ')")
+   @PreAuthorize("hasAnyRole(@authorizedRoles.getPostdocument())")
     @ResponseFilter
     @PostMapping(path = "/document", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<Document> getDocument(@RequestBody(required = true) RequestWrapper<DocumentDto> request) {
@@ -99,7 +102,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('BIOMETRIC_READ')")
+   // @PreAuthorize("hasAnyRole('BIOMETRIC_READ')")
+   @PreAuthorize("hasAnyRole(@authorizedRoles.getPostbiometrics())")
     @ResponseFilter
     @PostMapping(path = "/biometrics", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<BiometricRecord> getBiometrics(@RequestBody(required = true) RequestWrapper<BiometricRequestDto> request) {
@@ -115,7 +119,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('METADATA_READ')")
+    //@PreAuthorize("hasAnyRole('METADATA_READ')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostmetainfo())")
     @ResponseFilter
     @PostMapping(path = "/metaInfo", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<FieldResponseDto> getMetaInfo(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
@@ -129,7 +134,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+   // @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+   @PreAuthorize("hasAnyRole(@authorizedRoles.getPostaudits())")
     @ResponseFilter
     @PostMapping(path = "/audits", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<List<FieldResponseDto>> getAudits(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
@@ -149,7 +155,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+  //  @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+  @PreAuthorize("hasAnyRole(@authorizedRoles.getPostvalidatepacket())")
     @ResponseFilter
     @PostMapping(path = "/validatePacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<ValidatePacketResponse> validatePacket(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
@@ -161,8 +168,9 @@ public class PacketReaderController {
         return response;
     }
 
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
-	@ResponseFilter
+	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostgettags())")
+    @ResponseFilter
 	@PostMapping(path = "/getTags", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseWrapper<TagResponseDto> getTags(
 			@RequestBody(required = true) RequestWrapper<TagRequestDto> request) {
@@ -174,7 +182,8 @@ public class PacketReaderController {
 		return response;
 	}
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+   // @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+   @PreAuthorize("hasAnyRole(@authorizedRoles.getPostinfo())")
     @ResponseFilter
     @PostMapping(path = "/info", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<InfoResponseDto> info(@RequestBody(required = true) RequestWrapper<InfoRequestDto> request) {
