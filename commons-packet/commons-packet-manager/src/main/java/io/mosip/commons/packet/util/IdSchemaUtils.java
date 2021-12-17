@@ -10,10 +10,15 @@ import static io.mosip.commons.packet.constants.PacketManagerConstants.RESPONSE;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.SCHEMA_JSON;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.ArrayUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +42,34 @@ import io.mosip.commons.packet.exception.ApiNotAccessibleException;
 @Component
 public class IdSchemaUtils {
 
+    private org.json.simple.JSONObject mappingJsonObject = null;
+    private static Map<String, String> categorySubpacketMapping = new HashMap<>();
     private Map<Double, String> idschema = null;
+    public static final String RESPONSE = "response";
+    public static final String PROPERTIES = "properties";
+    public static final String IDENTITY = "identity";
+    public static final String SCHEMA_CATEGORY = "fieldCategory";
+    public static final String SCHEMA_ID = "id";
+    public static final String SCHEMA_TYPE = "type";
+    public static final String SCHEMA_REF = "$ref";
+    public static final String IDSCHEMA_URL = "IDSCHEMA";
+    public static final String SCHEMA_JSON = "schemaJson";
+    public static final String SCHEMA_VERSION_QUERY_PARAM = "schemaVersion";
+    public static final String SCHEMA_REF_DEFINITIONS_PREFIX = "#/definitions/";
+
+    static {
+        categorySubpacketMapping.put("pvt", "id");
+        categorySubpacketMapping.put("kyc", "id");
+        categorySubpacketMapping.put("none", "id,evidence,optional");
+        categorySubpacketMapping.put("evidence", "evidence");
+        categorySubpacketMapping.put("optional", "optional");
+    }
+
+    @Value("${config.server.file.storage.uri}")
+    private String configServerUrl;
+
+    @Value("${registration.processor.identityjson}")
+    private String mappingjsonFileName;
 
     @Value("${packet.default.source:REGISTRATION_CLIENT}")
     private String defaultSource;
@@ -47,6 +79,9 @@ public class IdSchemaUtils {
 
     @Value("${IDSCHEMAURL:null}")
     private String idschemaUrl;
+    
+    @Autowired
+    private ObjectMapper objMapper;
 
     @Autowired
 	@Qualifier("restTemplate")
@@ -157,5 +192,84 @@ public class IdSchemaUtils {
         } catch (JSONException e) {
             return null;
         }
+    }
+
+    public List<String> getDefaultFields(Double schemaVersion) throws JSONException, IOException {
+        List<String> fieldList = new ArrayList<>();
+        List<Map<String, String>> fieldMapList = loadDefaultFields(schemaVersion);
+        fieldMapList.stream().forEach(f -> fieldList.add(f.get(SCHEMA_ID)));
+        return fieldList;
+    }
+
+    public List<Map<String, String>> loadDefaultFields(Double schemaVersion) throws JSONException, IOException {
+        Map<String, List<Map<String, String>>> packetBasedMap = new HashMap<String, List<Map<String, String>>>();
+
+        String schemaJson = getIdSchema(schemaVersion);
+
+        JSONObject schema = getIdentityFieldsSchema(schemaJson);
+
+        JSONArray fieldNames = schema.names();
+        for(int i=0;i<fieldNames.length();i++) {
+            String fieldName = fieldNames.getString(i);
+            JSONObject fieldDetail = schema.getJSONObject(fieldName);
+            String fieldCategory = fieldDetail.has(SCHEMA_CATEGORY) ?
+                    fieldDetail.getString(SCHEMA_CATEGORY) : "none";
+            String packets = categorySubpacketMapping.get(fieldCategory.toLowerCase());
+
+            String[] packetNames = packets.split(",");
+            for(String packetName : packetNames) {
+                if(!packetBasedMap.containsKey(packetName)) {
+                    packetBasedMap.put(packetName, new ArrayList<Map<String, String>>());
+                }
+
+                Map<String, String> attributes = new HashMap<>();
+                attributes.put(SCHEMA_ID, fieldName);
+                attributes.put(SCHEMA_TYPE, fieldDetail.has(SCHEMA_REF) ?
+                        fieldDetail.getString(SCHEMA_REF) : fieldDetail.getString(SCHEMA_TYPE));
+                packetBasedMap.get(packetName).add(attributes);
+            }
+        }
+        return packetBasedMap.get("id");
+    }
+
+    private JSONObject getIdentityFieldsSchema(String schemaJson) throws JSONException {
+
+        JSONObject schema = new JSONObject(schemaJson);
+        schema =  schema.getJSONObject(PROPERTIES);
+        schema =  schema.getJSONObject(IDENTITY);
+        schema =  schema.getJSONObject(PROPERTIES);
+
+        return schema;
+    }
+
+
+    public String getIdschemaVersionFromMappingJson() throws IOException {
+        String field = getJSONValue(getJSONObject(getMappingJson(), PacketManagerConstants.IDSCHEMA_VERSION), PacketManagerConstants.VALUE);
+        return field;
+
+    }
+
+    public org.json.simple.JSONObject getMappingJson() throws IOException {
+
+        if (mappingJsonObject == null) {
+            String mappingJsonString = restTemplate.getForObject(configServerUrl + "/" + mappingjsonFileName, String.class);
+            mappingJsonObject = objMapper.readValue(mappingJsonString, org.json.simple.JSONObject.class);
+
+        }
+        return getJSONObject(mappingJsonObject, PacketManagerConstants.IDENTITY);
+    }
+
+    public static org.json.simple.JSONObject getJSONObject(org.json.simple.JSONObject jsonObject, Object key) {
+        if(jsonObject == null)
+            return null;
+        LinkedHashMap identity = (LinkedHashMap) jsonObject.get(key);
+        return identity != null ? new org.json.simple.JSONObject(identity) : null;
+    }
+
+    public static <T> T getJSONValue(org.json.simple.JSONObject jsonObject, String key) {
+        if(jsonObject == null)
+            return null;
+        T value = (T) jsonObject.get(key);
+        return value;
     }
 }
