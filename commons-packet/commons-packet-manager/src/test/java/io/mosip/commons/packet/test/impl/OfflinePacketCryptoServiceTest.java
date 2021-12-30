@@ -69,7 +69,7 @@ public class OfflinePacketCryptoServiceTest {
     public void signTest() {
         String packetSignature = "signature";
         TpmSignResponseDto signatureResponse = new TpmSignResponseDto();
-        signatureResponse.setData(CryptoUtil.encodeBase64(packetSignature.getBytes(StandardCharsets.UTF_8)));
+        signatureResponse.setData(CryptoUtil.encodeToURLSafeBase64(packetSignature.getBytes(StandardCharsets.UTF_8)));
 
         Mockito.when(clientCryptoManagerService.csSign(any())).thenReturn(signatureResponse);
 

@@ -88,7 +88,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
         try {
             
         	TpmSignRequestDto dto = new TpmSignRequestDto();
-            dto.setData(CryptoUtil.encodeBase64(packet));
+            dto.setData(CryptoUtil.encodeToURLSafeBase64(packet));
             RequestWrapper<TpmSignRequestDto> request = new RequestWrapper<>();
             request.setRequest(dto);
             request.setMetadata(null);
@@ -101,7 +101,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                     String.class);
             LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");
             if (responseMap != null && responseMap.size() > 0)
-                return CryptoUtil.decodeBase64((String) responseMap.get("data"));
+                return CryptoUtil.decodeURLSafeBase64((String) responseMap.get("data"));
             else
                 throw new SignatureException();
         } catch (IOException e) {
@@ -116,7 +116,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
         byte[] encryptedPacket = null;
 
         try {
-            String packetString = CryptoUtil.encodeBase64String(packet);
+            String packetString = CryptoUtil.encodeToURLSafeBase64(packet);
             CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
             RequestWrapper<CryptomanagerRequestDto> request = new RequestWrapper<>();
             cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
@@ -129,8 +129,8 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             byte[] aad = new byte[CryptomanagerConstant.GCM_AAD_LENGTH];
             sRandom.nextBytes(nonce);
             sRandom.nextBytes(aad);
-            cryptomanagerRequestDto.setAad(CryptoUtil.encodeBase64String(aad));
-            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeBase64String(nonce));
+            cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
+            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
             cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
 
             request.setId(DECRYPT_SERVICE_ID);
@@ -154,7 +154,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                         "Packet encryption failure message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            byte[] encryptedData = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+            byte[] encryptedData = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
             encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
                     "Successfully encrypted Packet");
@@ -197,9 +197,9 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                                             CryptomanagerConstant.GCM_NONCE_LENGTH + CryptomanagerConstant.GCM_AAD_LENGTH);
             byte[] encryptedData = Arrays.copyOfRange(packet, CryptomanagerConstant.GCM_NONCE_LENGTH + CryptomanagerConstant.GCM_AAD_LENGTH,
                                         packet.length);
-            cryptomanagerRequestDto.setAad(CryptoUtil.encodeBase64String(aad));
-            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeBase64String(nonce));
-            cryptomanagerRequestDto.setData(CryptoUtil.encodeBase64String(encryptedData));
+            cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
+            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
+            cryptomanagerRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(encryptedData));
             cryptomanagerRequestDto.setPrependThumbprint(isPrependThumbprintEnabled);
             cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
 
@@ -226,7 +226,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                         "Error message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            decryptedPacket = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+            decryptedPacket = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
                     "Successfully decrypted Packet");
         } catch (IOException e) {
@@ -259,8 +259,8 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
        try {
     	   	String publicKey=getPublicKey(refId);
             TpmSignVerifyRequestDto dto = new TpmSignVerifyRequestDto();
-            dto.setData(CryptoUtil.encodeBase64(packet));
-            dto.setSignature(CryptoUtil.encodeBase64(signature));
+            dto.setData(CryptoUtil.encodeToURLSafeBase64(packet));
+            dto.setSignature(CryptoUtil.encodeToURLSafeBase64(signature));
             dto.setPublicKey(publicKey);
             RequestWrapper<TpmSignVerifyRequestDto> request = new RequestWrapper<>();
             request.setRequest(dto);
