@@ -84,7 +84,6 @@ public class IdSchemaUtils {
     private ObjectMapper objMapper;
 
     @Autowired
-	@Qualifier("restTemplate")
     private RestTemplate restTemplate;
 
 

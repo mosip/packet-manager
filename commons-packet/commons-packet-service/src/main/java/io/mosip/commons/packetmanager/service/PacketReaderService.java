@@ -80,7 +80,6 @@ public class PacketReaderService {
     private PacketReader packetReader;
 
     @Autowired
-	@Qualifier("restTemplate")
     private RestTemplate restTemplate;
 
     @Autowired
