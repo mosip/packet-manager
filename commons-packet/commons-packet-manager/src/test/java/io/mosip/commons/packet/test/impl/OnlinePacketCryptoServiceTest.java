@@ -73,7 +73,7 @@ public class OnlinePacketCryptoServiceTest {
     public void signTest() throws IOException {
         String expected = "signature";
         LinkedHashMap submap = new LinkedHashMap();
-        submap.put("data", CryptoUtil.encodeBase64(expected.getBytes(StandardCharsets.UTF_8)));
+        submap.put("data", CryptoUtil.encodeToURLSafeBase64(expected.getBytes(StandardCharsets.UTF_8)));
         LinkedHashMap responseMap = new LinkedHashMap();
         responseMap.put("response", submap);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "keymanagerCsSignUrl", "localhost");
@@ -140,7 +140,7 @@ public class OnlinePacketCryptoServiceTest {
         byte[] packet = "10001100770000320200720092256_packetwithsignatureandaad".getBytes();
         CryptomanagerResponseDto cryptomanagerResponseDto = new CryptomanagerResponseDto();
         cryptomanagerResponseDto.setErrors(null);
-        DecryptResponseDto decryptResponseDto = new DecryptResponseDto(CryptoUtil.encodeBase64("packet".getBytes()));
+        DecryptResponseDto decryptResponseDto = new DecryptResponseDto(CryptoUtil.encodeToURLSafeBase64("packet".getBytes()));
         cryptomanagerResponseDto.setResponse(decryptResponseDto);
 
 

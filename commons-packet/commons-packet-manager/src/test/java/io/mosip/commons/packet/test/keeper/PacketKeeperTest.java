@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.mosip.commons.packet.util.PacketManagerHelper;
+import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -24,8 +25,6 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import com.google.common.collect.Lists;
 
 import io.mosip.commons.khazana.dto.ObjectDto;
 import io.mosip.commons.khazana.spi.ObjectStoreAdapter;

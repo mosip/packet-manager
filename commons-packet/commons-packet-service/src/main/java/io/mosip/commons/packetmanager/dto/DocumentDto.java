@@ -11,4 +11,5 @@ public class DocumentDto {
     private String documentName;
     private String source;
     private String process;
+    private Boolean bypassCache;
 }
