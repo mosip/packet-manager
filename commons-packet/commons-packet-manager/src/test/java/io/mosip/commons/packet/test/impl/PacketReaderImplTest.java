@@ -18,6 +18,7 @@ import java.util.Map;
 
 import io.mosip.commons.packet.facade.PacketReader;
 import org.apache.commons.io.IOUtils;
+import org.assertj.core.util.Lists;
 import org.json.JSONException;
 import org.json.simple.JSONObject;
 import org.junit.Before;
@@ -35,7 +36,6 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 
 import io.mosip.commons.packet.dto.Document;
 import io.mosip.commons.packet.dto.Packet;

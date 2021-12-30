@@ -99,7 +99,7 @@ public class PacketKeeper {
      * @return : boolean
      */
     public boolean checkIntegrity(PacketInfo packetInfo, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
-        String hash = CryptoUtil.encodeBase64(HMACUtils2.generateHash(encryptedSubPacket));
+        String hash = CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket));
         boolean result = hash.equals(packetInfo.getEncryptedHash());
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
                 getName(packetInfo.getId(), packetInfo.getPacketName()), "Integrity check : " + result);
@@ -118,7 +118,7 @@ public class PacketKeeper {
         boolean result = disablePacketSignatureVerification ? true :
         		getCryptoService().verify(helper.getRefId(
                         packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), packet.getPacket()
-        				, CryptoUtil.decodeBase64(packet.getPacketInfo().getSignature()));
+        				, CryptoUtil.decodeURLSafeBase64(packet.getPacketInfo().getSignature()));
         if (result)
             result = checkIntegrity(packet.getPacketInfo(), encryptedSubPacket);
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
@@ -201,9 +201,9 @@ public class PacketKeeper {
             if (response) {
                 PacketInfo packetInfo = packet.getPacketInfo();
                 // sign encrypted packet
-                packetInfo.setSignature(CryptoUtil.encodeBase64(getCryptoService().sign(packet.getPacket())));
+                packetInfo.setSignature(CryptoUtil.encodeToURLSafeBase64(getCryptoService().sign(packet.getPacket())));
                 // generate encrypted packet hash
-                packetInfo.setEncryptedHash(CryptoUtil.encodeBase64(HMACUtils2.generateHash(encryptedSubPacket)));
+                packetInfo.setEncryptedHash(CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket)));
                 Map<String, Object> metaMap = PacketManagerHelper.getMetaMap(packetInfo);
                 metaMap = getAdapter().addObjectMetaData(PACKET_MANAGER_ACCOUNT,
                         packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(), packet.getPacketInfo().getProcess(), packet.getPacketInfo().getPacketName(), metaMap);
