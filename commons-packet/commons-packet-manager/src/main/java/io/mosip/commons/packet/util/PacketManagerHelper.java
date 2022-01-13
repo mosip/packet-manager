@@ -70,9 +70,9 @@ public class PacketManagerHelper {
                 new URL(configServerFileStorageURL + schemaName).openStream()) {
             CbeffContainerImpl cbeffContainer = new CbeffContainerImpl();
             BIR bir = cbeffContainer.createBIRType(biometricRecord.getSegments());
-            List<Entry> entries = new ArrayList<>();
+            HashMap<String, String> entries = new HashMap<String, String>();
             biometricRecord.getOthers().forEach((k, v) -> {
-                entries.add(new Entry(k, v));
+                entries.put(k, v);
             });
             bir.setOthers(entries);
             return CbeffValidator.createXMLBytes(bir, IOUtils.toByteArray(xsd));

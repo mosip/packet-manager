@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import io.mosip.commons.packet.facade.PacketReader;
 import org.apache.commons.io.IOUtils;
 import org.assertj.core.util.Lists;
@@ -435,14 +436,14 @@ public class PacketReaderImplTest {
 
     @Test(expected = GetAllMetaInfoException.class)
     public void metaInfoExceptionTest() throws IOException {
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new IOException("exception"));
+        when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new JsonMappingException("exception"));
 
         iPacketReader.getMetaInfo("id", "source", "process");
     }
 
     @Test(expected = GetAllIdentityException.class)
     public void getAuditExceptionTest() throws IOException {
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new IOException("exception"));
+        when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new JsonMappingException("exception"));
 
         iPacketReader.getAuditInfo("id", "source", "process");
     }
