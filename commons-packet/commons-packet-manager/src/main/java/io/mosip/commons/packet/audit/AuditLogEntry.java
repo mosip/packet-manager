@@ -30,7 +30,6 @@ public class AuditLogEntry {
 
 	@Autowired
 	@Lazy
-	@Qualifier("restTemplate")
 	private RestTemplate restTemplate;
 
 	@Autowired

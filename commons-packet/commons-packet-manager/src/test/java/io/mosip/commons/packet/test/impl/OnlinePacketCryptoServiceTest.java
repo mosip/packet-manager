@@ -63,9 +63,7 @@ public class OnlinePacketCryptoServiceTest {
     public void setup() {
         ReflectionTestUtils.setField(onlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         ReflectionTestUtils.setField(onlinePacketCryptoService, "APPLICATION_VERSION", "v1");
-        //ReflectionTestUtils.setField(onlinePacketCryptoService, "centerIdLength", 5);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerDecryptUrl", "http://localhost");
-        //ReflectionTestUtils.setField(onlinePacketCryptoService, "machineIdLength", 5);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerEncryptUrl", "http://localhost");
         ReflectionTestUtils.setField(onlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
@@ -75,7 +73,7 @@ public class OnlinePacketCryptoServiceTest {
     public void signTest() throws IOException {
         String expected = "signature";
         LinkedHashMap submap = new LinkedHashMap();
-        submap.put("data", CryptoUtil.encodeBase64(expected.getBytes(StandardCharsets.UTF_8)));
+        submap.put("data", CryptoUtil.encodeToURLSafeBase64(expected.getBytes(StandardCharsets.UTF_8)));
         LinkedHashMap responseMap = new LinkedHashMap();
         responseMap.put("response", submap);
         ReflectionTestUtils.setField(onlinePacketCryptoService, "keymanagerCsSignUrl", "localhost");
@@ -127,7 +125,7 @@ public class OnlinePacketCryptoServiceTest {
     @Test(expected = PacketDecryptionFailureException.class)
     public void encryptExceptionTest() throws IOException {
         String expected = "signature";
-        byte[] packet = "packetpacketpacketpacket".getBytes();
+        byte[] packet = "packet".getBytes();
 
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerEncryptUrl", "localhost");
 
@@ -142,7 +140,7 @@ public class OnlinePacketCryptoServiceTest {
         byte[] packet = "10001100770000320200720092256_packetwithsignatureandaad".getBytes();
         CryptomanagerResponseDto cryptomanagerResponseDto = new CryptomanagerResponseDto();
         cryptomanagerResponseDto.setErrors(null);
-        DecryptResponseDto decryptResponseDto = new DecryptResponseDto(CryptoUtil.encodeBase64("packet".getBytes()));
+        DecryptResponseDto decryptResponseDto = new DecryptResponseDto(CryptoUtil.encodeToURLSafeBase64("packet".getBytes()));
         cryptomanagerResponseDto.setResponse(decryptResponseDto);
 
 
@@ -159,7 +157,7 @@ public class OnlinePacketCryptoServiceTest {
     @Test(expected = PacketDecryptionFailureException.class)
     public void decryptExceptionTest() throws IOException {
         String expected = "signature";
-        byte[] packet = "10001100770000320200720092256_packetwithsignatureandaad".getBytes();
+        byte[] packet = "packet".getBytes();
 
         ReflectionTestUtils.setField(onlinePacketCryptoService, "cryptomanagerDecryptUrl", "localhost");
 
@@ -172,7 +170,7 @@ public class OnlinePacketCryptoServiceTest {
     @Test
     public void verifyTest() throws IOException {
         String expected = "signature";
-        byte[] packet = "packetpacketpacketpacket".getBytes();
+        byte[] packet = "packet".getBytes();
         
         LinkedHashMap submap = new LinkedHashMap();
         submap.put("verified", true);

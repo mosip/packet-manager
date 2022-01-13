@@ -1,6 +1,5 @@
 package io.mosip.commons.packet.impl;
 
-import com.google.common.collect.Lists;
 import io.mosip.commons.packet.constants.ErrorCode;
 import io.mosip.commons.packet.constants.LoggerFileConstant;
 import io.mosip.commons.packet.constants.PacketManagerConstants;
@@ -23,6 +22,7 @@ import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.core.util.JsonUtils;
 import io.mosip.kernel.core.util.StringUtils;
 import io.mosip.kernel.core.util.exception.JsonProcessingException;
+import org.assertj.core.util.Lists;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
