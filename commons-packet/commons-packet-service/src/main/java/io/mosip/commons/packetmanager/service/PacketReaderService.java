@@ -80,7 +80,6 @@ public class PacketReaderService {
     private PacketReader packetReader;
 
     @Autowired
-	@Qualifier("restTemplate")
     private RestTemplate restTemplate;
 
     @Autowired
@@ -275,7 +274,7 @@ public class PacketReaderService {
                 obj.getSource().equals(source)
                         && PacketHelper.getProcessWithoutIteration(obj.getProcess()).equalsIgnoreCase(process)).findAny();
 
-        return objectDto.isPresent() ? objectDto.get() : null;
+        return objectDto.isPresent() ? objectDto.get() : getObjectDto(source, process);
     }
 
     public String getSourceFromIdField(String process, String idField) throws IOException {
@@ -288,6 +287,13 @@ public class PacketReaderService {
             }
         }
         return null;
+    }
+
+    private ObjectDto getObjectDto(String source, String process) {
+        ObjectDto objectDto1 = new ObjectDto();
+        objectDto1.setSource(source);
+        objectDto1.setProcess(process);
+        return objectDto1;
     }
 
     public String searchInMappingJson(String idField, String process) throws IOException {
