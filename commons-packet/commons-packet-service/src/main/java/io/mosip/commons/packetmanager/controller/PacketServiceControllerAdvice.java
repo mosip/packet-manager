@@ -17,12 +17,12 @@ public class PacketServiceControllerAdvice {
 
     @ExceptionHandler(BaseCheckedException.class)
     public ResponseEntity baseCheckedException(BaseCheckedException e) {
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(getResponse(e.getErrorCode(), e.getMessage()));
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(getResponse(e.getErrorCode(), e.getErrorText()));
     }
 
     @ExceptionHandler(BaseUncheckedException.class)
     public ResponseEntity baseUnCheckedException(BaseUncheckedException e) {
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(getResponse(e.getErrorCode(), e.getMessage()));
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(getResponse(e.getErrorCode(), e.getErrorText()));
     }
 
     private ResponseWrapper<ServiceError> getResponse(String errorCode, String message) {

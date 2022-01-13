@@ -28,8 +28,9 @@ public enum PacketUtilityErrorCodes {
 	TAG_ALREADY_EXIST("KER-PUT-022", "Tag Already Exist."),
 	GET_TAG_EXCEPTION("KER-PUT-023","Failed to get tags"),
 	TAG_NOT_FOUND("KER-PUT-024", "Requested tag not present"),
-	SOURCE_NOT_PRESENT("KER-PUT-025", "Source not present in request."),
-	DELETE_TAGGING_FAILED("KER-PUT-026", "Failed to delete tags.");
+	SOURCE_NOT_PRESENT("KER-PUT-025", "Invalid source or process."),
+	DELETE_TAGGING_FAILED("KER-PUT-026", "Failed to delete tags."),
+	OBJECT_DOESNOT_EXISTS("KER-PUT-027", "Object doesnot exists."),;
 	
 	
 
