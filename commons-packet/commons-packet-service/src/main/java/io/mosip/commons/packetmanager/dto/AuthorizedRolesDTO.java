@@ -10,7 +10,7 @@ import lombok.Setter;
 
 
 @Component("authorizedRoles")
-@ConfigurationProperties(prefix = "mosip.role.packetmanager")
+@ConfigurationProperties(prefix = "mosip.role.commons-packet")
 @Getter
 @Setter
 public class AuthorizedRolesDTO {
