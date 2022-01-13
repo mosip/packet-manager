@@ -60,29 +60,28 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
     @Override
     public byte[] sign(byte[] packet) {
         TpmSignRequestDto signRequest = new TpmSignRequestDto();
-        signRequest.setData(CryptoUtil.encodeBase64(packet));
-        return CryptoUtil.decodeBase64(getTpmCryptoService().csSign(signRequest).getData());
+        signRequest.setData(CryptoUtil.encodeToURLSafeBase64(packet));
+        return CryptoUtil.decodeURLSafeBase64(getTpmCryptoService().csSign(signRequest).getData());
     }
 
     @Override
     public byte[] encrypt(String refId, byte[] packet) {
-        String packetString = CryptoUtil.encodeBase64String(packet);
+        String packetString = CryptoUtil.encodeToURLSafeBase64(packet);
         CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
         cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
         cryptomanagerRequestDto.setData(packetString);
         cryptomanagerRequestDto.setReferenceId(refId);
-        cryptomanagerRequestDto.setPrependThumbprint(isPrependThumbprintEnabled);
 
         SecureRandom sRandom = new SecureRandom();
         byte[] nonce = new byte[CryptomanagerConstant.GCM_NONCE_LENGTH];
         byte[] aad = new byte[CryptomanagerConstant.GCM_AAD_LENGTH];
         sRandom.nextBytes(nonce);
         sRandom.nextBytes(aad);
-        cryptomanagerRequestDto.setAad(CryptoUtil.encodeBase64String(aad));
-        cryptomanagerRequestDto.setSalt(CryptoUtil.encodeBase64String(nonce));
+        cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
+        cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
         cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
 
-        byte[] encryptedData = CryptoUtil.decodeBase64(getCryptomanagerService().encrypt(cryptomanagerRequestDto).getData());
+        byte[] encryptedData = CryptoUtil.decodeURLSafeBase64(getCryptomanagerService().encrypt(cryptomanagerRequestDto).getData());
         return EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
     }
 
@@ -97,20 +96,19 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
         CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
         cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
         cryptomanagerRequestDto.setReferenceId(refId);
-        cryptomanagerRequestDto.setAad(CryptoUtil.encodeBase64String(aad));
-        cryptomanagerRequestDto.setSalt(CryptoUtil.encodeBase64String(nonce));
-        cryptomanagerRequestDto.setData(CryptoUtil.encodeBase64String(encryptedData));
-        cryptomanagerRequestDto.setPrependThumbprint(isPrependThumbprintEnabled);
+        cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
+        cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
+        cryptomanagerRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(encryptedData));
         cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
 
-        return CryptoUtil.decodeBase64(getCryptomanagerService().decrypt(cryptomanagerRequestDto).getData());
+        return CryptoUtil.decodeURLSafeBase64(getCryptomanagerService().decrypt(cryptomanagerRequestDto).getData());
     }
 
     @Override
     public boolean verify(String machineId, byte[] packet, byte[] signature) {
         TpmSignVerifyRequestDto tpmSignVerifyRequestDto = new TpmSignVerifyRequestDto();
-        tpmSignVerifyRequestDto.setData(CryptoUtil.encodeBase64(packet));
-        tpmSignVerifyRequestDto.setSignature(CryptoUtil.encodeBase64(signature));
+        tpmSignVerifyRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(packet));
+        tpmSignVerifyRequestDto.setSignature(CryptoUtil.encodeToURLSafeBase64(signature));
         //TODO - get public key based on machine Id
         //tpmSignVerifyRequestDto.setPublicKey(<>);
         TpmSignVerifyResponseDto tpmSignVerifyResponseDto = getTpmCryptoService().csVerify(tpmSignVerifyRequestDto);

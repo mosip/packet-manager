@@ -5,6 +5,7 @@ import static io.mosip.commons.packet.constants.PacketManagerConstants.ID;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.LABEL;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.META_INFO_OPERATIONS_DATA;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.REFNUMBER;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.TYPE;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.VALUE;
 
@@ -18,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.core.util.JsonUtils;
 import org.apache.commons.collections4.CollectionUtils;
@@ -75,6 +77,9 @@ public class PacketReaderImpl implements IPacketReader {
 	private String packetNames;
 
 	@Autowired
+	private PacketReader packetReader;
+
+	@Autowired
 	private PacketKeeper packetKeeper;
 
 	@Autowired
@@ -100,13 +105,13 @@ public class PacketReaderImpl implements IPacketReader {
 	public boolean validatePacket(String id, String source, String process) {
 		try {
 			return packetValidator.validate(id, source, process);
-		} catch (BaseCheckedException | IOException | NoSuchAlgorithmException e) {
+		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Packet Validation exception : " + ExceptionUtils.getStackTrace(e));
 			if (e instanceof BaseCheckedException)
 				throw new PacketValidationFailureException(((BaseCheckedException) e).getMessage(), e);
 			else
-				throw new PacketValidationFailureException(((IOException) e).getMessage(), e);
+				throw new PacketValidationFailureException((e).getMessage(), e);
 		}
 	}
 
@@ -158,10 +163,10 @@ public class PacketReaderImpl implements IPacketReader {
 					ExceptionUtils.getStackTrace(e));
 			if (e instanceof BaseCheckedException) {
 				BaseCheckedException ex = (BaseCheckedException) e;
-				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			} else if (e instanceof BaseUncheckedException) {
 				BaseUncheckedException ex = (BaseUncheckedException) e;
-				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			}
 			throw new GetAllIdentityException(e.getMessage());
 		}
@@ -197,12 +202,10 @@ public class PacketReaderImpl implements IPacketReader {
 	public Document getDocument(String id, String documentName, String source, String process) {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"getDocument :: for - " + documentName);
-		Map<String, Object> idobjectMap = getAll(id, source, process);
-		Double schemaVersion = idobjectMap.get(PacketManagerConstants.IDSCHEMA_VERSION) != null
-				? Double.valueOf(idobjectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())
-				: null;
-		String documentString = (String) idobjectMap.get(documentName);
 		try {
+			String schemaVersionString = packetReader.getField(id, idSchemaUtils.getIdschemaVersionFromMappingJson(), source, process, false);
+			Double schemaVersion = schemaVersionString != null ? Double.valueOf(schemaVersionString) : null;
+			String documentString = packetReader.getField(id, documentName, source, process, false);
 			if (documentString != null && schemaVersion != null) {
 				JSONObject documentMap = new JSONObject(documentString);
 				String packetName = idSchemaUtils.getSource(documentName, schemaVersion);
@@ -213,13 +216,13 @@ public class PacketReaderImpl implements IPacketReader {
 					Document document = new Document();
 					document.setDocument(IOUtils.toByteArray(documentStream));
 					document.setValue(value);
-					document.setType(documentMap.get(TYPE) != null ? documentMap.get(TYPE).toString() : null);
-					document.setFormat(documentMap.get(FORMAT) != null ? documentMap.get(FORMAT).toString() : null);
+					document.setType(documentMap.has(TYPE) ? documentMap.get(TYPE).toString() : null);
+					document.setFormat(documentMap.has(FORMAT) ? documentMap.get(FORMAT).toString() : null);
+					document.setRefNumber(documentMap.has(REFNUMBER) ? documentMap.get(REFNUMBER).toString() : null);
 					return document;
 				}
 			}
-		} catch (IOException | ApiNotAccessibleException | PacketDecryptionFailureException | JSONException
-				| PacketKeeperException e) {
+		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
 			throw new GetDocumentException(e.getMessage());
@@ -236,8 +239,7 @@ public class PacketReaderImpl implements IPacketReader {
 		String packetName = null;
 		String fileName = null;
 		try {
-			Map<String, Object> idobjectMap = getAll(id, source, process);
-			String bioString = (String) idobjectMap.get(biometricFieldName);
+			String bioString = packetReader.getField(id, biometricFieldName, source, process, false);//(String) idobjectMap.get(biometricFieldName);
 			JSONObject biometricMap = null;
 			if (bioString != null)
 				biometricMap = new JSONObject(bioString);
@@ -258,9 +260,9 @@ public class PacketReaderImpl implements IPacketReader {
 					}
 				}
 			} else {
-				Double schemaVersion = idobjectMap.get(PacketManagerConstants.IDSCHEMA_VERSION) != null
-						? Double.valueOf(idobjectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())
-						: null;
+				String idSchemaVersion = packetReader.getField(id,
+						idSchemaUtils.getIdschemaVersionFromMappingJson(), source, process, false);
+				Double schemaVersion = idSchemaVersion != null ? Double.valueOf(idSchemaVersion) : null;
 				packetName = idSchemaUtils.getSource(biometricFieldName, schemaVersion);
 				fileName = biometricMap.get(VALUE).toString();
 			}
