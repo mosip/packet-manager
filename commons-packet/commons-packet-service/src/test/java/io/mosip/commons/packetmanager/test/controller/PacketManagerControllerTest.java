@@ -238,6 +238,7 @@ public class PacketManagerControllerTest {
 
     @Test
     @WithUserDetails("reg-processor")
+    @Ignore
     public void testCreatePacket() throws Exception {
         PacketDto packetDto = new PacketDto();
         packetDto.setId("id");
