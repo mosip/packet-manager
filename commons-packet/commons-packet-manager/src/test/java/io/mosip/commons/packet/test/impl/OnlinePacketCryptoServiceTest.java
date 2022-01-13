@@ -1,5 +1,6 @@
 package io.mosip.commons.packet.test.impl;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.mosip.commons.packet.dto.ClientPublicKeyResponseDto;
@@ -98,7 +99,7 @@ public class OnlinePacketCryptoServiceTest {
         ResponseEntity<String> response = new ResponseEntity<>("hello", HttpStatus.OK);
 
         Mockito.when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), any(Class.class))).thenReturn(response);
-        Mockito.when(mapper.readValue(anyString(), any(Class.class))).thenThrow(new IOException("exception"));
+        Mockito.when(mapper.readValue(anyString(), any(Class.class))).thenThrow(new JsonMappingException("exception"));
 
         byte[] result = onlinePacketCryptoService.sign(packet);
     }
