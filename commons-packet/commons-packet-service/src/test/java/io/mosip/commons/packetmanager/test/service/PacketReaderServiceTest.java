@@ -125,7 +125,7 @@ public class PacketReaderServiceTest {
 
     @Test(expected = BaseUncheckedException.class)
     public void testException() throws IOException {
-        Mockito.when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new JsonMappingException("Mapping Exception"));
+        Mockito.when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new IOException("IO Exception"));
 
         packetReaderService.info(id);
     }
