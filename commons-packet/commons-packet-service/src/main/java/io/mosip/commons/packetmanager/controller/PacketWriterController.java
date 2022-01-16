@@ -40,7 +40,7 @@ public class PacketWriterController {
 
     @Autowired
     private PacketWriterService packetWriterService;
-	@PreAuthorize("hasAnyRole(@authorizedRoles.getPutcreatepacket())")
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPutCreatePacket())")
     //@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
     @ResponseFilter
     @PutMapping(path = "/createPacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

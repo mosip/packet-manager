@@ -40,6 +40,8 @@ public class AuthorizedRolesDTO {
     private List<String> postaddorupdatetag;
 
     private List<String> postdeletetag;
+
+    private List<String> putCreatePacket;
 	
 	
 }	

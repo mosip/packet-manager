@@ -15,7 +15,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -256,7 +255,6 @@ public class PacketManagerControllerTest {
 
     @Test
     @WithUserDetails("reg-processor")
-    @Ignore
     public void testBaseUncheckedException() throws Exception {
         PacketDto packetDto = new PacketDto();
         packetDto.setId("id");
