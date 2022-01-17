@@ -184,7 +184,7 @@ public class PacketManagerControllerTest {
         infoDto.setProcess("NEW");
         infoDto.setSource("REGISTRATION");
 
-        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
 
         Mockito.when(
                 packetReader.getMetaInfo(anyString(), anyString(), anyString(), anyBoolean())).thenReturn(new HashMap<>());
@@ -204,7 +204,7 @@ public class PacketManagerControllerTest {
         infoDto.setProcess("NEW");
         infoDto.setSource("REGISTRATION");
 
-        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
 
         Mockito.when(
                 packetReader.getAudits(anyString(), anyString(), anyString(), anyBoolean())).thenReturn(new ArrayList<>());
@@ -224,7 +224,7 @@ public class PacketManagerControllerTest {
         infoDto.setProcess("NEW");
         infoDto.setSource("REGISTRATION");
 
-        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
 
         Mockito.when(
                 packetReader.validatePacket(anyString(), anyString(), anyString())).thenReturn(true);
@@ -345,6 +345,8 @@ public class PacketManagerControllerTest {
         InfoResponseDto infoResponseDto = new InfoResponseDto();
         infoResponseDto.setPacketId(infoDto.getId());
         infoResponseDto.setApplicationId(infoDto.getId());
+
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
 
         Mockito.when(
                 packetReaderService.info(anyString())).thenReturn(infoResponseDto);

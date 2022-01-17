@@ -52,8 +52,8 @@ public class PacketReaderController {
 
     @Autowired
     private PacketReaderService packetReaderService;
-
-    @PreAuthorize("hasAnyRole('DATA_READ')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfield())")
+    //@PreAuthorize("hasAnyRole('DATA_READ')")
     @ResponseFilter
     @PostMapping(path = "/searchField", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "searchField", description = "searchField", tags = { "packet-reader-controller" })
@@ -77,7 +77,8 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('DATA_READ')")
+    //@PreAuthorize("hasAnyRole('DATA_READ')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfields())")
     @ResponseFilter
     @PostMapping(path = "/searchFields", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "searchFields", description = "searchFields", tags = { "packet-reader-controller" })
@@ -106,8 +107,9 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('DOCUMENT_READ')")
+    //@PreAuthorize("hasAnyRole('DOCUMENT_READ')")
     @ResponseFilter
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostdocument())")
     @PostMapping(path = "/document", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "getDocument", description = "getDocument", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
@@ -127,8 +129,9 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('BIOMETRIC_READ')")
+    //@PreAuthorize("hasAnyRole('BIOMETRIC_READ')")
     @ResponseFilter
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostbiometrics())")
     @PostMapping(path = "/biometrics", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "getBiometrics", description = "getBiometrics", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
@@ -149,8 +152,9 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('METADATA_READ')")
+    //@PreAuthorize("hasAnyRole('METADATA_READ')")
     @ResponseFilter
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostmetainfo())")
     @PostMapping(path = "/metaInfo", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "getMetaInfo", description = "getMetaInfo", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
@@ -169,8 +173,9 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+    //@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
     @ResponseFilter
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostaudits())")
     @PostMapping(path = "/audits", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "getAudits", description = "getAudits", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
@@ -195,8 +200,9 @@ public class PacketReaderController {
         return response;
     }
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+    //@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
     @ResponseFilter
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostvalidatepacket())")
     @PostMapping(path = "/validatePacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "validatePacket", description = "validatePacket", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
@@ -213,8 +219,9 @@ public class PacketReaderController {
         return response;
     }
 
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
-	@ResponseFilter
+	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostgettags())")
+    @ResponseFilter
 	@PostMapping(path = "/getTags", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "getTags", description = "getTags", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
@@ -231,8 +238,9 @@ public class PacketReaderController {
 		return response;
 	}
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+    //@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
     @ResponseFilter
+    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostinfo())")
     @PostMapping(path = "/info", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "info", description = "info", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),

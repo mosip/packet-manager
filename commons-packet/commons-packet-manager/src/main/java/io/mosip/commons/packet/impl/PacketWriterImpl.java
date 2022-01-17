@@ -258,7 +258,7 @@ public class PacketWriterImpl implements IPacketWriter {
                                          ZipOutputStream zipOutputStream, Map<String, HashSequenceMetaInfo> hashSequences, boolean offlineMode) throws PacketCreatorException {
         Document document = this.registrationPacket.getDocuments().get(fieldName);
         //filename without extension must be set as value in ID.json
-        identity.put(fieldName, new DocumentType(fieldName, document.getType(), document.getFormat()));
+        identity.put(fieldName, new DocumentType(fieldName, document.getType(), document.getFormat(), document.getRefNumber()));
         String fileName = String.format("%s.%s", fieldName, document.getFormat());
         addEntryToZip(fileName, document.getDocument(), zipOutputStream);
         this.registrationPacket.getMetaData().put(fieldName, document.getType());
