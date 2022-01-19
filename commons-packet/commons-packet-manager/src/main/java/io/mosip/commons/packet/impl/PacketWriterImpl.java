@@ -70,14 +70,15 @@ public class PacketWriterImpl implements IPacketWriter {
     @Value("${default.provider.version:v1.0}")
     private String defaultProviderVersion;
 
-    private RegistrationPacket registrationPacket = null;
+    private Map<String, RegistrationPacket> registrationPacketMap = new HashMap<>();
 
     public RegistrationPacket initialize(String id) {
-        if (this.registrationPacket == null || !registrationPacket.getRegistrationId().equalsIgnoreCase(id)) {
-            this.registrationPacket = new RegistrationPacket();
-            this.registrationPacket.setRegistrationId(id);
+        if (registrationPacketMap.get(id) == null) {
+            RegistrationPacket registrationPacket = new RegistrationPacket();
+            registrationPacket.setRegistrationId(id);
+            registrationPacketMap.put(id, registrationPacket);
         }
-        return registrationPacket;
+        return registrationPacketMap.get(id);
     }
 
     @Override
@@ -123,7 +124,7 @@ public class PacketWriterImpl implements IPacketWriter {
 
     private List<PacketInfo> createPacket(String id, String version, String schemaJson, String source, String process, boolean offlineMode) throws PacketCreatorException {
         LOGGER.info(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), id, "Started packet creation");
-        if (this.registrationPacket == null || !registrationPacket.getRegistrationId().equalsIgnoreCase(id))
+        if (registrationPacketMap.get(id) == null)
             throw new PacketCreatorException(ErrorCode.INITIALIZATION_ERROR.getErrorCode(),
                     ErrorCode.INITIALIZATION_ERROR.getErrorMessage());
 
@@ -173,7 +174,8 @@ public class PacketWriterImpl implements IPacketWriter {
             throw new PacketCreatorException(ErrorCode.PKT_ZIP_ERROR.getErrorCode(),
                     ErrorCode.PKT_ZIP_ERROR.getErrorMessage().concat(ExceptionUtils.getStackTrace(e)));
         } finally {
-            this.registrationPacket = null;
+            this.registrationPacketMap.remove(id);
+            LOGGER.debug("registrationPacketMap size ====================================> " + registrationPacketMap.size());
         }
         LOGGER.info(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
                 id, "Exiting packet creation");
@@ -183,7 +185,7 @@ public class PacketWriterImpl implements IPacketWriter {
     @SuppressWarnings("unchecked")
     private byte[] createSubpacket(double version, List<Object> schemaFields, boolean isDefault, String id, boolean offlineMode)
             throws PacketCreatorException {
-
+        RegistrationPacket registrationPacket = registrationPacketMap.get(id);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ZipOutputStream subpacketZip = new ZipOutputStream(new BufferedOutputStream(out))) {
             LOGGER.info(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
@@ -192,8 +194,8 @@ public class PacketWriterImpl implements IPacketWriter {
             Map<String, HashSequenceMetaInfo> hashSequences = new HashMap<>();
 
             identity.put(PacketManagerConstants.IDSCHEMA_VERSION, version);
-            this.registrationPacket.getMetaData().put(PacketManagerConstants.REGISTRATIONID, id);
-            this.registrationPacket.getMetaData().put(PacketManagerConstants.META_CREATION_DATE, this.registrationPacket.getCreationDate());
+            registrationPacket.getMetaData().put(PacketManagerConstants.REGISTRATIONID, id);
+            registrationPacket.getMetaData().put(PacketManagerConstants.META_CREATION_DATE, registrationPacket.getCreationDate());
 
             for (Object obj : schemaFields) {
                 Map<String, Object> field = (Map<String, Object>) obj;
@@ -202,25 +204,25 @@ public class PacketWriterImpl implements IPacketWriter {
                         id, "Adding field : " + fieldName);
                 switch ((String) field.get(PacketManagerConstants.SCHEMA_TYPE)) {
                     case PacketManagerConstants.BIOMETRICS_TYPE:
-                        if (this.registrationPacket.getBiometrics().get(fieldName) != null)
-                            addBiometricDetailsToZip(fieldName, identity, subpacketZip, hashSequences, offlineMode);
+                        if (registrationPacket.getBiometrics().get(fieldName) != null)
+                            addBiometricDetailsToZip(registrationPacket, fieldName, identity, subpacketZip, hashSequences, offlineMode);
                         break;
                     case PacketManagerConstants.DOCUMENTS_TYPE:
-                        if (this.registrationPacket.getDocuments().get(fieldName) != null)
-                            addDocumentDetailsToZip(fieldName, identity, subpacketZip, hashSequences, offlineMode);
+                        if (registrationPacket.getDocuments().get(fieldName) != null)
+                            addDocumentDetailsToZip(registrationPacket, fieldName, identity, subpacketZip, hashSequences, offlineMode);
                         break;
                     default:
-                        if (this.registrationPacket.getDemographics().get(fieldName) != null)
-                            identity.put(fieldName, this.registrationPacket.getDemographics().get(fieldName));
+                        if (registrationPacket.getDemographics().get(fieldName) != null)
+                            identity.put(fieldName, registrationPacket.getDemographics().get(fieldName));
                         break;
                 }
             }
 
             byte[] identityBytes = getIdentity(identity).getBytes();
-            addEntryToZip(PacketManagerConstants.IDENTITY_FILENAME_WITH_EXT, identityBytes, subpacketZip);
+            addEntryToZip(registrationPacket, PacketManagerConstants.IDENTITY_FILENAME_WITH_EXT, identityBytes, subpacketZip);
             addHashSequenceWithSource(PacketManagerConstants.DEMOGRAPHIC_SEQ, PacketManagerConstants.IDENTITY_FILENAME, identityBytes,
                     hashSequences);
-            addOtherFilesToZip(isDefault, subpacketZip, hashSequences, offlineMode);
+            addOtherFilesToZip(registrationPacket, isDefault, subpacketZip, hashSequences, offlineMode);
 
         } catch (JsonProcessingException e) {
             throw new PacketCreatorException(ErrorCode.OBJECT_TO_JSON_ERROR.getErrorCode(),
@@ -232,22 +234,22 @@ public class PacketWriterImpl implements IPacketWriter {
         return out.toByteArray();
     }
 
-    private void addDocumentDetailsToZip(String fieldName, Map<String, Object> identity,
+    private void addDocumentDetailsToZip(RegistrationPacket registrationPacket, String fieldName, Map<String, Object> identity,
                                          ZipOutputStream zipOutputStream, Map<String, HashSequenceMetaInfo> hashSequences, boolean offlineMode) throws PacketCreatorException {
-        Document document = this.registrationPacket.getDocuments().get(fieldName);
+        Document document = registrationPacket.getDocuments().get(fieldName);
         //filename without extension must be set as value in ID.json
         identity.put(fieldName, new DocumentType(fieldName, document.getType(), document.getFormat()));
         String fileName = String.format("%s.%s", fieldName, document.getFormat());
-        addEntryToZip(fileName, document.getDocument(), zipOutputStream);
-        this.registrationPacket.getMetaData().put(fieldName, document.getType());
+        addEntryToZip(registrationPacket, fileName, document.getDocument(), zipOutputStream);
+        registrationPacket.getMetaData().put(fieldName, document.getType());
 
         addHashSequenceWithSource(PacketManagerConstants.DEMOGRAPHIC_SEQ, fieldName, document.getDocument(),
                 hashSequences);
     }
 
-    private void addBiometricDetailsToZip(String fieldName, Map<String, Object> identity,
+    private void addBiometricDetailsToZip(RegistrationPacket registrationPacket, String fieldName, Map<String, Object> identity,
                                           ZipOutputStream zipOutputStream, Map<String, HashSequenceMetaInfo> hashSequences, boolean offlineMode) throws PacketCreatorException {
-        BiometricRecord birType = this.registrationPacket.getBiometrics().get(fieldName);
+        BiometricRecord birType = registrationPacket.getBiometrics().get(fieldName);
         if (birType != null && birType.getSegments() != null && !birType.getSegments().isEmpty()) {
 
             byte[] xmlBytes;
@@ -258,7 +260,7 @@ public class PacketWriterImpl implements IPacketWriter {
                         ErrorCode.BIR_TO_XML_ERROR.getErrorMessage().concat(ExceptionUtils.getStackTrace(e)));
             }
 
-            addEntryToZip(String.format(PacketManagerConstants.CBEFF_FILENAME_WITH_EXT, fieldName), xmlBytes, zipOutputStream);
+            addEntryToZip(registrationPacket, String.format(PacketManagerConstants.CBEFF_FILENAME_WITH_EXT, fieldName), xmlBytes, zipOutputStream);
             identity.put(fieldName, new BiometricsType(PacketManagerConstants.CBEFF_FILE_FORMAT,
                     PacketManagerConstants.CBEFF_VERSION, String.format(PacketManagerConstants.CBEFF_FILENAME, fieldName)));
             addHashSequenceWithSource(PacketManagerConstants.BIOMETRIC_SEQ, String.format(PacketManagerConstants.CBEFF_FILENAME,
@@ -274,36 +276,36 @@ public class PacketWriterImpl implements IPacketWriter {
         hashSequences.get(sequenceType).addHashSource(name, bytes);
     }
 
-    private void addOtherFilesToZip(boolean isDefault, ZipOutputStream zipOutputStream,
+    private void addOtherFilesToZip(RegistrationPacket registrationPacket, boolean isDefault, ZipOutputStream zipOutputStream,
                                     Map<String, HashSequenceMetaInfo> hashSequences, boolean offlineMode) throws JsonProcessingException, PacketCreatorException, IOException, NoSuchAlgorithmException {
 
         if (isDefault) {
-            addOperationsBiometricsToZip(PacketManagerConstants.OFFICER,
+            addOperationsBiometricsToZip(registrationPacket, PacketManagerConstants.OFFICER,
                     zipOutputStream, hashSequences, offlineMode);
-            addOperationsBiometricsToZip(PacketManagerConstants.SUPERVISOR,
+            addOperationsBiometricsToZip(registrationPacket, PacketManagerConstants.SUPERVISOR,
                     zipOutputStream, hashSequences, offlineMode);
 
-            if (this.registrationPacket.getAudits() == null || this.registrationPacket.getAudits().isEmpty())
+            if (registrationPacket.getAudits() == null || registrationPacket.getAudits().isEmpty())
                 throw new PacketCreatorException(ErrorCode.AUDITS_REQUIRED.getErrorCode(), ErrorCode.AUDITS_REQUIRED.getErrorMessage());
 
-            byte[] auditBytes = JsonUtils.javaObjectToJsonString(this.registrationPacket.getAudits()).getBytes();
-            addEntryToZip(PacketManagerConstants.AUDIT_FILENAME_WITH_EXT, auditBytes, zipOutputStream);
+            byte[] auditBytes = JsonUtils.javaObjectToJsonString(registrationPacket.getAudits()).getBytes();
+            addEntryToZip(registrationPacket, PacketManagerConstants.AUDIT_FILENAME_WITH_EXT, auditBytes, zipOutputStream);
             addHashSequenceWithSource(PacketManagerConstants.OPERATIONS_SEQ, PacketManagerConstants.AUDIT_FILENAME, auditBytes,
                     hashSequences);
 
             HashSequenceMetaInfo hashSequenceMetaInfo = hashSequences.get(PacketManagerConstants.OPERATIONS_SEQ);
-            addEntryToZip(PacketManagerConstants.PACKET_OPER_HASH_FILENAME,
+            addEntryToZip(registrationPacket, PacketManagerConstants.PACKET_OPER_HASH_FILENAME,
                     PacketManagerHelper.generateHash(hashSequenceMetaInfo.getValue(), hashSequenceMetaInfo.getHashSource()),
                     zipOutputStream);
 
-            this.registrationPacket.getMetaData().put(HASHSEQUENCE2, Lists.newArrayList(hashSequenceMetaInfo));
+            registrationPacket.getMetaData().put(HASHSEQUENCE2, Lists.newArrayList(hashSequenceMetaInfo));
         }
 
-        addPacketDataHash(hashSequences, zipOutputStream);
-        addEntryToZip(PacketManagerConstants.PACKET_META_FILENAME, getIdentity(this.registrationPacket.getMetaData()).getBytes(), zipOutputStream);
+        addPacketDataHash(registrationPacket, hashSequences, zipOutputStream);
+        addEntryToZip(registrationPacket, PacketManagerConstants.PACKET_META_FILENAME, getIdentity(registrationPacket.getMetaData()).getBytes(), zipOutputStream);
     }
 
-    private void addPacketDataHash(Map<String, HashSequenceMetaInfo> hashSequences,
+    private void addPacketDataHash(RegistrationPacket registrationPacket, Map<String, HashSequenceMetaInfo> hashSequences,
                                    ZipOutputStream zipOutputStream) throws PacketCreatorException, IOException, NoSuchAlgorithmException {
 
         LinkedList<String> sequence = new LinkedList<String>();
@@ -320,9 +322,9 @@ public class PacketWriterImpl implements IPacketWriter {
             hashSequenceMetaInfos.add(hashSequences.get(PacketManagerConstants.DEMOGRAPHIC_SEQ));
         }
         if (hashSequenceMetaInfos.size() > 0)
-            this.registrationPacket.getMetaData().put(HASHSEQUENCE1, hashSequenceMetaInfos);
+            registrationPacket.getMetaData().put(HASHSEQUENCE1, hashSequenceMetaInfos);
 
-        addEntryToZip(PacketManagerConstants.PACKET_DATA_HASH_FILENAME, PacketManagerHelper.generateHash(sequence, data),
+        addEntryToZip(registrationPacket, PacketManagerConstants.PACKET_DATA_HASH_FILENAME, PacketManagerHelper.generateHash(sequence, data),
                 zipOutputStream);
     }
 
@@ -364,10 +366,10 @@ public class PacketWriterImpl implements IPacketWriter {
     }
 
 
-    private void addEntryToZip(String fileName, byte[] data, ZipOutputStream zipOutputStream)
+    private void addEntryToZip(RegistrationPacket registrationPacket, String fileName, byte[] data, ZipOutputStream zipOutputStream)
             throws PacketCreatorException {
         LOGGER.info(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
-                this.registrationPacket.getRegistrationId(), "Adding file : " + fileName);
+                registrationPacket.getRegistrationId(), "Adding file : " + fileName);
         try {
             if (data != null) {
                 ZipEntry zipEntry = new ZipEntry(fileName);
@@ -384,10 +386,10 @@ public class PacketWriterImpl implements IPacketWriter {
         return "{ \"identity\" : " + JsonUtils.javaObjectToJsonString(object) + " } ";
     }
 
-    private void addOperationsBiometricsToZip(String operationType,
+    private void addOperationsBiometricsToZip(RegistrationPacket registrationPacket, String operationType,
                                               ZipOutputStream zipOutputStream, Map<String, HashSequenceMetaInfo> hashSequences, boolean offlineMode) throws PacketCreatorException {
 
-        BiometricRecord biometrics = this.registrationPacket.getBiometrics().get(operationType);
+        BiometricRecord biometrics = registrationPacket.getBiometrics().get(operationType);
 
         if (biometrics != null && biometrics.getSegments() != null && !biometrics.getSegments().isEmpty()) {
             byte[] xmlBytes;
@@ -400,8 +402,8 @@ public class PacketWriterImpl implements IPacketWriter {
 
             if (xmlBytes != null) {
                 String fileName = operationType + PacketManagerConstants.CBEFF_EXT;
-                addEntryToZip(fileName, xmlBytes, zipOutputStream);
-                this.registrationPacket.getMetaData().put(String.format("%sBiometricFileName", operationType), fileName);
+                addEntryToZip(registrationPacket, fileName, xmlBytes, zipOutputStream);
+                registrationPacket.getMetaData().put(String.format("%sBiometricFileName", operationType), fileName);
                 addHashSequenceWithSource(PacketManagerConstants.OPERATIONS_SEQ, operationType, xmlBytes, hashSequences);
             }
         }
@@ -415,6 +417,12 @@ public class PacketWriterImpl implements IPacketWriter {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
             throw e;
         }
+    }
+
+    @Override
+    public void removePacket(String id) {
+        if (registrationPacketMap.get(id) != null)
+            registrationPacketMap.remove(id);
     }
 
 }

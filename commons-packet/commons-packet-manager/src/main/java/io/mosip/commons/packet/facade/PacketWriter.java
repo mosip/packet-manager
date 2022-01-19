@@ -182,6 +182,9 @@ public class PacketWriter {
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetDto.getId(),
                     ExceptionUtils.getStackTrace(e));
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetDto.getId(), ExceptionUtils.getStackTrace(e));
+        } finally {
+            // remove object from registration packet hashmap
+            provider.removePacket(packetDto.getId());
         }
         return packetInfos;
     }
