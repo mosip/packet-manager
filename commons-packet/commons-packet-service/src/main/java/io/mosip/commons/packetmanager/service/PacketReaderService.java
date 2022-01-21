@@ -80,6 +80,7 @@ public class PacketReaderService {
     private PacketReader packetReader;
 
     @Autowired
+    @Qualifier("selfTokenRestTemplate")
     private RestTemplate restTemplate;
 
     @Autowired
@@ -147,7 +148,17 @@ public class PacketReaderService {
             return infoResponseDto;
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
-            throw new BaseUncheckedException(e.getMessage());
+
+            if (e instanceof BaseUncheckedException) {
+                BaseUncheckedException ex = (BaseUncheckedException) e;
+                throw ex;
+            }
+            else if (e instanceof BaseCheckedException) {
+                BaseCheckedException ex = (BaseCheckedException) e;
+                throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
+            }
+            else
+                throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
         }
     }
 
@@ -213,7 +224,7 @@ public class PacketReaderService {
     }
 
     private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info) {
-        if (org.apache.commons.lang.StringUtils.isNotEmpty(defaultPriority)) {
+        if (StringUtils.isNotEmpty(defaultPriority)) {
             String[] val = defaultPriority.split(",");
             if (val != null && val.length > 0) {
                 for (String value : val) {
@@ -247,7 +258,7 @@ public class PacketReaderService {
     }
 
     private String getDefaultSource(String process) {
-        if (org.apache.commons.lang.StringUtils.isNotEmpty(defaultPriority)) {
+        if (StringUtils.isNotEmpty(defaultPriority)) {
             String[] val = defaultPriority.split(",");
             if (val != null && val.length > 0) {
                 for (String value : val) {
