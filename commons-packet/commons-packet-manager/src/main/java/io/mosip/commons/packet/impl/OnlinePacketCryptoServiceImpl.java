@@ -21,6 +21,7 @@ import io.mosip.kernel.core.util.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -65,8 +66,8 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     private boolean isPrependThumbprintEnabled;
 
     @Autowired
-    @Qualifier("selfTokenRestTemplate")
-    private RestTemplate restTemplate;
+    private ApplicationContext applicationContext;
+    private RestTemplate restTemplate = null;
 
     @Autowired
     private ObjectMapper mapper;
@@ -97,7 +98,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                     .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
             HttpEntity<RequestWrapper<TpmSignRequestDto>> httpEntity = new HttpEntity<>(request);
-            ResponseEntity<String> response = restTemplate.exchange(keymanagerCsSignUrl, HttpMethod.POST, httpEntity,
+            ResponseEntity<String> response = getRestTemplate().exchange(keymanagerCsSignUrl, HttpMethod.POST, httpEntity,
                     String.class);
             LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");
             if (responseMap != null && responseMap.size() > 0)
@@ -143,7 +144,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             request.setVersion(APPLICATION_VERSION);
             HttpEntity<RequestWrapper<CryptomanagerRequestDto>> httpEntity = new HttpEntity<>(request);
 
-            ResponseEntity<String> response = restTemplate.exchange(cryptomanagerEncryptUrl, HttpMethod.POST, httpEntity, String.class);
+            ResponseEntity<String> response = getRestTemplate().exchange(cryptomanagerEncryptUrl, HttpMethod.POST, httpEntity, String.class);
             CryptomanagerResponseDto responseObject = mapper.readValue(response.getBody(), CryptomanagerResponseDto.class);
             if (responseObject != null &&
                     responseObject.getErrors() != null && !responseObject.getErrors().isEmpty()) {
@@ -213,7 +214,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             request.setVersion(APPLICATION_VERSION);
             HttpEntity<RequestWrapper<CryptomanagerRequestDto>> httpEntity = new HttpEntity<>(request);
 
-            ResponseEntity<String> response = restTemplate.exchange(cryptomanagerDecryptUrl, HttpMethod.POST, httpEntity, String.class);
+            ResponseEntity<String> response = getRestTemplate().exchange(cryptomanagerDecryptUrl, HttpMethod.POST, httpEntity, String.class);
 
             CryptomanagerResponseDto responseObject = mapper.readValue(response.getBody(), CryptomanagerResponseDto.class);
 
@@ -270,7 +271,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                     .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
             HttpEntity<RequestWrapper<TpmSignVerifyRequestDto>> httpEntity = new HttpEntity<>(request);
-            ResponseEntity<String> response = restTemplate.exchange(keymanagerCsverifysignUrl, HttpMethod.POST, httpEntity,
+            ResponseEntity<String> response = getRestTemplate().exchange(keymanagerCsverifysignUrl, HttpMethod.POST, httpEntity,
                     String.class);
             LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
             if (responseMap != null && responseMap.size() > 0) {
@@ -297,7 +298,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
 
 	private String getPublicKey(String refId) throws IOException {
         String machineId = refId.split("_")[1];
-		ResponseEntity<String> response = restTemplate.exchange(syncdataGetTpmKeyUrl+machineId, HttpMethod.GET, null,
+		ResponseEntity<String> response = getRestTemplate().exchange(syncdataGetTpmKeyUrl+machineId, HttpMethod.GET, null,
                 String.class);
 		 LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
 		 if (responseMap != null && responseMap.size() > 0)
@@ -308,4 +309,12 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
              throw new SignatureException();
          }
 	}
+
+    private RestTemplate getRestTemplate() {
+        if (this.restTemplate == null) {
+            this.restTemplate = (RestTemplate)this.applicationContext.getBean("selfTokenRestTemplate");
+        }
+
+        return this.restTemplate;
+    }
 }
