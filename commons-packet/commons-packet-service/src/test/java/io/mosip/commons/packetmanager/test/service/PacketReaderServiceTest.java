@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import org.assertj.core.util.Lists;
 import org.json.simple.JSONObject;
@@ -124,7 +125,7 @@ public class PacketReaderServiceTest {
 
     @Test(expected = BaseUncheckedException.class)
     public void testException() throws IOException {
-        Mockito.when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new JsonMappingException("IO Exception"));
+        Mockito.when(objectMapper.readValue(anyString(), any(Class.class))).thenThrow(new JsonMappingException("Mapping Exception"));
 
         packetReaderService.info(id);
     }
