@@ -46,7 +46,7 @@
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
         <packet.manager.version>1.2.0-SNAPSHOT</packet.manager.version>
         <springdoc.version>1.5.10</springdoc.version>
-    </properties>
+ </properties>
 
     <dependencies>
         <dependency>

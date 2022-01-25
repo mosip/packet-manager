@@ -33,4 +33,6 @@ public interface IPacketWriter {
 
     public List<PacketInfo> persistPacket(String id, String version, String schemaJson, String source,
                                           String process, String additionalInfoReqId, String refId, boolean offlineMode);
+
+    void removePacket(String id);
 }
