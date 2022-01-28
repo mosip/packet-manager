@@ -24,9 +24,9 @@ Packet Manager uses reader and writer provider to read and write packet.
  ` provider.packetreader.<the provider name, it can be any name>= <source, process and classname>`
  
  * Writer Provider: MOSIP by defult has a packet structure. But it provides support to write packet in different structure. The writer provider has to be configured in below format -
-  * Default Writer Provider
+   * Default Writer Provider
 ` provider.packetwriter.mosip=source:REGISTRATION_CLIENT,process:NEW|UPDATE|LOST|BIOMETRIC_CORRECTION,classname:io.mosip.commons.packet.impl.PacketWriterImpl ` 
-  * New Writer Provider example -
+   * New Writer Provider example -
  ` provider.packetwriter.<the provider name, it can be any name>= <source, process and classname>`
  
  ## Object Store Connection
