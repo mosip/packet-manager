@@ -30,22 +30,23 @@ Packet Manager uses reader and writer provider to read and write packet.
  ` provider.packetwriter.<the provider name, it can be any name>= <source, process and classname>`
  
  ## Object Store Connection
- By default MOSIP provides support for below 3 adapters to connect to object store -
+ By default MOSIP provides support for below 3 adapters to connect to object store:
+ 
  * S3 Adapter: Used for distributed object store
- `
+ ```
  object.store.s3.accesskey=******
 object.store.s3.secretkey=*****
 object.store.s3.url=${mosip.minio.url}
 object.store.s3.region=${s3.region}
 object.store.s3.readlimit=10000000
- `
+ ```
  * Posix Adapter: Used to connect to flat file system
- `
+ ```
  object.store.base.location=/home/mosip
- `
+ ```
  * Swift Adapter: Used for distributed object store
- `
+ ```
 object.store.swift.username=test
 object.store.swift.password=test
 object.store.swift.url=http://localhost:8080
- `
+ ```
