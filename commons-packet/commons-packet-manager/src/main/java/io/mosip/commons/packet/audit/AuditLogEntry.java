@@ -92,7 +92,7 @@ public class AuditLogEntry {
 				id,
 				"AuditLogRequestBuilder:: AuditLogEntry::exit");
 
-		return responseWrapper.getBody();
+		return responseWrapper != null ? responseWrapper.getBody() : null;
 	}
 
 }
