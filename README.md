@@ -1,4 +1,4 @@
-[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push_trigger.yml/badge.svg?branch=release-1.2.0)](https://github.com/mosip/packet-manager/actions/workflows/push_trigger.yml)  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.2.0&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/dashboard?branch=master&id=mosip_packet-manager)
+[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push_trigger.yml/badge.svg?branch=master)](https://github.com/mosip/packet-manager/actions/workflows/push_trigger.yml)  [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=master&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/dashboard?branch=master&id=mosip_packet-manager)
 
 
 # Packet Manager
