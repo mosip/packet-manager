@@ -7,7 +7,7 @@ on:
       - 1.*
       - develop
       - '!release-branch'
-      - release*
+      - release-1*
 
 jobs:
   build:
