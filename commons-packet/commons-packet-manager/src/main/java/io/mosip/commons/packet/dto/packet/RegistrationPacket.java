@@ -2,7 +2,10 @@ package io.mosip.commons.packet.dto.packet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.mosip.commons.packet.dto.Document;
+import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
+import io.mosip.kernel.core.exception.ExceptionUtils;
+import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.DateUtils;
 import lombok.Data;
 import org.json.JSONArray;
@@ -18,6 +21,8 @@ import java.util.Map;
 
 @Data
 public class RegistrationPacket {
+
+	private static final Logger LOGGER = PacketManagerLogger.getLogger(RegistrationPacket.class);
 	
 	private String registrationId;
 	private double idSchemaVersion;
@@ -97,7 +102,7 @@ public class RegistrationPacket {
 			} else
 				finalMap.putIfAbsent(fieldName, value);
 		} catch (Exception e) {
-			e.printStackTrace();
+			LOGGER.error("Exception while setting field " + ExceptionUtils.getStackTrace(e));
 		}
 	}
 }
