@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
@@ -193,7 +194,7 @@ public class PacketValidator {
                     valuebyte = IOUtils.toByteArray(fileStream);
                     outputStream.write(valuebyte);
                 } catch (IOException e) {
-                   e.printStackTrace();
+                    LOGGER.error("Exception while generating hash " + ExceptionUtils.getStackTrace(e));
                 }
             });
         }
