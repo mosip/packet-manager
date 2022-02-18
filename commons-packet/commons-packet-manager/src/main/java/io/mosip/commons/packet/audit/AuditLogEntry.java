@@ -41,7 +41,7 @@ public class AuditLogEntry {
 	private static final String DATETIME_PATTERN = "mosip.utc-datetime-pattern";
 
 	@SuppressWarnings("unchecked")
-	public String addAudit(String description, String eventId,
+	public void addAudit(String description, String eventId,
 			String eventName, String eventType, String moduleId, String moduleName, String id) {
 		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
 				id, "AuditLogEntry:: addAudit::entry");
@@ -83,13 +83,12 @@ public class AuditLogEntry {
 
 		} catch (Exception arae) {
 		    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-		    		null, ExceptionUtils.getStackTrace(arae));  
+		    		null, ExceptionUtils.getStackTrace(arae));
 		}
 		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
 				id,
 				"AuditLogRequestBuilder:: AuditLogEntry::exit");
 
-		return responseWrapper.getBody();
 	}
 
 }
