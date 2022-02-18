@@ -41,7 +41,7 @@ public class AuditLogEntry {
 	private static final String DATETIME_PATTERN = "mosip.utc-datetime-pattern";
 
 	@SuppressWarnings("unchecked")
-	public String addAudit(String description, String eventId,
+	public void addAudit(String description, String eventId,
 			String eventName, String eventType, String moduleId, String moduleName, String id) {
 		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
 				id, "AuditLogEntry:: addAudit::entry");
@@ -89,7 +89,6 @@ public class AuditLogEntry {
 				id,
 				"AuditLogRequestBuilder:: AuditLogEntry::exit");
 
-		return responseWrapper.getBody();
 	}
 
 }
