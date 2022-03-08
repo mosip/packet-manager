@@ -21,7 +21,8 @@ public enum Biometric {
 	RIGHT_THUMB("FINGERPRINT_SLAB_THUMBS", "Thumbs", "rightThumb", BiometricType.FINGER, "RF_THUMB"),
 	RIGHT_IRIS("IRIS_DOUBLE", "Iris", "rightEye", BiometricType.IRIS, "R_IRIS"),
 	LEFT_IRIS("IRIS_DOUBLE", "Iris", "leftEye", BiometricType.IRIS, "L_IRIS"),
-	FACE("FACE_FULL FACE", "Face", "face", BiometricType.FACE, "FACE");
+	FACE("FACE_FULL FACE", "Face", "face", BiometricType.FACE, "FACE"),
+	EXCEPTION("FACE_FULL FACE", "ExceptionPhoto", "unknown", BiometricType.EXCEPTION_PHOTO, "EXCEPTION_PHOTO");
 	
 	Biometric(String modalityName, String modalityShortName, String attributeName, BiometricType biometricType,
 			String mdmConstant) {
@@ -126,6 +127,8 @@ public enum Biometric {
 		case FINGER:	
 			format = CbeffConstant.FORMAT_TYPE_FINGER;
 			break;
+
+		case EXCEPTION_PHOTO:
 		case FACE:
 			format = CbeffConstant.FORMAT_TYPE_FACE;
 			break;
