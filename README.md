@@ -3,6 +3,11 @@
 
 # Packet Manager
 
-## About
-* Its used by `Registration Client` and `Resident Service` to create packets.
-* Its used by `Registration Processor` to read packet.
+## Overview
+* It is used by `Registration Client` and `Resident Service` to create packets.
+* It is used by `Registration Processor` to read packets.
+
+To know more, see [Packet Manager](https://docs.mosip.io/1.2.0/modules/packet-manager).
+
+## License
+This project is licensed under the terms of [Mozilla Public License 2.0](LICENSE).
