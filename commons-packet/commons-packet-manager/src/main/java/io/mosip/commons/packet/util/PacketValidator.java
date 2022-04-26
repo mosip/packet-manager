@@ -1,6 +1,7 @@
 package io.mosip.commons.packet.util;
 
 import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
+import static io.mosip.commons.packet.constants.PacketManagerConstants.IDSCHEMA_VERSION;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -18,6 +19,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.stream.Collectors;
 
+import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.kernel.core.exception.ExceptionUtils;
+import io.mosip.kernel.core.util.HMACUtils2;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.IOCase;
