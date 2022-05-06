@@ -166,9 +166,9 @@ public class PacketValidator {
 						? (ArrayList) mapper.readValue(finalMap.get("hashSequence2"), ArrayList.class)
 						: null;
 				Map<String, InputStream> checksumMap = new HashMap<>();
-				FileValidationDto fileValidation = validateFiles(hashseq1List, hashseq2List, checksumMap, packet);
+				boolean fileValidation = validateFiles(hashseq1List, hashseq2List, checksumMap, packet);
 
-				if (fileValidation.isFileValidation()) {
+				if (fileValidation) {
 					LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 							"File validation successful for packet name : " + packetName);
 					auditLogEntry.addAudit("File validation successful", eventId, eventName, eventType, null, null, id);
@@ -179,8 +179,7 @@ public class PacketValidator {
 					return false;
 				}
 
-				boolean checksumValidation = checksumValidation(hashseq1List, hashseq2List, checksumMap, packet,
-						fileValidation);
+				boolean checksumValidation = checksumValidation(hashseq1List, hashseq2List, checksumMap, packet);
 
 				if (checksumValidation) {
 					LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
@@ -253,7 +252,7 @@ public class PacketValidator {
 		return finalMap;
 	}
 
-	private FileValidationDto validateFiles(List hashseq1List, List hashseq2List, Map<String, InputStream> checksumMap,
+	private boolean validateFiles(List hashseq1List, List hashseq2List, Map<String, InputStream> checksumMap,
 			Packet packet) throws JsonProcessingException, IOException {
 		List<String> allFileNames = new ArrayList<>();
 		if (hashseq1List != null && !hashseq1List.isEmpty()) {
@@ -288,52 +287,14 @@ public class PacketValidator {
 
 		List<String> notFoundFiles = new ArrayList<>();
 		allFileNames.forEach(v -> notFoundFiles.add(v));
-		ByteArrayInputStream packetStream = new ByteArrayInputStream(packet.getPacket());
-		byte[] buffer = new byte[2048];
-		ByteArrayOutputStream out = null;
-		FileValidationDto fileValidationDto = new FileValidationDto();
-		try (ZipInputStream zis = new ZipInputStream(packetStream)) {
-			ZipEntry ze = zis.getNextEntry();
-			while (ze != null && !notFoundFiles.isEmpty()) {
-				out = new ByteArrayOutputStream();
-				String fileName = ze.getName();
-				String fileNameWithOutExt = FilenameUtils
-						.removeExtension(FilenameUtils.normalize(fileName.toLowerCase()));
-
-				if (allFileNames.contains(fileNameWithOutExt)) {
-					int len;
-
-					while ((len = zis.read(buffer)) > 0) {
-						out.write(buffer, 0, len);
-					}
-					if (FilenameUtils.equals(fileNameWithOutExt, "PACKET_DATA_HASH", true, IOCase.INSENSITIVE)) {
-						fileValidationDto.setDataHashStream(new ByteArrayInputStream(out.toByteArray()));
-					} else if (FilenameUtils.equals(fileNameWithOutExt, "PACKET_OPERATIONS_HASH", true,
-							IOCase.INSENSITIVE)) {
-						fileValidationDto.setOperationsHashStream(new ByteArrayInputStream(out.toByteArray()));
-					} else {
-						InputStream inputStream = new ByteArrayInputStream(out.toByteArray());
-						if (inputStream != null && inputStream.available() > 0)
-							checksumMap.put(FilenameUtils.removeExtension(fileName), inputStream);
-					}
-					notFoundFiles.remove(fileNameWithOutExt);
-				}
-
-				zis.closeEntry();
-				ze = zis.getNextEntry();
-			}
-			zis.closeEntry();
-		} finally {
-			packetStream.close();
-			if (out != null)
-				out.close();
-		}
-		fileValidationDto.setFileValidation(notFoundFiles.isEmpty());
-		return fileValidationDto;
+		ZipUtils.extracted(checksumMap, packet, allFileNames, notFoundFiles);
+		return notFoundFiles.isEmpty();
 	}
 
+
+
 	private boolean checksumValidation(List hashseq1List, List hashseq2List, Map<String, InputStream> checksumMap,
-			Packet packet, FileValidationDto fileValidation)
+			Packet packet)
 			throws JsonProcessingException, IOException, NoSuchAlgorithmException {
 		List<FieldValueArray> hashSequence1 = new ArrayList<>();
 		List<FieldValueArray> hashSequence2 = new ArrayList<>();
@@ -356,15 +317,17 @@ public class PacketValidator {
 			}
 		}
 
-		if (fileValidation.getDataHashStream() != null) {
-			byte[] dataHashByte = IOUtils.toByteArray(fileValidation.getDataHashStream());
+		InputStream packetDataHash;
+		if ((packetDataHash = checksumMap.get("PACKET_DATA_HASH".toLowerCase())) != null) {
+			byte[] dataHashByte = IOUtils.toByteArray(packetDataHash);
 			byte[] dataHash = generateHash(hashSequence1, checksumMap);
 			isdataCheckSumEqual = MessageDigest.isEqual(dataHash, dataHashByte);
 		} else
 			isdataCheckSumEqual = true;
 
-		if (fileValidation.getOperationsHashStream() != null) {
-			byte[] operationsHashByte = IOUtils.toByteArray(fileValidation.getOperationsHashStream());
+		InputStream packetOperationalHash;
+		if ((packetOperationalHash = checksumMap.get("PACKET_OPERATIONS_HASH".toLowerCase())) != null) {
+			byte[] operationsHashByte = IOUtils.toByteArray(packetOperationalHash);
 			byte[] operationsHash = generateHash(hashSequence2, checksumMap);
 			isoperationsCheckSumEqual = MessageDigest.isEqual(operationsHash, operationsHashByte);
 		} else
