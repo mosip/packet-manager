@@ -10,7 +10,7 @@
     <version>1.1.5.5</version>
     <name>common-packet</name>
     <description>Common packet manager for MOSIP</description>
-    <url>https://github.com/mosip/commons</url>
+    <url>https://github.com/mosip/packet-manager</url>
     
     <packaging>pom</packaging>
 
@@ -170,7 +170,6 @@
                     <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
-        
             <plugin>
               <artifactId>maven-deploy-plugin</artifactId>
               <version>2.8.1</version>
@@ -284,8 +283,8 @@
           </plugins>
         </build>
 		<scm>
-                <connection>scm:git:git://github.com/mosip/commons.git</connection>
-                <developerConnection>scm:git:ssh://github.com:mosip/commons.git</developerConnection>
+                <connection>scm:git:git://github.com/mosip/packet-manager.git</connection>
+                <developerConnection>scm:git:ssh://github.com:mosip/packet-manager.git</developerConnection>
                 <url>https://github.com/mosip/commons</url>
                 <tag>HEAD</tag>
         </scm>
@@ -304,34 +303,34 @@
                 </developer>
         </developers>
 		<profiles>
-		<profile>
-			<id>sonar</id>
-			<properties>
-				<sonar.sources>.</sonar.sources>
-				<sonar.inclusions>src/main/java/**,src/main/resources/**</sonar.inclusions>
-				<sonar.exclusions>${sonar.coverage.exclusions}</sonar.exclusions>
-				<sonar.host.url>https://sonarcloud.io</sonar.host.url>
-			</properties>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.sonarsource.scanner.maven</groupId>
-						<artifactId>sonar-maven-plugin</artifactId>
-						<version>${maven.sonar.plugin.version}</version>
-						<executions>
-							<execution>
-								<phase>verify</phase>
-								<goals>
-									<goal>sonar</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>	
+            <profile>
+                <id>sonar</id>
+                <properties>
+                    <sonar.sources>.</sonar.sources>
+                    <sonar.inclusions>src/main/java/**,src/main/resources/**</sonar.inclusions>
+                    <sonar.exclusions>${sonar.coverage.exclusions}</sonar.exclusions>
+                    <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+                </properties>
+                <activation>
+                    <activeByDefault>false</activeByDefault>
+                </activation>
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.sonarsource.scanner.maven</groupId>
+                            <artifactId>sonar-maven-plugin</artifactId>
+                            <version>${maven.sonar.plugin.version}</version>
+                            <executions>
+                                <execution>
+                                    <phase>verify</phase>
+                                    <goals>
+                                        <goal>sonar</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+                </build>
+            </profile>
+        </profiles>
 	</project>
