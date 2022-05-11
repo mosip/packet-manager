@@ -61,7 +61,7 @@ public class ZipUtils {
 		return null;
 	}
 
-	static void extracted(Map<String, InputStream> checksumMap, Packet packet, List<String> allFileNames,
+	static void unzipAndValidateFiles (Map<String, InputStream> checksumMap, Packet packet, List<String> allFileNames,
 			List<String> notFoundFiles) throws IOException {
 		ByteArrayInputStream packetStream = new ByteArrayInputStream(packet.getPacket());
 		byte[] buffer = new byte[2048];
