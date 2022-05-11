@@ -286,8 +286,8 @@ public class PacketValidator {
 				.collect(Collectors.toList());
 
 		List<String> notFoundFiles = new ArrayList<>();
-		allFileNames.forEach(v -> notFoundFiles.add(v));
-		ZipUtils.extracted(checksumMap, packet, allFileNames, notFoundFiles);
+		allFileNames.forEach(notFoundFiles::add);
+		ZipUtils.unzipAndPopulateStreamMap(checksumMap, packet, allFileNames, notFoundFiles);
 		return notFoundFiles.isEmpty();
 	}
 
