@@ -38,7 +38,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.mosip.commons.packet.audit.AuditLogEntry;
 import io.mosip.commons.packet.constants.PacketManagerConstants;
-import io.mosip.commons.packet.dto.FileValidationDto;
 import io.mosip.commons.packet.dto.Packet;
 import io.mosip.commons.packet.dto.PacketInfo;
 import io.mosip.commons.packet.dto.packet.FieldValueArray;
