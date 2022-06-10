@@ -183,6 +183,7 @@ public class PacketReaderService {
                     throw new SourceNotPresentException();
                 }
             } catch (Exception e) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
                 throw new SourceNotPresentException(e);
             }
         }
@@ -205,6 +206,7 @@ public class PacketReaderService {
                     sourceProcessDto = new SourceProcessDto(containerInfoDto.getSource(), containerInfoDto.getProcess());
                 }
             } catch (Exception e) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
                 throw new SourceNotPresentException(e);
             }
 
