@@ -28,8 +28,9 @@ public class PacketWriterController {
 
 
 
-    @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
-    @ResponseFilter
+   // @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+   @PreAuthorize("hasAnyRole(@authorizedRoles.getPutcreatepacket())")
+	@ResponseFilter
     @PutMapping(path = "/createPacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseWrapper<List<PacketInfo>> createPacket(@RequestBody(required = true) RequestWrapper<PacketDto> requestr) {
 
@@ -47,7 +48,8 @@ public class PacketWriterController {
         return response;
     }
 
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaddtag())")
 	@ResponseFilter
 	@PostMapping(path = "/addTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseWrapper<TagResponseDto> setTags(
@@ -59,7 +61,8 @@ public class PacketWriterController {
 		return response;
 	}
 
-	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+//	@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaddorupdatetag())")
 	@ResponseFilter
 	@PostMapping(path = "/addOrUpdateTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseWrapper<TagResponseDto> updateTags(@RequestBody(required = true) RequestWrapper<TagDto> tagRequest) {
