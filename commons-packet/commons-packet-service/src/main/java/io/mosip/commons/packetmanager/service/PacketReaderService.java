@@ -219,11 +219,18 @@ public class PacketReaderService {
     public ContainerInfoDto findPriority(String field, List<ContainerInfoDto> info) {
         if (info.size() == 1)
             return info.iterator().next();
-        else
-            return getContainerInfoByDefaultPriority(field, info);
+        else {
+            // first try to find container info with demographic field matching, (i,e  field check = true)
+            ContainerInfoDto containerInfoDto = getContainerInfoByDefaultPriority(field, info, true);
+            // if demographic field not found then it will return latest container to support metainfo field search as well
+            // (i,e  field check = false)
+            if (containerInfoDto == null)
+                containerInfoDto = getContainerInfoByDefaultPriority(field, info, false);
+            return containerInfoDto;
+        }
     }
 
-    private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info) {
+    private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info, boolean checkField) {
         if (StringUtils.isNotEmpty(defaultPriority)) {
             String[] val = defaultPriority.split(",");
             if (val != null && val.length > 0) {
@@ -233,9 +240,15 @@ public class PacketReaderService {
                         String sourceStr = str[0].substring(sourceInitial.length());
                         String processStr = str[1].substring(processInitial.length());
                         for (String process : processStr.split("\\|")) {
-                            Optional<ContainerInfoDto> containerDto = info.stream().filter(infoDto ->
-                                    infoDto.getDemographics() != null && infoDto.getDemographics().contains(field) && infoDto.getSource().equalsIgnoreCase(sourceStr)
-                            && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
+                            Optional<ContainerInfoDto> containerDto = null;
+                            if (checkField)
+                                containerDto = info.stream().filter(infoDto ->
+                                        infoDto.getDemographics() != null && infoDto.getDemographics().contains(field) && infoDto.getSource().equalsIgnoreCase(sourceStr)
+                                && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
+                            else
+                                containerDto = info.stream().filter(infoDto ->
+                                        infoDto.getSource().equalsIgnoreCase(sourceStr)
+                                                && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
                             // if container is not present then continue searching
                             if (containerDto.isPresent()) {
                                 return containerDto.get();
@@ -256,6 +269,7 @@ public class PacketReaderService {
 
         return containerDto.isPresent() ? containerDto.get() : null;
     }
+
 
     private String getDefaultSource(String process) {
         if (StringUtils.isNotEmpty(defaultPriority)) {
