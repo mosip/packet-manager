@@ -224,18 +224,11 @@ public class PacketReaderService {
     public ContainerInfoDto findPriority(String field, List<ContainerInfoDto> info) {
         if (info.size() == 1)
             return info.iterator().next();
-        else {
-            // first try to find container info with demographic field matching, (i,e  field check = true)
-            ContainerInfoDto containerInfoDto = getContainerInfoByDefaultPriority(field, info, true);
-            // if demographic field not found then it will return latest container to support metainfo field search as well
-            // (i,e  field check = false)
-            if (containerInfoDto == null)
-                containerInfoDto = getContainerInfoByDefaultPriority(field, info, false);
-            return containerInfoDto;
-        }
+        else
+            return getContainerInfoByDefaultPriority(field, info);
     }
 
-    private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info, boolean checkField) {
+    private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info) {
         if (StringUtils.isNotEmpty(defaultPriority)) {
             String[] val = defaultPriority.split(",");
             if (val != null && val.length > 0) {
@@ -275,7 +268,6 @@ public class PacketReaderService {
 
         return containerDto.isPresent() ? containerDto.get() : null;
     }
-
 
     private String getDefaultSource(String process) {
         if (StringUtils.isNotEmpty(defaultPriority)) {
