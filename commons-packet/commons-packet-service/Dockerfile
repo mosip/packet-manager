@@ -1,4 +1,4 @@
-FROM openjdk:11
+FROM openjdk:17-jdk-slim-buster
 
 ARG SOURCE
 ARG COMMIT_HASH

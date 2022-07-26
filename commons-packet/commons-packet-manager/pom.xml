@@ -9,44 +9,48 @@
     <name>commons-packet-manager</name>
     <description>Mosip commons project </description>
     <url>https://github.com/mosip/commons</url>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1-2-1-j17-SNAPSHOT</version>
  <properties>
+ 
+        <!-- java-->
+        <java.version>17</java.version>
+        
         <!-- maven -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <maven.compiler.version>3.8.0</maven.compiler.version>
-        <!-- <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version> -->
+        <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version>
         <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
         <maven.war.plugin.version>3.1.0</maven.war.plugin.version>
         <!-- <maven.jacoco.plugin.version>0.8.1</maven.jacoco.plugin.version> -->
         <!-- <maven.sonar.plugin.version>3.7.0.1746</maven.sonar.plugin.version> -->
-        <maven.javadoc.version>3.2.0</maven.javadoc.version>
+        <maven.javadoc.version>3.4.0</maven.javadoc.version>
         <maven-shade-plugin.version>2.3</maven-shade-plugin.version>
 
         <!-- spring -->
-        <spring.boot.version>2.0.2.RELEASE</spring.boot.version>
-        <spring.data.jpa.version>2.0.7.RELEASE</spring.data.jpa.version>
-        <spring-cloud-config.version>2.0.0.RELEASE</spring-cloud-config.version>
+        <spring.boot.version>2.7.0</spring.boot.version>
+        <spring.data.jpa.version>2.7.0</spring.data.jpa.version>
+        <spring-cloud-config.version>3.1.3</spring-cloud-config.version>
         <h2.version>1.4.197</h2.version>
         <jackson.datatype.version>2.9.8</jackson.datatype.version>
         <kernel.keygenerator.bouncycastle.version>1.2.1-SNAPSHOT</kernel.keygenerator.bouncycastle.version>
         <swagger.version>2.9.2</swagger.version>
         <powermock.beta.version>2.0.7</powermock.beta.version>
-        <junit.version>4.13.1</junit.version>
+        <junit.version>4.13.2</junit.version>
         <hazelcast.kubernetes.version>1.3.1</hazelcast.kubernetes.version>
 
-        <kernel-keymanager-service.version>1.2.1-SNAPSHOT</kernel-keymanager-service.version>
-        <kernel-idobjectvalidator.version>1.2.1-SNAPSHOT</kernel-idobjectvalidator.version>
-        <kernel.core.version>1.2.1-SNAPSHOT</kernel.core.version>
-        <kernel.biometrics.api.version>1.2.1-SNAPSHOT</kernel.biometrics.api.version>
-        <kernel.cbeffutil.api.version>1.2.1-SNAPSHOT</kernel.cbeffutil.api.version>
-        <kernel.crypto-jce.version>1.2.1-SNAPSHOT</kernel.crypto-jce.version>
-        <kernel.auth.adaptor.version>1.2.1-SNAPSHOT</kernel.auth.adaptor.version>
-        <kernel-dataaccess-hibernate.version>1.2.1-SNAPSHOT</kernel-dataaccess-hibernate.version>
-        <kernel.logger.logback.version>1.2.1-SNAPSHOT</kernel.logger.logback.version>
+        <kernel-keymanager-service.version>1-2-1-j17-SNAPSHOT</kernel-keymanager-service.version>
+        <kernel-idobjectvalidator.version>1-2-1-j17-SNAPSHOT</kernel-idobjectvalidator.version>
+        <kernel.core.version>1-2-1-j17-SNAPSHOT</kernel.core.version>
+        <kernel.biometrics.api.version>1-2-1-j17-SNAPSHOT</kernel.biometrics.api.version>
+        <kernel.cbeffutil.api.version>1-2-1-j17-SNAPSHOT</kernel.cbeffutil.api.version>
+        <kernel.crypto-jce.version>1.2.0-SNAPSHOT</kernel.crypto-jce.version>
+        <kernel.auth.adaptor.version>1-2-1-j17-SNAPSHOT</kernel.auth.adaptor.version>
+        <kernel-dataaccess-hibernate.version>1-2-1-j17-SNAPSHOT</kernel-dataaccess-hibernate.version>
+        <kernel.logger.logback.version>1-2-1-j17-SNAPSHOT</kernel.logger.logback.version>
         <spring.boot.co>2.0.2.RELEASE</spring.boot.co>
-        <khazana.version>1.2.1-SNAPSHOT</khazana.version>
+        <khazana.version>1-2-1-j17-SNAPSHOT</khazana.version>
         <sonar.coverage.exclusions>**/constants/**,**/config/**,**/audit/**,**/util/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
     </properties>
@@ -174,7 +178,23 @@
                     <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
-           
+           <plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>${maven.surefire.plugin.version}</version>
+					<configuration>
+						<skipTests>${skipTests}</skipTests>
+						<skip>false</skip>
+						 <argLine> 
+						 --add-opens java.base/java.util=ALL-UNNAMED
+                         --add-opens java.base/java.util.zip=ALL-UNNAMED
+                         --add-opens java.base/java.util.stream=ALL-UNNAMED
+                         --add-opens java.base/java.io=ALL-UNNAMED
+                         --add-opens java.base/java.lang=ALL-UNNAMED
+                        </argLine>
+
+					</configuration>
+				</plugin>
             <plugin>
               <artifactId>maven-deploy-plugin</artifactId>
               <version>2.8.1</version>
@@ -286,6 +306,7 @@
 			</configuration>
 		</plugin>
           </plugins>
+          <finalName>commons-packet-service-1.2.1</finalName>
         </build>
 		<scm>
                 <connection>scm:git:git://github.com/mosip/packet-manager.git</connection>
