@@ -199,7 +199,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             } else {
                 throw new PacketDecryptionFailureException(e);
             }
-
+  
         }
         return encryptedPacket;
     }

@@ -161,7 +161,7 @@ public class PacketReaderService {
                 throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
         }
     }
-
+ 
     private String getKey() throws IOException {
         if (key != null)
               return key;
