@@ -164,14 +164,18 @@ public class PacketReaderService {
 
     private String getKey() throws IOException {
         if (key != null)
-            return key;
-        JSONObject jsonObject = getMappingJsonFile();
-        if(jsonObject == null)
-            return null;
-        LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
-        key = individualBio.get(VALUE);
-        return key;
-    }
+              return key;
+          JSONObject jsonObject = getMappingJsonFile();
+          if(jsonObject == null)
+              return null;
+          if(jsonObject != null) {
+          LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
+          key = individualBio.get(VALUE);
+          return key;
+          }
+  		return null;
+          
+      }
 
 
     public SourceProcessDto getSourceAndProcess(String id, String source, String process) {

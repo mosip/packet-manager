@@ -1,23 +1,25 @@
 package io.mosip.commons.packet.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+
 import io.mosip.commons.khazana.util.EncryptionUtil;
-import io.mosip.commons.packet.constants.CryptomanagerConstant;
-import io.mosip.commons.packet.dto.TpmSignVerifyRequestDto;
+import io.mosip.commons.packet.dto.ValidateRequestDto;
 import io.mosip.commons.packet.dto.packet.CryptomanagerRequestDto;
 import io.mosip.commons.packet.dto.packet.CryptomanagerResponseDto;
 import io.mosip.commons.packet.exception.ApiNotAccessibleException;
 import io.mosip.commons.packet.exception.PacketDecryptionFailureException;
-import io.mosip.commons.packet.exception.SignatureException;
-import io.mosip.commons.packet.spi.IPacketCryptoService;
 import io.mosip.commons.packet.util.PacketManagerLogger;
-import io.mosip.kernel.clientcrypto.dto.TpmSignRequestDto;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.exception.ServiceError;
-import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,16 +29,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.mosip.commons.packet.constants.CryptomanagerConstant;
+import io.mosip.commons.packet.dto.SignRequestDto;
+import io.mosip.commons.packet.exception.SignatureException;
+import io.mosip.commons.packet.spi.IPacketCryptoService;
+import io.mosip.kernel.core.http.RequestWrapper;
+import io.mosip.kernel.core.util.DateUtils;
 
 @Component
 @Qualifier("OnlinePacketCryptoServiceImpl")
@@ -58,14 +60,19 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     @Value("${mosip.kernel.cryptomanager.request_version:v1}")
     private String APPLICATION_VERSION;
 
+    @Value("${mosip.kernel.registrationcenterid.length:5}")
+    private int centerIdLength;
+
     @Value("${CRYPTOMANAGER_DECRYPT:null}")
     private String cryptomanagerDecryptUrl;
+
+    @Value("${mosip.kernel.machineid.length:5}")
+    private int machineIdLength;
 
     @Value("${crypto.PrependThumbprint.enable:true}")
     private boolean isPrependThumbprintEnabled;
 
     @Autowired
-    @Qualifier("selfTokenRestTemplate")
     private RestTemplate restTemplate;
 
     @Autowired
@@ -73,35 +80,32 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
 
     @Value("${CRYPTOMANAGER_ENCRYPT:null}")
     private String cryptomanagerEncryptUrl;
-    
-    @Value("${mosip.kernel.keymanager-service-CsSign-url:null}")
-    private String keymanagerCsSignUrl;
-    
-    @Value("${mosip.kernel.keymanager-service-csverifysign-url:null}")
-    private String keymanagerCsverifysignUrl;
-    
-    @Value("${mosip.kernel.syncdata-service-get-tpm-publicKey-url:null}")
-    private String syncdataGetTpmKeyUrl;
-    
+
+    @Value("${mosip.kernel.keymanager-service-sign-url:null}")
+    private String keymanagerSignUrl;
+
+    @Value("${mosip.kernel.keymanager-service-validate-url:null}")
+    private String keymanagerValidateUrl;
+
     @Override
     public byte[] sign(byte[] packet) {
         try {
-            
-        	TpmSignRequestDto dto = new TpmSignRequestDto();
-            dto.setData(CryptoUtil.encodeToURLSafeBase64(packet));
-            RequestWrapper<TpmSignRequestDto> request = new RequestWrapper<>();
+            String packetData = new String(packet, StandardCharsets.UTF_8);
+            SignRequestDto dto = new SignRequestDto();
+            dto.setData(packetData);
+            RequestWrapper<SignRequestDto> request = new RequestWrapper<>();
             request.setRequest(dto);
             request.setMetadata(null);
             DateTimeFormatter format = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
             LocalDateTime localdatetime = LocalDateTime
                     .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
-            HttpEntity<RequestWrapper<TpmSignRequestDto>> httpEntity = new HttpEntity<>(request);
-            ResponseEntity<String> response = restTemplate.exchange(keymanagerCsSignUrl, HttpMethod.POST, httpEntity,
+            HttpEntity<RequestWrapper<SignRequestDto>> httpEntity = new HttpEntity<>(request);
+            ResponseEntity<String> response = restTemplate.exchange(keymanagerSignUrl, HttpMethod.POST, httpEntity,
                     String.class);
             LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");
             if (responseMap != null && responseMap.size() > 0)
-                return CryptoUtil.decodeURLSafeBase64((String) responseMap.get("data"));
+                return responseMap.get("signature").toString().getBytes();
             else
                 throw new SignatureException();
         } catch (IOException e) {
@@ -112,11 +116,14 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     }
 
     @Override
-    public byte[] encrypt(String refId, byte[] packet) {
+    public byte[] encrypt(String id, byte[] packet) {
         byte[] encryptedPacket = null;
 
         try {
-            String packetString = CryptoUtil.encodeToURLSafeBase64(packet);
+            String centerId = id.substring(0, centerIdLength);
+            String machineId = id.substring(centerIdLength, centerIdLength + machineIdLength);
+            String refId = centerId + "_" + machineId;
+            String packetString = CryptoUtil.encodeBase64String(packet);
             CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
             RequestWrapper<CryptomanagerRequestDto> request = new RequestWrapper<>();
             cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
@@ -129,10 +136,21 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             byte[] aad = new byte[CryptomanagerConstant.GCM_AAD_LENGTH];
             sRandom.nextBytes(nonce);
             sRandom.nextBytes(aad);
-            cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
-            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
-            cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
+            cryptomanagerRequestDto.setAad(CryptoUtil.encodeBase64String(aad));
+            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeBase64String(nonce));
+            // setLocal Date Time
+            if (id.length() > 14) {
+                String packetCreatedDateTime = id.substring(id.length() - 14);
+                String formattedDate = packetCreatedDateTime.substring(0, 8) + "T"
+                        + packetCreatedDateTime.substring(packetCreatedDateTime.length() - 6);
 
+                cryptomanagerRequestDto.setTimeStamp(
+                        LocalDateTime.parse(formattedDate, DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")));
+            } else {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                        "Packet encryption Failed-Invalid datetime format");
+                throw new PacketDecryptionFailureException("Packet encryption Failed-Invalid datetime format");
+            }
             request.setId(DECRYPT_SERVICE_ID);
             request.setMetadata(null);
             request.setRequest(cryptomanagerRequestDto);
@@ -147,27 +165,30 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             CryptomanagerResponseDto responseObject = mapper.readValue(response.getBody(), CryptomanagerResponseDto.class);
             if (responseObject != null &&
                     responseObject.getErrors() != null && !responseObject.getErrors().isEmpty()) {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                         "Packet encryption failed");
                 ServiceError error = responseObject.getErrors().get(0);
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                         "Packet encryption failure message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            byte[] encryptedData = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
-            encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+			if (responseObject != null && responseObject.getResponse().getData() != null) {
+				byte[] encryptedData = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+				encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
+			}
+
+            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     "Successfully encrypted Packet");
         } catch (IOException e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
             throw new PacketDecryptionFailureException(IO_EXCEPTION, e);
         } catch (DateTimeParseException e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
             throw new PacketDecryptionFailureException(DATE_TIME_EXCEPTION);
         } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
             if (e.getCause() instanceof HttpClientErrorException) {
                 HttpClientErrorException httpClientException = (HttpClientErrorException) e.getCause();
@@ -184,10 +205,13 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     }
 
     @Override
-    public byte[] decrypt(String refId, byte[] packet) {
+    public byte[] decrypt(String id, byte[] packet) {
         byte[] decryptedPacket = null;
 
         try {
+            String centerId = id.substring(0, centerIdLength);
+            String machineId = id.substring(centerIdLength, centerIdLength + machineIdLength);
+            String refId = centerId + "_" + machineId;
             CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
             RequestWrapper<CryptomanagerRequestDto> request = new RequestWrapper<>();
             cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
@@ -197,12 +221,23 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                                             CryptomanagerConstant.GCM_NONCE_LENGTH + CryptomanagerConstant.GCM_AAD_LENGTH);
             byte[] encryptedData = Arrays.copyOfRange(packet, CryptomanagerConstant.GCM_NONCE_LENGTH + CryptomanagerConstant.GCM_AAD_LENGTH,
                                         packet.length);
-            cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
-            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
-            cryptomanagerRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(encryptedData));
+            cryptomanagerRequestDto.setAad(CryptoUtil.encodeBase64String(aad));
+            cryptomanagerRequestDto.setSalt(CryptoUtil.encodeBase64String(nonce));
+            cryptomanagerRequestDto.setData(CryptoUtil.encodeBase64String(encryptedData));
             cryptomanagerRequestDto.setPrependThumbprint(isPrependThumbprintEnabled);
-            cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
+            // setLocal Date Time
+            if (id.length() > 14) {
+                String packetCreatedDateTime = id.substring(id.length() - 14);
+                String formattedDate = packetCreatedDateTime.substring(0, 8) + "T"
+                        + packetCreatedDateTime.substring(packetCreatedDateTime.length() - 6);
 
+                cryptomanagerRequestDto.setTimeStamp(
+                        LocalDateTime.parse(formattedDate, DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")));
+            } else {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                        "Packet DecryptionFailed-Invalid Packet format");
+                throw new PacketDecryptionFailureException("Packet DecryptionFailed-Invalid Packet format");
+            }
             request.setId(DECRYPT_SERVICE_ID);
             request.setMetadata(null);
             request.setRequest(cryptomanagerRequestDto);
@@ -219,26 +254,30 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
 
             if (responseObject != null &&
                     responseObject.getErrors() != null && !responseObject.getErrors().isEmpty()) {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                         "Packet decryption failed");
                 ServiceError error = responseObject.getErrors().get(0);
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                         "Error message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            decryptedPacket = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+			if (responseObject != null && responseObject.getResponse().getData() != null) {
+
+				decryptedPacket = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+			}
+            decryptedPacket = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     "Successfully decrypted Packet");
         } catch (IOException e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
             throw new PacketDecryptionFailureException(IO_EXCEPTION, e);
         } catch (DateTimeParseException e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
             throw new PacketDecryptionFailureException(DATE_TIME_EXCEPTION);
         } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
             if (e.getCause() instanceof HttpClientErrorException) {
                 HttpClientErrorException httpClientException = (HttpClientErrorException) e.getCause();
@@ -255,57 +294,36 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     }
 
     @Override
-    public boolean verify(String refId, byte[] packet, byte[] signature) {
+    public boolean verify(byte[] packet, byte[] signature) {
        try {
-    	   	String publicKey=getPublicKey(refId);
-            TpmSignVerifyRequestDto dto = new TpmSignVerifyRequestDto();
-            dto.setData(CryptoUtil.encodeToURLSafeBase64(packet));
-            dto.setSignature(CryptoUtil.encodeToURLSafeBase64(signature));
-            dto.setPublicKey(publicKey);
-            RequestWrapper<TpmSignVerifyRequestDto> request = new RequestWrapper<>();
+            String packetData = new String(packet, StandardCharsets.UTF_8);
+            ValidateRequestDto dto = new ValidateRequestDto();
+            dto.setData(packetData);
+            dto.setSignature(new String(signature, StandardCharsets.UTF_8));
+            dto.setTimestamp(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN));
+            RequestWrapper<ValidateRequestDto> request = new RequestWrapper<>();
             request.setRequest(dto);
             request.setMetadata(null);
             DateTimeFormatter format = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
             LocalDateTime localdatetime = LocalDateTime
                     .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
-            HttpEntity<RequestWrapper<TpmSignVerifyRequestDto>> httpEntity = new HttpEntity<>(request);
-            ResponseEntity<String> response = restTemplate.exchange(keymanagerCsverifysignUrl, HttpMethod.POST, httpEntity,
+            HttpEntity<RequestWrapper<ValidateRequestDto>> httpEntity = new HttpEntity<>(request);
+            ResponseEntity<String> response = restTemplate.exchange(keymanagerValidateUrl, HttpMethod.POST, httpEntity,
                     String.class);
             LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
-            if (responseMap != null && responseMap.size() > 0) {
-                boolean result = responseMap.get("verified") != null && responseMap.get("verified").toString().equalsIgnoreCase("true");
-                if (!result)
-                    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
-                        "Signature verification Failed.");
-                return result;
-            } else {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
-                        "Failed to verify signature. Received error response from keymanager verify API.");
+            if (responseMap != null && responseMap.size() > 0)
+                return responseMap.get("status") != null && responseMap.get("status").toString().equalsIgnoreCase("success");
+            else {
+                LOGGER.error(PacketManagerLogger.SESSIONID, "SIGNATURE", new String(signature),
+                        "Failed to verify signature");
                 throw new SignatureException();
             }
         } catch (IOException e) {
            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
                    ExceptionUtils.getStackTrace(e));
             throw new SignatureException(e);
-        } catch( RestClientException e) {
-        	LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
-                    ExceptionUtils.getStackTrace(e));
-             throw new SignatureException(e);
         }
     }
 
-	private String getPublicKey(String refId) throws IOException {
-        String machineId = refId.split("_")[1];
-		ResponseEntity<String> response = restTemplate.exchange(syncdataGetTpmKeyUrl+machineId, HttpMethod.GET, null,
-                String.class);
-		 LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
-		 if (responseMap != null && responseMap.size() > 0)
-             return (String) responseMap.get("signingPublicKey");
-         else {
-             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
-                     "Failed to get public key. Error Response : " + response.getBody());
-             throw new SignatureException();
-         }
-	}
 }

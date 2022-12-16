@@ -15,13 +15,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import org.apache.commons.io.IOUtils;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONTokener;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,8 +58,6 @@ public class PacketValidator {
     private static final String eventName = "PACKET MANAGER";
     private static final String eventType = "SYSTEM";
 
-    @Autowired
-    private PacketReader reader;
 
     @Autowired
     private Environment env;
@@ -84,7 +78,7 @@ public class PacketValidator {
     private AuditLogEntry auditLogEntry;
 
 
-    public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
+    public boolean validate(String id, String source, String process) throws IdObjectIOException, IdObjectValidationFailedException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException {
         boolean result = validateSchema(id, source, process);
         if(result) {
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
@@ -98,28 +92,37 @@ public class PacketValidator {
         return result;
     }
 
-    private boolean validateSchema(String id, String source, String process) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
-        Map<String, Object> objectMap = new HashMap<>();
+    private boolean validateSchema(String id, String source, String process) throws IOException, InvalidIdSchemaException, IdObjectIOException {
+        LinkedHashMap<String, Object> objectMap = new LinkedHashMap<>();
         try {
-            String idschemaValueFromMappingJson = idSchemaUtils.getIdschemaVersionFromMappingJson();
-            String idschemaVersion = reader.getField(id, idschemaValueFromMappingJson, source, process, false);
-            List<String> allFields = idSchemaUtils.getDefaultFields(Double.valueOf(idschemaVersion));
-            Map<String, String> fieldsMap = reader.getFields(id, allFields, source, process, false);
-            objectMap.putAll(fieldsMap);
+            for (String packetName : packetNames.split(",")) {
+                Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
+                InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
+                if (idJsonStream != null) {
+                    byte[] bytearray = IOUtils.toByteArray(idJsonStream);
+                    String jsonString = new String(bytearray);
+                    LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
+                            .readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+                    if (convertIdschemaToDouble && currentIdMap.get(IDSCHEMA_VERSION) != null)
+                        currentIdMap.put(IDSCHEMA_VERSION, Double.valueOf(currentIdMap.get(IDSCHEMA_VERSION).toString()));
+                    currentIdMap.entrySet().forEach(e -> objectMap.putIfAbsent(e.getKey(), e.getValue()));
 
-            if (convertIdschemaToDouble)
-                objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
-
-            String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
+                }
+            }
+            String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(id, process).getOperation()));
+           if(fields != null) {
             LinkedHashMap finalMap = new LinkedHashMap();
-            finalMap.put(IDENTITY, loadDemographicIdentity(objectMap));
+            finalMap.put(IDENTITY, objectMap);
             JSONObject finalIdObject = new JSONObject(finalMap);
 
             return idObjectValidator.validateIdObject(idSchemaUtils.getIdSchema(Double.valueOf(objectMap.get(
                     PacketManagerConstants.IDSCHEMA_VERSION).toString())), finalIdObject, Arrays.asList(fields.split(",")));
-        } catch (IdObjectValidationFailedException e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-                    "Id object masterdata validation failed with errors:  " + e.getErrorTexts());
+            
+           }
+           
+           return false;
+        } catch (IdObjectValidationFailedException | PacketKeeperException e) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed :  " + ExceptionUtils.getStackTrace(e));
             return false;
         }
 
@@ -194,7 +197,7 @@ public class PacketValidator {
                     valuebyte = IOUtils.toByteArray(fileStream);
                     outputStream.write(valuebyte);
                 } catch (IOException e) {
-                    LOGGER.error("Exception while generating hash " + ExceptionUtils.getStackTrace(e));
+                   e.printStackTrace();
                 }
             });
         }
@@ -290,35 +293,6 @@ public class PacketValidator {
 
         return (isdataCheckSumEqual && isoperationsCheckSumEqual);
 
-    }
-
-    private LinkedHashMap loadDemographicIdentity(Map<String, Object> fieldMap) throws IOException, JSONException {
-        LinkedHashMap demographicIdentity = new LinkedHashMap();
-        for (Map.Entry e : fieldMap.entrySet()) {
-            if (e.getValue() != null) {
-                String value = e.getValue().toString();
-                if (value != null) {
-                    Object json = new JSONTokener(value).nextValue();
-                    if (json instanceof org.json.JSONObject) {
-                        HashMap<String, Object> hashMap = new ObjectMapper().readValue(value, HashMap.class);
-                        demographicIdentity.putIfAbsent(e.getKey(), hashMap);
-                    }
-                    else if (json instanceof JSONArray) {
-                        List jsonList = new ArrayList<>();
-                        JSONArray jsonArray = new JSONArray(value);
-                        for (int i = 0; i < jsonArray.length(); i++) {
-                            Object obj = jsonArray.get(i);
-                            HashMap<String, Object> hashMap = new ObjectMapper().readValue(obj.toString(), HashMap.class);
-                            jsonList.add(hashMap);
-                        }
-                        demographicIdentity.putIfAbsent(e.getKey(), jsonList);
-                    } else
-                        demographicIdentity.putIfAbsent(e.getKey(), e.getValue());
-                } else
-                    demographicIdentity.putIfAbsent(e.getKey(), value);
-            }
-        }
-        return demographicIdentity;
     }
 
 
