@@ -139,9 +139,13 @@ public class PacketReaderService {
         JSONObject jsonObject = getMappingJsonFile();
         if(jsonObject == null)
             return null;
+        if(jsonObject != null) {
         LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
         key = individualBio.get(VALUE);
         return key;
+        }
+		return null;
+        
     }
 
 

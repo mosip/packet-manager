@@ -172,8 +172,11 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                         "Packet encryption failure message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            byte[] encryptedData = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
-            encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
+			if (responseObject != null && responseObject.getResponse().getData() != null) {
+				byte[] encryptedData = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+				encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
+			}
+
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     "Successfully encrypted Packet");
         } catch (IOException e) {
@@ -258,6 +261,10 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                         "Error message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
+			if (responseObject != null && responseObject.getResponse().getData() != null) {
+
+				decryptedPacket = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
+			}
             decryptedPacket = CryptoUtil.decodeBase64(responseObject.getResponse().getData());
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     "Successfully decrypted Packet");
