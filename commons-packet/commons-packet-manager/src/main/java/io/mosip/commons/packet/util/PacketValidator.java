@@ -111,19 +111,26 @@ public class PacketValidator {
                 objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
 
             String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
-            LinkedHashMap finalMap = new LinkedHashMap();
-            finalMap.put(IDENTITY, loadDemographicIdentity(objectMap));
-            JSONObject finalIdObject = new JSONObject(finalMap);
+			if (fields != null) {
+				LinkedHashMap finalMap = new LinkedHashMap();
+				finalMap.put(IDENTITY, objectMap);
+				JSONObject finalIdObject = new JSONObject(finalMap);
 
-            return idObjectValidator.validateIdObject(idSchemaUtils.getIdSchema(Double.valueOf(objectMap.get(
-                    PacketManagerConstants.IDSCHEMA_VERSION).toString())), finalIdObject, Arrays.asList(fields.split(",")));
+				return idObjectValidator.validateIdObject(
+						idSchemaUtils.getIdSchema(
+								Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
+						finalIdObject, Arrays.asList(fields.split(",")));
+
+			}
+
+			return false;
         } catch (IdObjectValidationFailedException e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     "Id object masterdata validation failed with errors:  " + e.getErrorTexts());
             return false;
         }
 
-    } 
+    }
 
     /**
      * Files validation.

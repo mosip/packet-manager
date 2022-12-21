@@ -162,16 +162,20 @@ public class PacketReaderService {
         }
     }
 
-    private String getKey() throws IOException {
-        if (key != null)
-            return key;
-        JSONObject jsonObject = getMappingJsonFile();
-        if(jsonObject == null)
-            return null;
-        LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
-        key = individualBio.get(VALUE);
-        return key;
-    }
+	private String getKey() throws IOException {
+		if (key != null)
+			return key;
+		JSONObject jsonObject = getMappingJsonFile();
+		if (jsonObject == null)
+			return null;
+		if (jsonObject != null) {
+			LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
+			key = individualBio.get(VALUE);
+			return key;
+		}
+		return null;
+
+	}
 
 
     public SourceProcessDto getSourceAndProcess(String id, String source, String process) {
@@ -449,17 +453,24 @@ public class PacketReaderService {
         infoResponseDto.setInfo(finalInfos);
         return infoResponseDto;
     }
- 
+
     private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos, ContainerInfoDto info, String process) {
         ContainerInfoDto finalInfo = finalInfos.stream().filter(
                 i -> i.getSource().equals(info.getSource()) && i.getProcess().equals(process)).findAny().get();
-        finalInfos.remove(finalInfo);
-        finalInfo.setDemographics(mergeDemographics(finalInfo, info));
-        finalInfo.setBiometrics(mergeBiometrics(finalInfo, info));
-        finalInfo.setDocuments(mergeDocuments(finalInfo, info));
-        finalInfo.setLastModified(finalInfo.getLastModified().before(info.getLastModified()) ?
-                info.getLastModified() : finalInfo.getLastModified());
-        return finalInfo;
+        
+        Optional<String> optional1 = Optional.of(finalInfo.getSource());
+        Optional<String> optional2 = Optional.of(finalInfo.getSource());
+        if(optional1.isPresent() &&  optional2.isPresent()) {
+        	finalInfos.remove(finalInfo);
+            finalInfo.setDemographics(mergeDemographics(finalInfo, info));
+            finalInfo.setBiometrics(mergeBiometrics(finalInfo, info));
+            finalInfo.setDocuments(mergeDocuments(finalInfo, info));
+            finalInfo.setLastModified(finalInfo.getLastModified().before(info.getLastModified()) ?
+                    info.getLastModified() : finalInfo.getLastModified());
+            return finalInfo;	
+        }
+		return null;
+        
     }
 
     private Set<String> mergeDemographics(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
