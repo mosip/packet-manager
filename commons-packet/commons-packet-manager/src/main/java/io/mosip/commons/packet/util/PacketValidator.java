@@ -123,7 +123,7 @@ public class PacketValidator {
             return false;
         }
 
-    }
+    } 
 
     /**
      * Files validation.

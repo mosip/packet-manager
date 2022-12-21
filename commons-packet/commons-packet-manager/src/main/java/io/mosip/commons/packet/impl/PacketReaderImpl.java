@@ -326,7 +326,7 @@ public class PacketReaderImpl implements IPacketReader {
 						}
 					});
 				}
-			}
+			} 
 		} catch (Exception e) {
 			if (e instanceof BaseCheckedException) {
 				BaseCheckedException ex = (BaseCheckedException) e;

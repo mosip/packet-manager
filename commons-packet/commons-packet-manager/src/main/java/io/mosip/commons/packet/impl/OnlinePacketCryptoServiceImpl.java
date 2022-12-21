@@ -237,7 +237,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
                     ExceptionUtils.getStackTrace(e));
             throw new PacketDecryptionFailureException(DATE_TIME_EXCEPTION);
-        } catch (Exception e) {
+        } catch (Exception e) { 
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
                     ExceptionUtils.getStackTrace(e));
             if (e.getCause() instanceof HttpClientErrorException) {
