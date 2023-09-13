@@ -15,11 +15,7 @@ on:
   push:
     branches:
       - '!release-branch'
-      - release-1*
-      - master
-      - 1.*
-      - develop
-      - MOSIP*
+      - '*'
 
 jobs:
   build-maven-packet-manager:
