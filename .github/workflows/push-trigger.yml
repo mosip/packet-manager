@@ -70,7 +70,7 @@ jobs:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
 
   sonar_analysis:
-    needs: build-maven-commons-packet
+    needs: build-maven-packet-manager
     if: "${{  github.event_name != 'pull_request' }}"
     uses: mosip/kattu/.github/workflows/maven-sonar-analysis.yml@master
     with:
