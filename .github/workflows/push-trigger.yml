@@ -39,7 +39,7 @@ jobs:
     needs: build-maven-packet-manager
     uses: mosip/kattu/.github/workflows/maven-publish-to-nexus.yml@master
     with:
-      SERVICE_LOCATION: ./
+      SERVICE_LOCATION: commons-packet
     secrets:
       OSSRH_USER: ${{ secrets.OSSRH_USER }}
       OSSRH_SECRET: ${{ secrets.OSSRH_SECRET }}
