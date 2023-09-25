@@ -19,6 +19,7 @@ on:
       - 'develop'
       - 'master'
       - '1.*'
+      - 'release*'
 
 jobs:
   build-maven-packet-manager:
