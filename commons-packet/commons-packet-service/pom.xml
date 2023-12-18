@@ -37,7 +37,7 @@
         <kernel.core.version>1.2.0.1-B2</kernel.core.version>
         <kernel.biometrics.api.version>1.2.0.1-B2</kernel.biometrics.api.version>
         <kernel.crypto-jce.version>1.2.0.1-B2</kernel.crypto-jce.version>
-        <kernel.auth.adaptor.version>1.2.0.1-B2</kernel.auth.adaptor.version>
+        <kernel.auth.adaptor.version>1.2.0.1-B3</kernel.auth.adaptor.version>
         <kernel-dataaccess-hibernate.version>1.2.0.1-B2</kernel-dataaccess-hibernate.version>
         <kernel.logger.logback.version>1.2.0.1-B2</kernel.logger.logback.version>
         <spring.boot.co>2.0.2.RELEASE</spring.boot.co>
