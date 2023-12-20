@@ -34,12 +34,12 @@
         <spring-cloud-config.version>2.0.0.RELEASE</spring-cloud-config.version>
         <h2.version>1.4.197</h2.version>
         <jackson.datatype.version>2.9.8</jackson.datatype.version>
-        <kernel.keygenerator.bouncycastle.version>1.2.0.1-B2</kernel.keygenerator.bouncycastle.version>
+        <kernel.keygenerator.bouncycastle.version>1.2.0.1-B3</kernel.keygenerator.bouncycastle.version>
         <swagger.version>2.9.2</swagger.version>
         <powermock.beta.version>2.0.7</powermock.beta.version>
 
         <kernel.core.version>1.2.0.1-B2</kernel.core.version>
-        <kernel.biometrics.api.version>1.2.0.1-B2</kernel.biometrics.api.version>
+        <kernel.biometrics.api.version>1.2.0.1-B3</kernel.biometrics.api.version>
         <kernel.crypto-jce.version>1.2.0.1-B2</kernel.crypto-jce.version>
         <kernel.auth.adaptor.version>1.2.0.1-B3</kernel.auth.adaptor.version>
         <kernel-dataaccess-hibernate.version>1.2.0.1-B2</kernel-dataaccess-hibernate.version>
