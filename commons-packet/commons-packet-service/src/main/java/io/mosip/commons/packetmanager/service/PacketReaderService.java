@@ -83,6 +83,9 @@ public class PacketReaderService {
     @Qualifier("selfTokenRestTemplate")
     private RestTemplate restTemplate;
 
+    @Value("#{T(java.util.Arrays).asList('${packetmanager.additional.fields.search.from.metainfo:officerBiometricFileName,supervisorBiometricFileName}')}")
+    private List<String> additionalFieldsSearch;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -236,7 +239,7 @@ public class PacketReaderService {
                         String processStr = str[1].substring(processInitial.length());
                         for (String process : processStr.split("\\|")) {
                             Optional<ContainerInfoDto> containerDto = info.stream().filter(infoDto ->
-                                    infoDto.getDemographics() != null && infoDto.getDemographics().contains(field) && infoDto.getSource().equalsIgnoreCase(sourceStr)
+                                    isFieldPresent(field, infoDto) && infoDto.getSource().equalsIgnoreCase(sourceStr)
                             && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
                             // if container is not present then continue searching
                             if (containerDto.isPresent()) {
@@ -249,6 +252,13 @@ public class PacketReaderService {
             }
         }
         return null;
+    }
+
+    private boolean isFieldPresent(String field, ContainerInfoDto infoDto) {
+        if (additionalFieldsSearch.contains(field))
+            return true;
+        else
+            return infoDto.getDemographics() != null && infoDto.getDemographics().contains(field);
     }
 
     private ContainerInfoDto getContainerInfoBySourceAndProcess(String field, String source, String process, List<ContainerInfoDto> info) {
