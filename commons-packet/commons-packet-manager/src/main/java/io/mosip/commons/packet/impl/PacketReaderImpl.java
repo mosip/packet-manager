@@ -145,7 +145,7 @@ public class PacketReaderImpl implements IPacketReader {
 						if (value != null && (value instanceof Number))
 							finalMap.putIfAbsent(key, value);
 						else if (value != null && (value instanceof String))
-							finalMap.putIfAbsent(key, value.toString().replaceAll("^\"|\"$", ""));
+							finalMap.putIfAbsent(key, value.toString().replaceAll("(^\")|($)", ""));
 						else {
 							try {
 								finalMap.putIfAbsent(key,
@@ -319,7 +319,7 @@ public class PacketReaderImpl implements IPacketReader {
 						try {
 							finalMap.putIfAbsent(key,
 									currentIdMap.get(key) != null ? JsonUtils
-											.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("^\"|\"$", "")
+											.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(^\")|($)", "")
 											: null);
 						} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
 							throw new GetAllMetaInfoException(e.getMessage());

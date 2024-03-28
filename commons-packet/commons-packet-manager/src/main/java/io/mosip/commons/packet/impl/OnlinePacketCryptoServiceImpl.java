@@ -154,10 +154,12 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                         "Packet encryption failure message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            byte[] encryptedData = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
-            encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
-                    "Successfully encrypted Packet");
+            if (responseObject != null && responseObject.getResponse().getData() != null) {
+				byte[] encryptedData = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
+				encryptedPacket = EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
+				LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+						"Successfully encrypted Packet");
+			}
         } catch (IOException e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
                     ExceptionUtils.getStackTrace(e));
@@ -226,9 +228,12 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
                         "Error message : " + error.getMessage());
                 throw new PacketDecryptionFailureException(error.getMessage());
             }
-            decryptedPacket = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
-                    "Successfully decrypted Packet");
+            
+			if (responseObject != null && responseObject.getResponse().getData() != null) {
+				decryptedPacket = CryptoUtil.decodeURLSafeBase64(responseObject.getResponse().getData());
+				LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
+						"Successfully decrypted Packet");
+			}
         } catch (IOException e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,
                     ExceptionUtils.getStackTrace(e));
