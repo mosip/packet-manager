@@ -6,48 +6,53 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.mosip.commons</groupId>
     <artifactId>commons-packet-service</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.2.1-java21-SNAPSHOT</version>
     <name>commons-packet-service</name>
     <description>Mosip commons project </description>
     <url>https://github.com/mosip/commons</url>
  <properties>
         <!-- maven -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.version>3.8.0</maven.compiler.version>
-        <!-- <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version> -->
         <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
         <maven.war.plugin.version>3.1.0</maven.war.plugin.version>
-        <!-- <maven.jacoco.plugin.version>0.8.1</maven.jacoco.plugin.version> -->
-        <!-- <maven.sonar.plugin.version>3.7.0.1746</maven.sonar.plugin.version> -->
         <maven.javadoc.version>3.2.0</maven.javadoc.version>
         <maven-shade-plugin.version>2.3</maven-shade-plugin.version>
+        <maven.deploy.plugin.version>2.8.1</maven.deploy.plugin.version>
+		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
+		<maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
+		<nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
+		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
 
         <!-- spring -->
-        <spring.boot.version>2.0.2.RELEASE</spring.boot.version>
-        <spring.data.jpa.version>2.0.7.RELEASE</spring.data.jpa.version>
-        <spring-cloud-config.version>2.0.0.RELEASE</spring-cloud-config.version>
-        <h2.version>1.4.197</h2.version>
-        <jackson.datatype.version>2.9.8</jackson.datatype.version>
-        <kernel.keygenerator.bouncycastle.version>1.2.1-SNAPSHOT</kernel.keygenerator.bouncycastle.version>
+        <kernel.keygenerator.bouncycastle.version>1.2.1-java21-SNAPSHOT</kernel.keygenerator.bouncycastle.version>
         <swagger.version>2.9.2</swagger.version>
-        <powermock.beta.version>2.0.7</powermock.beta.version>
 
-        <kernel.core.version>1.2.1-SNAPSHOT</kernel.core.version>
-        <kernel.biometrics.api.version>1.2.1-SNAPSHOT</kernel.biometrics.api.version>
-        <kernel.crypto-jce.version>1.2.1-SNAPSHOT</kernel.crypto-jce.version>
-        <kernel.auth.adaptor.version>1.2.1-SNAPSHOT</kernel.auth.adaptor.version>
-        <kernel-dataaccess-hibernate.version>1.2.1-SNAPSHOT</kernel-dataaccess-hibernate.version>
-        <kernel.logger.logback.version>1.2.1-SNAPSHOT</kernel.logger.logback.version>
-        <spring.boot.co>2.0.2.RELEASE</spring.boot.co>
-        <khazana.version>1.2.1-SNAPSHOT</khazana.version>
+        <kernel.core.version>1.2.1-java21-SNAPSHOT</kernel.core.version>
+        <kernel.biometrics.api.version>1.2.1-java21-SNAPSHOT</kernel.biometrics.api.version>
+        <kernel.crypto-jce.version>1.2.1-java21-SNAPSHOT</kernel.crypto-jce.version>
+        <kernel.auth.adaptor.version>1.2.1-java21-SNAPSHOT</kernel.auth.adaptor.version>
+        <kernel-dataaccess-hibernate.version>1.2.1-java21-SNAPSHOT</kernel-dataaccess-hibernate.version>
+        <kernel.logger.logback.version>1.2.1-java21-SNAPSHOT</kernel.logger.logback.version>
+        <khazana.version>1.2.1-java21-SNAPSHOT</khazana.version>
+         <kernel.bom.version>1.2.1-java21-SNAPSHOT</kernel.bom.version>
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
-        <packet.manager.version>1.2.1-SNAPSHOT</packet.manager.version>
-        <springdoc.version>1.5.10</springdoc.version>
+        <packet.manager.version>1.2.1-java21-SNAPSHOT</packet.manager.version>
  </properties>
-
+ <dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>io.mosip.kernel</groupId>
+				<artifactId>kernel-bom</artifactId>
+				<version>${kernel.bom.version}</version>
+				<type>pom</type>
+			    <scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>io.mosip.kernel</groupId>
@@ -57,7 +62,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
-            <version>${spring.boot.version}</version>
         </dependency>
         <dependency>
             <groupId>io.mosip.commons</groupId>
@@ -77,13 +81,11 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <version>${h2.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>net.bytebuddy</groupId>
             <artifactId>byte-buddy</artifactId>
-            <version>1.8.22</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -94,7 +96,6 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-ui</artifactId>
-            <version>${springdoc.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework</groupId>
@@ -120,7 +121,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring.boot.version}</version>
                 <configuration>
                     <executable>true</executable>
                     <layout>ZIP</layout>
@@ -151,7 +151,7 @@
            
             <plugin>
               <artifactId>maven-deploy-plugin</artifactId>
-              <version>2.8.1</version>
+              <version>${maven.deploy.plugin.version}</version>
               <executions>
                  <execution>
                     <id>default-deploy</id>
@@ -165,7 +165,7 @@
                <plugin>
                   <groupId>org.sonatype.plugins</groupId>
                   <artifactId>nexus-staging-maven-plugin</artifactId>
-                  <version>1.6.7</version>
+                  <version>${nexus.staging.plugin.version}</version>
                   <extensions>true</extensions>
                   <executions>
                     <execution>
@@ -187,7 +187,7 @@
                   <groupId>org.apache.maven.plugins</groupId>
                   <artifactId>maven-source-plugin</artifactId>
                   <inherited>true</inherited>
-                  <version>2.2.1</version>
+                  <version>${maven.source.plugin.version}</version>
                   <executions>
                         <execution>
                           <id>attach-sources</id>
@@ -201,7 +201,7 @@
               <plugin>
                   <groupId>org.apache.maven.plugins</groupId>
                   <artifactId>maven-javadoc-plugin</artifactId>
-                  <version>3.2.0</version>
+                  <version>${maven.javadoc.version}</version>
                   <executions>
                         <execution>
                           <id>attach-javadocs</id>
@@ -217,7 +217,7 @@
                 <plugin>
                   <groupId>org.apache.maven.plugins</groupId>
                   <artifactId>maven-gpg-plugin</artifactId>
-                  <version>1.5</version>
+                  <version>${maven.gpg.plugin.version}</version>
                   <executions>
                         <execution>
                           <id>sign-artifacts</id>
@@ -237,7 +237,7 @@
 		<plugin>
     			<groupId>pl.project13.maven</groupId>
 			<artifactId>git-commit-id-plugin</artifactId>
-			<version>3.0.1</version>
+			<version>${git.commit.plugin.version}</version>
 			<executions>
         			<execution>
 			        	<id>get-the-git-infos</id>
@@ -249,7 +249,7 @@
  			</executions>
  			<configuration>
 				<generateGitPropertiesFile>true</generateGitPropertiesFile>
-				<generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+				<generateGitPropertiesFilename>${project.build.outputDirectory}/service-git.properties</generateGitPropertiesFilename>
                     		<includeOnlyProperties>
                         		<includeOnlyProperty>^git.build.(time|version)$</includeOnlyProperty>
                         		<includeOnlyProperty>^git.commit.id.(abbrev|full)$</includeOnlyProperty>
@@ -288,12 +288,11 @@
                 <dependency>
                     <groupId>io.mosip.kernel</groupId>
                     <artifactId>kernel-auth-adapter</artifactId>
-                    <version>${project.version}</version>
+                    <version>${kernel.auth.adaptor.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-starter-webflux</artifactId>
-                    <version>2.5.4</version>
                 </dependency>
 
             </dependencies>
@@ -302,7 +301,6 @@
                     <plugin>
                         <groupId>org.springframework.boot</groupId>
                         <artifactId>spring-boot-maven-plugin</artifactId>
-                        <version>${spring.boot.version}</version>
                         <configuration>
                             <executable>true</executable>
                             <layout>ZIP</layout>
@@ -343,7 +341,6 @@
                     <plugin>
                         <groupId>org.springdoc</groupId>
                         <artifactId>springdoc-openapi-maven-plugin</artifactId>
-                        <version>0.2</version>
                         <executions>
                             <execution>
                                 <id>integration-test</id>
