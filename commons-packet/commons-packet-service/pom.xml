@@ -88,9 +88,21 @@
             <artifactId>kernel-logger-logback</artifactId>
             <version>${kernel.logger.logback.version}</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springdoc</groupId>-->
+<!--            <artifactId>springdoc-openapi-ui</artifactId>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.springframework</groupId>-->
+<!--                    <artifactId>spring-webmvc</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
+
         <dependency>
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.5.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework</groupId>
@@ -98,10 +110,10 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-   <groupId>org.springframework.cloud</groupId>
-   <artifactId>spring-cloud-starter-config</artifactId>
-       </dependency>
+<!--        <dependency>-->
+<!--   <groupId>org.springframework.cloud</groupId>-->
+<!--   <artifactId>spring-cloud-starter-config</artifactId>-->
+<!--       </dependency>-->
     </dependencies>
 
 
