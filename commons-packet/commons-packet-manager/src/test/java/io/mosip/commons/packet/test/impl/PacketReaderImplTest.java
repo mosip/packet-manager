@@ -18,6 +18,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.kernel.core.exception.BaseCheckedException;
 import org.apache.commons.io.IOUtils;
 import org.assertj.core.util.Lists;
 import org.json.JSONException;
@@ -28,6 +29,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -245,15 +247,14 @@ public class PacketReaderImplTest {
     }
 
     @Test(expected = GetAllIdentityException.class)
-    public void getAllExceptionTest2() throws JsonProcessingException, IOException {
+    public void getAllExceptionTest2() throws JsonProcessingException, IOException, PacketKeeperException {
         PowerMockito.mockStatic(JsonUtils.class);
         Map<String, Object> keyValueMap = new LinkedHashMap<>();
         keyValueMap.put("email", new JSONObject(new LinkedHashMap()));
         Map<String, Object> finalMap = new LinkedHashMap<>();
         finalMap.put("identity", keyValueMap);
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(finalMap);
+        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(null);
 
-        when(JsonUtils.javaObjectToJsonString(anyObject())).thenThrow(new JsonProcessingException("errormessage"));
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
     }
 

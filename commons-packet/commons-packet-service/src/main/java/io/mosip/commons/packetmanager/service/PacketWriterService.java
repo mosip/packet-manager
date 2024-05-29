@@ -47,7 +47,7 @@ public class PacketWriterService {
 				}
 				}
 
-			Map<String, String> tags = packetWriter.addTags(tagDto);
+			Map<String, String> tags = packetWriter.addTags(tagDto,tagDto.getId());
 			TagResponseDto tagResponseDto = new TagResponseDto();
 			tagResponseDto.setTags(tags);
 			return tagResponseDto;
@@ -88,7 +88,7 @@ public class PacketWriterService {
 				tagResponseDto.setTags(tagDto.getTags());
 			} else {
 				tagDto.setTags(newTags);
-				Map<String, String> tags = packetWriter.addTags(tagDto);
+				Map<String, String> tags = packetWriter.addTags(tagDto, tagDto.getId());
 				tagResponseDto.setTags(tags);
 			}
 
@@ -122,7 +122,7 @@ public class PacketWriterService {
 			TagDeleteResponseDto tagDeleteResponseDto = new TagDeleteResponseDto();
 			if (!deleteTags.isEmpty()) {
 				tagRequestDto.setTagNames(deleteTags);
-				packetWriter.deleteTags(tagRequestDto);
+				packetWriter.deleteTags(tagRequestDto,tagRequestDto.getId());
 			}
 
 			tagDeleteResponseDto.setStatus("Deleted Successfully");

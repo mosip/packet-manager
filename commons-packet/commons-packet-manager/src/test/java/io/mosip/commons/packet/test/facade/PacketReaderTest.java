@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
@@ -97,7 +98,7 @@ public class PacketReaderTest {
     }
 
     @Test
-    public void testGetFields() {
+    public void testGetFields() throws JsonProcessingException {
         String field = "name";
         List<String> fieldList = Lists.newArrayList(field);
         Map<String, String> fieldMap = new HashMap<>();
@@ -110,7 +111,7 @@ public class PacketReaderTest {
     }
 
     @Test
-    public void testGetFieldsBypassCache() {
+    public void testGetFieldsBypassCache() throws JsonProcessingException {
         String field = "name";
         List<String> fieldList = Lists.newArrayList(field);
         Map<String, String> fieldMap = new HashMap<>();

@@ -263,7 +263,7 @@ public class PacketWriterTest {
     	tagDto.setTags(tags);
     	Mockito.when(packetKeeper.addTags(any())).thenReturn(tags);
 
-       	Map<String, String> expectedTags= packetWriter.addTags(tagDto);
+       	Map<String, String> expectedTags= packetWriter.addTags(tagDto,tagDto.getId());
 
         assertEquals(expectedTags,tags); 
     }
@@ -288,7 +288,7 @@ public class PacketWriterTest {
     	List<String> tags = new ArrayList<>();
     	tags.add("test");
     	tagDto.setTagNames(tags);
-		packetWriter.deleteTags(tagDto);
+		packetWriter.deleteTags(tagDto,tagDto.getId());
 
     }
     

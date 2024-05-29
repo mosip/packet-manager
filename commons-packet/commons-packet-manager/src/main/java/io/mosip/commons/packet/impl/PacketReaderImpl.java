@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.core.util.JsonUtils;
@@ -123,7 +124,7 @@ public class PacketReaderImpl implements IPacketReader {
 	 * @return
 	 */
 	@Override
-	@Cacheable(value = "packet", key="'allFields-'+#packetId+'-'+#process")
+	@Cacheable(value = "packet", key="'allFields-'+#id+'-'+#process")
 	public Map<String, Object> getAll(String id, String source, String process) {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Getting all fields :: enrtry");
@@ -132,32 +133,16 @@ public class PacketReaderImpl implements IPacketReader {
 
 		try {
 			for (String srcPacket : sourcePacketNames) {
-				Packet packet = packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
-				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
-				if (idJsonStream != null) {
-					byte[] bytearray = IOUtils.toByteArray(idJsonStream);
-					String jsonString = new String(bytearray);
-					LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-							.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
-
-					currentIdMap.keySet().stream().forEach(key -> {
-						Object value = currentIdMap.get(key);
-						if (value != null && (value instanceof Number))
-							finalMap.putIfAbsent(key, value);
-						else if (value != null && (value instanceof String))
-							finalMap.putIfAbsent(key, value.toString().replaceAll("(^\")|($)", ""));
-						else {
-							try {
-								finalMap.putIfAbsent(key,
-										value != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
-							} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-								LOGGER.error(ExceptionUtils.getStackTrace(e));
-								throw new GetAllIdentityException(e.getMessage());
-							}
-						}
-					});
-				}
-			}
+                Packet packet = packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+                InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
+                if (idJsonStream != null) {
+                    byte[] bytearray = IOUtils.toByteArray(idJsonStream);
+                    String jsonString = new String(bytearray);
+                    LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
+                            .readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+                    finalMap.putAll(currentIdMap);
+                }
+            }
 		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
@@ -319,7 +304,7 @@ public class PacketReaderImpl implements IPacketReader {
 						try {
 							finalMap.putIfAbsent(key,
 									currentIdMap.get(key) != null ? JsonUtils
-											.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(^\")|($)", "")
+											.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(\")|($)", "")
 											: null);
 						} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
 							throw new GetAllMetaInfoException(e.getMessage());

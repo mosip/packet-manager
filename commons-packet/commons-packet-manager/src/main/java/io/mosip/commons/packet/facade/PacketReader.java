@@ -1,11 +1,11 @@
 package io.mosip.commons.packet.facade;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mosip.commons.packet.impl.PacketReaderImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
@@ -23,6 +23,7 @@ import io.mosip.commons.packet.util.PacketHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.logger.spi.Logger;
+import org.yaml.snakeyaml.events.Event;
 
 /**
  * The packet Reader facade
@@ -40,6 +41,8 @@ public class PacketReader {
 
 	@Autowired
 	private PacketKeeper packetKeeper;
+
+    public static final String IDENTITY = "identity";
 
     /**
      * Get a field from identity file
@@ -73,16 +76,18 @@ public class PacketReader {
      * @param process : the process
      * @return Map fields
      */
+
+    ObjectMapper mapper=new ObjectMapper();
     @PreAuthorize("hasRole('DATA_READ')")
-    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache) {
+    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache) throws JsonProcessingException {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getFields for fields : " + fields.toString() + " source : " + source + " process : " + process);
-        Map<String, String> values;
+        Map<String, String> values = new HashMap<>();
         if (bypassCache)
             values = getProvider(source, process).getFields(id, fields, source, process);
         else {
-            values = getAllFields(id, source, process).entrySet()
-                    .stream().filter(m -> fields.contains(m.getKey())).collect(Collectors.toMap(m -> m.getKey(), m -> m.getValue() != null ? m.getValue().toString() : null));
+            Map<String ,Object> res=getAllFields(id,source,process);
+            values.put(IDENTITY,mapper.writeValueAsString(res));
         }
         return values;
     }

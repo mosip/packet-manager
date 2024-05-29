@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
@@ -106,14 +107,18 @@ public class PacketValidator {
             List<String> allFields = idSchemaUtils.getDefaultFields(Double.valueOf(idschemaVersion));
             Map<String, String> fieldsMap = reader.getFields(id, allFields, source, process, false);
             objectMap.putAll(fieldsMap);
-
+            Map<String, Object> nestedMap=new HashMap<String,Object>();
             if (convertIdschemaToDouble)
-                objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
+
+            for (Map.Entry<String, String> entry : fieldsMap.entrySet()) {
+                  nestedMap = mapper.readValue(entry.getValue(), new TypeReference<Map<String, Object>>() {});
+                }
+            objectMap.put(idschemaValueFromMappingJson, Double.valueOf(nestedMap.get(idschemaValueFromMappingJson).toString()));
 
             String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
 			if (fields != null) {
 				LinkedHashMap finalMap = new LinkedHashMap();
-				finalMap.put(IDENTITY, objectMap);
+				finalMap.put(IDENTITY, nestedMap);
 				JSONObject finalIdObject = new JSONObject(finalMap);
 
 				return idObjectValidator.validateIdObject(

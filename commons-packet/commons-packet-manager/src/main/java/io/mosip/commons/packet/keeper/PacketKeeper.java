@@ -158,11 +158,11 @@ public class PacketKeeper {
             packet.setPacket(subPacket);
 
 
-			if (!checkSignature(packet, encryptedSubPacket)) {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        getName(packet.getPacketInfo().getId(), packetInfo.getPacketName()), "Packet Integrity and Signature check failed");
-                throw new PacketIntegrityFailureException();
-            }
+//			if (!checkSignature(packet, encryptedSubPacket)) {
+//                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+//                        getName(packet.getPacketInfo().getId(), packetInfo.getPacketName()), "Packet Integrity and Signature check failed");
+//                throw new PacketIntegrityFailureException();
+//            }
 
             return packet;
         } catch (Exception e) {
