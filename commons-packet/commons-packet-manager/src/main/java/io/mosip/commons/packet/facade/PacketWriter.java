@@ -216,22 +216,20 @@ public class PacketWriter {
         return provider;
     }
 
-	@CacheEvict(value = "tags", key = "{#tagDto.id}")
-	public Map<String, String> addTags(TagDto tagDto) {
+	@CacheEvict(value = "tags", key = "{#id}")
+	public Map<String, String> addTags(TagDto tagDto,String id) {
 		Map<String, String> tags = packetKeeper.addTags(tagDto);
 		return tags;
-
 	}
 
 	@CacheEvict(value = "tags", key = "{#tagDto.id}")
 	public Map<String, String> addorUpdate(TagDto tagDto) {
 		Map<String, String> tags = packetKeeper.addorUpdate(tagDto);
 		return tags;
-
 	}
 	
-	@CacheEvict(value = "tags", key = "{#tagDto.id}")
-	public void deleteTags(TagRequestDto tagDto) {
+	@CacheEvict(value = "tags", key = "{#id}")
+	public void deleteTags(TagRequestDto tagDto, String id) {
 		packetKeeper.deleteTags(tagDto);
 	}
 }
