@@ -5,7 +5,12 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.mosip.commons.packet.exception.GetAllIdentityException;
+import io.mosip.commons.packet.exception.PacketReaderException;
 import io.mosip.commons.packet.impl.PacketReaderImpl;
+import io.mosip.kernel.core.exception.BaseCheckedException;
+import io.mosip.kernel.core.exception.BaseUncheckedException;
+import io.mosip.kernel.core.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
@@ -78,15 +83,28 @@ public class PacketReader {
 @Autowired
     ObjectMapper mapper;
     @PreAuthorize("hasRole('DATA_READ')")
-    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache) throws JsonProcessingException {
+    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache){
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getFields for fields : " + fields.toString() + " source : " + source + " process : " + process);
         Map<String, String> values = new HashMap<>();
         if (bypassCache)
             values = getProvider(source, process).getFields(id, fields, source, process);
         else {
+            try {
             Map<String ,Object> res=getAllFields(id,source,process);
             values.put(IDENTITY,mapper.writeValueAsString(res));
+            } catch (Exception e) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                        ExceptionUtils.getStackTrace(e));
+                if (e instanceof BaseCheckedException) {
+                    BaseCheckedException ex = (BaseCheckedException) e;
+                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+                } else if (e instanceof BaseUncheckedException) {
+                    BaseUncheckedException ex = (BaseUncheckedException) e;
+                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+                }
+                throw new GetAllIdentityException(e.getMessage());
+            }
         }
         return values;
     }
