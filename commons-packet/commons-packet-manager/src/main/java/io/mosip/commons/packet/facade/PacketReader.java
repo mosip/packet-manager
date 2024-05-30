@@ -23,7 +23,6 @@ import io.mosip.commons.packet.util.PacketHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.logger.spi.Logger;
-import org.yaml.snakeyaml.events.Event;
 
 /**
  * The packet Reader facade
@@ -76,8 +75,8 @@ public class PacketReader {
      * @param process : the process
      * @return Map fields
      */
-
-    ObjectMapper mapper=new ObjectMapper();
+@Autowired
+    ObjectMapper mapper;
     @PreAuthorize("hasRole('DATA_READ')")
     public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache) throws JsonProcessingException {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,6 +22,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.Spy;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -61,7 +63,8 @@ public class PacketReaderTest {
     
     @Mock
 	private PacketKeeper packetKeeper;
-
+    @Spy
+    private ObjectMapper mapper = new ObjectMapper();
     @Before
     public void setup() {
         PowerMockito.mockStatic(PacketHelper.class);
