@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.core.util.JsonUtils;
@@ -223,11 +224,27 @@ public class PacketReaderImpl implements IPacketReader {
 		BiometricRecord biometricRecord = null;
 		String packetName = null;
 		String fileName = null;
+
 		try {
+            ObjectNode jObject = mapper.createObjectNode();
 			String bioString = packetReader.getField(id, biometricFieldName, source, process, false);//(String) idobjectMap.get(biometricFieldName);
 			JSONObject biometricMap = null;
-			if (bioString != null)
-				biometricMap = new JSONObject(bioString);
+			if (bioString != null) {
+                String[] keyValuePairs = bioString.substring(1, bioString.length() - 1).split(", ");
+                for (String pair : keyValuePairs) {
+                    String[] keyValue = pair.split("=");
+                    if (keyValue.length == 2) {
+                        String key = keyValue[0];
+                        String value = keyValue[1];
+                        jObject.put(key, value);
+                    }
+                }
+
+
+                String jsonOutput = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jObject);
+
+                biometricMap = new JSONObject(jsonOutput);
+            }
 			if (bioString == null || biometricMap == null || biometricMap.isNull(VALUE)) {
 				// biometric file not present in idobject. Search in meta data.
 				Map<String, String> metadataMap = getMetaInfo(id, source, process);
