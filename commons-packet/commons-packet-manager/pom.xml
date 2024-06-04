@@ -69,6 +69,17 @@
             <groupId>io.mosip.kernel</groupId>
             <artifactId>kernel-core</artifactId>
             <version>${kernel.core.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.vaadin.external.google</groupId>
+                    <artifactId>android-json</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20240303</version>
         </dependency>
         <dependency>
             <groupId>com.hazelcast</groupId>
