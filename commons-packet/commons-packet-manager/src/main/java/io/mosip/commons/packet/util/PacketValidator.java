@@ -107,26 +107,22 @@ public class PacketValidator {
             List<String> allFields = idSchemaUtils.getDefaultFields(Double.valueOf(idschemaVersion));
             Map<String, String> fieldsMap = reader.getFields(id, allFields, source, process, false);
             objectMap.putAll(fieldsMap);
-            Map<String, Object> nestedMap=new HashMap<String,Object>();
-            if (convertIdschemaToDouble)
 
-            for (Map.Entry<String, String> entry : fieldsMap.entrySet()) {
-                  nestedMap = mapper.readValue(entry.getValue(), new TypeReference<Map<String, Object>>() {});
-                }
-            objectMap.put(idschemaValueFromMappingJson, Double.valueOf(nestedMap.get(idschemaValueFromMappingJson).toString()));
+            if (convertIdschemaToDouble)
+                objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
 
             String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
-			if (fields != null) {
-				LinkedHashMap finalMap = new LinkedHashMap();
-				finalMap.put(IDENTITY, nestedMap);
-				JSONObject finalIdObject = new JSONObject(finalMap);
+            if (fields != null) {
+                LinkedHashMap finalMap = new LinkedHashMap();
+                finalMap.put(IDENTITY, loadDemographicIdentity(objectMap));
+                JSONObject finalIdObject = new JSONObject(finalMap);
 
-				return idObjectValidator.validateIdObject(
-						idSchemaUtils.getIdSchema(
-								Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
-						finalIdObject, Arrays.asList(fields.split(",")));
+                return idObjectValidator.validateIdObject(
+                        idSchemaUtils.getIdSchema(
+                                Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
+                        finalIdObject, Arrays.asList(fields.split(",")));
 
-			}
+            }
 
 			return false;
         } catch (IdObjectValidationFailedException e) {

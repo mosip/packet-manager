@@ -1,16 +1,11 @@
 package io.mosip.commons.packet.facade;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.mosip.commons.packet.exception.GetAllIdentityException;
-import io.mosip.commons.packet.exception.PacketReaderException;
-import io.mosip.commons.packet.impl.PacketReaderImpl;
-import io.mosip.kernel.core.exception.BaseCheckedException;
-import io.mosip.kernel.core.exception.BaseUncheckedException;
-import io.mosip.kernel.core.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
@@ -43,10 +38,8 @@ public class PacketReader {
     @Lazy
     private List<IPacketReader> referenceReaderProviders;
 
-	@Autowired
-	private PacketKeeper packetKeeper;
-
-    public static final String IDENTITY = "identity";
+    @Autowired
+    private PacketKeeper packetKeeper;
 
     /**
      * Get a field from identity file
@@ -80,31 +73,16 @@ public class PacketReader {
      * @param process : the process
      * @return Map fields
      */
-@Autowired
-    ObjectMapper mapper;
     @PreAuthorize("hasRole('DATA_READ')")
-    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache){
+    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getFields for fields : " + fields.toString() + " source : " + source + " process : " + process);
-        Map<String, String> values = new HashMap<>();
+        Map<String, String> values;
         if (bypassCache)
             values = getProvider(source, process).getFields(id, fields, source, process);
         else {
-            try {
-            Map<String ,Object> res=getAllFields(id,source,process);
-            values.put(IDENTITY,mapper.writeValueAsString(res));
-            } catch (Exception e) {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-                        ExceptionUtils.getStackTrace(e));
-                if (e instanceof BaseCheckedException) {
-                    BaseCheckedException ex = (BaseCheckedException) e;
-                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-                } else if (e instanceof BaseUncheckedException) {
-                    BaseUncheckedException ex = (BaseUncheckedException) e;
-                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-                }
-                throw new GetAllIdentityException(e.getMessage());
-            }
+            values = getAllFields(id, source, process).entrySet()
+                    .stream().filter(m -> fields.contains(m.getKey())).collect(Collectors.toMap(m -> m.getKey(), m -> m.getValue() != null ? m.getValue().toString() : null));
         }
         return values;
     }
@@ -119,7 +97,7 @@ public class PacketReader {
      * @return Document : document information
      */
     @PreAuthorize("hasRole('DOCUMENT_READ')")
-    @Cacheable(value = "packets", key = "'documents'.concat('-').concat(#id).concat('-').concat(#documentName).concat('-').concat(#source).concat('-').concat(#process)")
+    @Cacheable(value = "packets", key = "'documents-'+#id+'-'+#documentName+'-'+#source+'-'+#process")
     public Document getDocument(String id, String documentName, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
@@ -137,7 +115,7 @@ public class PacketReader {
      * @return BiometricRecord : the biometric record
      */
     @PreAuthorize("hasRole('BIOMETRIC_READ')")
-    @Cacheable(value = "packets", key = "'biometrics'.concat('-').#id.concat('-').concat(#person).concat('-').concat(#modalities).concat('-').concat(#source).concat('-').concat(#process)", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "'biometrics-'#id'-'+#person+'-'+#modalities+'-'+#source+'-'+#process", condition = "#bypassCache == false")
     public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getBiometric for source : " + source + " process : " + process);
@@ -153,7 +131,7 @@ public class PacketReader {
      * @return Map fields
      */
     @PreAuthorize("hasRole('METADATA_READ')")
-    @Cacheable(value = "packets", key = "{'metaInfo'.concat('-').concat(#id).concat('-').concat(#source).concat('-').concat(#process)}", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "{'metaInfo-'+#id+'-'+#source+'-'+#process}", condition = "#bypassCache == false")
     public Map<String, String> getMetaInfo(String id, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getMetaInfo for source : " + source + " process : " + process);
@@ -212,7 +190,7 @@ public class PacketReader {
      * @param process : the process
      * @return Map fields
      */
-    @Cacheable(value = "packets", key = "{#id.concat('-').concat(#source).concat('-').concat(#process)}", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "{#id-'+#source+'-'+#process}", condition = "#bypassCache == false")
     public List<Map<String, String>> getAudits(String id, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getAllFields for source : " + source + " process : " + process);
