@@ -324,21 +324,8 @@ public class PacketReaderImplTest {
         birType.setBirs(Lists.newArrayList(bir1, bir2));
         when(CbeffValidator.getBIRFromXML(any())).thenReturn(birType);
 
-
-        ObjectMapper objectMapper1=new ObjectMapper();
-        ObjectNode objectNode=objectMapper1.createObjectNode();
-        when(objectMapper.createObjectNode()).thenReturn(objectNode);
-        ObjectWriter objectWriter=Mockito.mock(ObjectWriter.class);
-        String jString="\n" +
-                "{\n" +
-                "  \"format\" : \"cbeff\",\n" +
-                "  \"version\" : 1.0,\n" +
-                "  \"value\" : \"individualBiometrics_bio_CBEFF\"\n" +
-                "}\n";
-        when(objectMapper.writerWithDefaultPrettyPrinter()).thenReturn(objectWriter);
-        when(objectWriter.writeValueAsString(any())).thenReturn(jString);
-        when(packetReader.getField("id",biometricFieldName,"source","process",false)).thenReturn(jString);
-        BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process");
+        when(packetReader.getField("id",biometricFieldName,"source","process",false)).thenReturn(keyValueMap.get(biometricFieldName).toString());
+       BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process");
         assertTrue("Should be true", result.getSegments().size() == 2);
     }
 
