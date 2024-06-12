@@ -277,7 +277,7 @@ public class PacketWriterTest {
     	Mockito.when(packetKeeper.addorUpdate(any())).thenReturn(tags);
 
 
-       	Map<String, String> expectedTags= packetWriter.addorUpdate(tagDto);
+       	Map<String, String> expectedTags= packetWriter.addorUpdate(tagDto,tagDto.getId());
 
         assertEquals(expectedTags,tags); 
     }
