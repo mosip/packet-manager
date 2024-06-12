@@ -97,7 +97,7 @@ public class PacketReader {
      * @return Document : document information
      */
     @PreAuthorize("hasRole('DOCUMENT_READ')")
-    @Cacheable(value = "packets", key = "'documents-'+#id+'-'+#documentName+'-'+#source+'-'+#process")
+    @Cacheable(value = "packets")
     public Document getDocument(String id, String documentName, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
@@ -115,7 +115,7 @@ public class PacketReader {
      * @return BiometricRecord : the biometric record
      */
     @PreAuthorize("hasRole('BIOMETRIC_READ')")
-    @Cacheable(value = "packets", key = "'biometrics-'#id'-'+#person+'-'+#modalities+'-'+#source+'-'+#process", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "'biometrics-'+#id+'-'+#person+'-'+#modalities+'-'+#source+'-'+#process", condition = "#bypassCache == false")
     public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getBiometric for source : " + source + " process : " + process);
