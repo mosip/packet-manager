@@ -53,7 +53,7 @@ public class PacketWriterServiceTest {
 		 Map<String, String> tags = new HashMap<>();
 	     tags.put("testtag", "testValue");
 	     tagDto.setTags(tags);
-	     Mockito.when(packetWriter.addTags(any())).thenReturn(tags);
+	     Mockito.when(packetWriter.addTags(any(),anyString())).thenReturn(tags);
 	     TagResponseDto tagResponseDto= packetWriterService.addTags(tagDto);
 	     assertEquals(tagResponseDto.getTags(), tags);
 	 }
@@ -64,7 +64,7 @@ public class PacketWriterServiceTest {
 		Map<String, String> tags = new HashMap<>();
 		tags.put("test", "testValue");
 		tagDto.setTags(tags);
-		Mockito.when(packetWriter.addTags(any())).thenReturn(tags);
+		Mockito.when(packetWriter.addTags(any(),anyString())).thenReturn(tags);
 		packetWriterService.addTags(tagDto);
 	}
 		
@@ -75,7 +75,7 @@ public class PacketWriterServiceTest {
 		Map<String, String> tags = new HashMap<>();
 		tags.put("testtag", "testValue");
 		tagDto.setTags(tags);
-		Mockito.when(packetWriter.addTags(any())).thenThrow(new BaseUncheckedException("code", "message"));
+		Mockito.when(packetWriter.addTags(any(),anyString())).thenThrow(new BaseUncheckedException("code", "message"));
 		packetWriterService.addTags(tagDto);
 	    }
 
@@ -86,7 +86,7 @@ public class PacketWriterServiceTest {
 		Map<String, String> tags = new HashMap<>();
 		tags.put("test", "testValueChanges");
 		tagDto.setTags(tags);
-		Mockito.when(packetWriter.addTags(any())).thenReturn(tags);
+		Mockito.when(packetWriter.addTags(any(),anyString())).thenReturn(tags);
 		TagResponseDto tagResponseDto = packetWriterService.updateTags(tagDto);
 		assertEquals(tagResponseDto.getTags(), tags);
 	}
@@ -98,7 +98,7 @@ public class PacketWriterServiceTest {
 		Map<String, String> tags = new HashMap<>();
 		tags.put("testtag", "testValue");
 		tagDto.setTags(tags);
-		Mockito.when(packetWriter.addTags(any())).thenThrow(new BaseUncheckedException("code", "message"));
+		Mockito.when(packetWriter.addTags(any(),anyString())).thenThrow(new BaseUncheckedException("code", "message"));
 		packetWriterService.updateTags(tagDto);
 	}
 
@@ -120,7 +120,7 @@ public class PacketWriterServiceTest {
 		List<String> tagNames = new ArrayList<String>();
 		tagNames.add("test");
 		tagRequestDto.setTagNames(tagNames);
-		Mockito.doThrow(new BaseUncheckedException("code", "message")).when(packetWriter).deleteTags(any());
+		Mockito.doThrow(new BaseUncheckedException("code", "message")).when(packetWriter).deleteTags(any(),anyString());
 
 		packetWriterService.deleteTags(tagRequestDto);
 

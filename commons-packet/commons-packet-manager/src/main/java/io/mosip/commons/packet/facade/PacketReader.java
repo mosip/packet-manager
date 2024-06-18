@@ -38,8 +38,8 @@ public class PacketReader {
     @Lazy
     private List<IPacketReader> referenceReaderProviders;
 
-	@Autowired
-	private PacketKeeper packetKeeper;
+    @Autowired
+    private PacketKeeper packetKeeper;
 
     /**
      * Get a field from identity file
@@ -97,7 +97,7 @@ public class PacketReader {
      * @return Document : document information
      */
     @PreAuthorize("hasRole('DOCUMENT_READ')")
-    @Cacheable(value = "packets", key = "'documents'.concat('-').concat(#id).concat('-').concat(#documentName).concat('-').concat(#source).concat('-').concat(#process)")
+    @Cacheable(value = "packets")
     public Document getDocument(String id, String documentName, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
@@ -115,7 +115,7 @@ public class PacketReader {
      * @return BiometricRecord : the biometric record
      */
     @PreAuthorize("hasRole('BIOMETRIC_READ')")
-    @Cacheable(value = "packets", key = "'biometrics'.concat('-').#id.concat('-').concat(#person).concat('-').concat(#modalities).concat('-').concat(#source).concat('-').concat(#process)", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "'biometrics-'+#id+'-'+#person+'-'+#modalities+'-'+#source+'-'+#process", condition = "#bypassCache == false")
     public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getBiometric for source : " + source + " process : " + process);
@@ -131,7 +131,7 @@ public class PacketReader {
      * @return Map fields
      */
     @PreAuthorize("hasRole('METADATA_READ')")
-    @Cacheable(value = "packets", key = "{'metaInfo'.concat('-').concat(#id).concat('-').concat(#source).concat('-').concat(#process)}", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "{'metaInfo-'+#id+'-'+#source+'-'+#process}", condition = "#bypassCache == false")
     public Map<String, String> getMetaInfo(String id, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getMetaInfo for source : " + source + " process : " + process);
@@ -190,7 +190,7 @@ public class PacketReader {
      * @param process : the process
      * @return Map fields
      */
-    @Cacheable(value = "packets", key = "{#id.concat('-').concat(#source).concat('-').concat(#process)}", condition = "#bypassCache == false")
+    @Cacheable(value = "packets", key = "{#id-'+#source+'-'+#process}", condition = "#bypassCache == false")
     public List<Map<String, String>> getAudits(String id, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getAllFields for source : " + source + " process : " + process);

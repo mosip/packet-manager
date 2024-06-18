@@ -7,7 +7,7 @@ import io.mosip.commons.packet.util.PacketHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.core.logger.spi.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -18,9 +18,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.util.CollectionUtils;
 
-import javax.annotation.PostConstruct;
+
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
-import java.util.HashMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +31,7 @@ import java.util.Set;
 @ComponentScan(excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = {
 		"io.mosip.kernel.cbeffutil.impl.CbeffImpl"}), basePackages = {"io.mosip.commons.packet.*", "io.mosip.commons.khazana.*",
         "io.mosip.kernel.cbeffutil.*", "io.mosip.kernel.auth.*","io.mosip.kernel.idobjectvalidator.*"})
-@Import({OfflineConfig.class})
+@Import({ OfflineConfig.class })
 public class PacketManagerConfig {
 
     private static final Logger logger = PacketManagerLogger.getLogger(PacketManagerConfig.class);
@@ -38,18 +39,13 @@ public class PacketManagerConfig {
     @Autowired
     private ApplicationContext applicationContext;
 
-    @Bean
-    @ConfigurationProperties(prefix = "provider.packetreader")
-    public Map<String, String> readerConfiguration() {
-        return new HashMap<>();
-    }
+	@Autowired
+	@Qualifier("readerConfiguration")
+	private Map<String, String> packetReaderConfig;
 
-    @Bean
-    @ConfigurationProperties(prefix = "provider.packetwriter")
-    public Map<String, String> writerConfiguration() {
-        return new HashMap<>();
-    }
-
+	@Autowired
+	@Qualifier("writerConfiguration")
+	private Map<String, String> packetWriterConfig;
     /**
      * Validate the reference provider.
      *
@@ -57,7 +53,7 @@ public class PacketManagerConfig {
      */
     @PostConstruct
     public void validateReferenceReaderProvider() throws ClassNotFoundException {
-            Set<String> readerProviders = PacketHelper.getReaderProvider(readerConfiguration());
+		Set<String> readerProviders = PacketHelper.getReaderProvider(packetReaderConfig);
             if (!CollectionUtils.isEmpty(readerProviders)) {
                 for (String className : readerProviders) {
                     logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
@@ -76,7 +72,7 @@ public class PacketManagerConfig {
      */
     @PostConstruct
     public void validateReferenceWriterProvider() throws ClassNotFoundException {
-        Set<String> writerProviders = PacketHelper.getWriterProvider(writerConfiguration());
+		Set<String> writerProviders = PacketHelper.getWriterProvider(packetWriterConfig);
         if (!CollectionUtils.isEmpty(writerProviders)) {
             for (String className : writerProviders) {
                 logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
@@ -100,7 +96,7 @@ public class PacketManagerConfig {
     @Lazy
     public List<IPacketReader> referenceReaderProviders() throws ClassNotFoundException {
         List<IPacketReader> iPacketReaders = new ArrayList<>();
-        Set<String> readerProviders = PacketHelper.getReaderProvider(readerConfiguration());
+		Set<String> readerProviders = PacketHelper.getReaderProvider(packetReaderConfig);
         if (!CollectionUtils.isEmpty(readerProviders)) {
             for (String className : readerProviders) {
                 logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
@@ -126,7 +122,7 @@ public class PacketManagerConfig {
     @Lazy
     public List<IPacketWriter> referenceWriterProviders() throws ClassNotFoundException {
         List<IPacketWriter> iPacketWriters = new ArrayList<>();
-        Set<String> writerProviders = PacketHelper.getWriterProvider(writerConfiguration());
+		Set<String> writerProviders = PacketHelper.getWriterProvider(packetWriterConfig);
         if (!CollectionUtils.isEmpty(writerProviders)) {
             for (String className : writerProviders) {
                 logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,

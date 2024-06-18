@@ -4,7 +4,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -17,7 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.kernel.core.exception.BaseCheckedException;
 import org.apache.commons.io.IOUtils;
 import org.assertj.core.util.Lists;
 import org.json.JSONException;
@@ -26,9 +29,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -87,6 +88,7 @@ public class PacketReaderImplTest {
 
     @Mock
     private IdSchemaUtils idSchemaUtils;
+
 
     private static final String docName = "proofOfIdentity";
     private static final String biometricFieldName = "individualBiometrics";
@@ -245,15 +247,14 @@ public class PacketReaderImplTest {
     }
 
     @Test(expected = GetAllIdentityException.class)
-    public void getAllExceptionTest2() throws JsonProcessingException, IOException {
+    public void getAllExceptionTest2() throws JsonProcessingException, IOException, PacketKeeperException {
         PowerMockito.mockStatic(JsonUtils.class);
         Map<String, Object> keyValueMap = new LinkedHashMap<>();
         keyValueMap.put("email", new JSONObject(new LinkedHashMap()));
         Map<String, Object> finalMap = new LinkedHashMap<>();
         finalMap.put("identity", keyValueMap);
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(finalMap);
+        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(null);
 
-        when(JsonUtils.javaObjectToJsonString(anyObject())).thenThrow(new JsonProcessingException("errormessage"));
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
     }
 
@@ -324,9 +325,7 @@ public class PacketReaderImplTest {
         when(CbeffValidator.getBIRFromXML(any())).thenReturn(birType);
 
         when(packetReader.getField("id",biometricFieldName,"source","process",false)).thenReturn(keyValueMap.get(biometricFieldName).toString());
-
-        BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process");
-
+       BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process");
         assertTrue("Should be true", result.getSegments().size() == 2);
     }
 
