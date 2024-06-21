@@ -1,8 +1,10 @@
 package io.mosip.commons.packet.test.config;
 
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+
+import org.apache.hc.client5.http.impl.classic.*;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.http.ssl.TrustStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,8 +30,14 @@ public class TestConfig {
 				.build();
 
 		SSLConnectionSocketFactory csf = new SSLConnectionSocketFactory(sslContext);
-
-		CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(csf).build();
+	    HttpClientConnectionManager cm = PoolingHttpClientConnectionManagerBuilder.create()
+	                .setSSLSocketFactory(csf)
+	                .build();
+		//CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(csf).build();
+	    CloseableHttpClient httpClient =HttpClientBuilder
+        .create()
+        .setConnectionManager(cm)
+        .build();
 		HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
 
 		requestFactory.setHttpClient(httpClient);

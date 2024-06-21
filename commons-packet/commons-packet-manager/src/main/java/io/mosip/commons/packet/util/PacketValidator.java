@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
@@ -111,17 +112,17 @@ public class PacketValidator {
                 objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
 
             String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
-			if (fields != null) {
-				LinkedHashMap finalMap = new LinkedHashMap();
-				finalMap.put(IDENTITY, objectMap);
-				JSONObject finalIdObject = new JSONObject(finalMap);
+            if (fields != null) {
+                LinkedHashMap finalMap = new LinkedHashMap();
+                finalMap.put(IDENTITY, loadDemographicIdentity(objectMap));
+                JSONObject finalIdObject = new JSONObject(finalMap);
 
-				return idObjectValidator.validateIdObject(
-						idSchemaUtils.getIdSchema(
-								Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
-						finalIdObject, Arrays.asList(fields.split(",")));
+                return idObjectValidator.validateIdObject(
+                        idSchemaUtils.getIdSchema(
+                                Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
+                        finalIdObject, Arrays.asList(fields.split(",")));
 
-			}
+            }
 
 			return false;
         } catch (IdObjectValidationFailedException e) {
