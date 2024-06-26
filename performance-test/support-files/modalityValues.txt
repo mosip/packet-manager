@@ -1,0 +1,14 @@
+modalityValues
+leftEye
+rightEye
+rightIndex
+rightLittle
+rightRing
+rightMiddle
+leftIndex
+leftLittle
+leftRing
+leftMiddle
+leftThumb
+rightThumb
+face

@@ -1,0 +1,11 @@
+fields
+"firstName","middleName","lastName"
+"suffix","firstName"
+"firstName","middleName","lastName","dateOfBirth"
+"suffix","firstName","middleName","lastName","dateOfBirth"
+"suffix","firstName","middleName","lastName","dateOfBirth","pobCountry"
+"suffix","firstName","middleName","lastName","dateOfBirth","pobCountry","gender","pobProvince","pobCity"
+"suffix","firstName","middleName","lastName","dateOfBirth","pobCountry","gender"
+"firstName","middleName","lastName","dateOfBirth","pobCountry","gender"
+"firstName","middleName","lastName","dateOfBirth","gender"
+"suffix","firstName","middleName","lastName","dateOfBirth","pobCountry","gender","pobProvince","pobCity","residenceStatus"
