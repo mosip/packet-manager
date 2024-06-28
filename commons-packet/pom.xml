@@ -7,7 +7,7 @@
 
     <groupId>io.mosip.commons</groupId>
     <artifactId>commons-packet</artifactId>
-    <version>1.2.1-java21-SNAPSHOT</version>
+    <version>1.2.1-SNAPSHOT</version>
     <name>common-packet</name>
     <description>Common packet manager for MOSIP</description>
     <url>https://github.com/mosip/packet-manager</url>
@@ -80,7 +80,7 @@
                             <id>report</id>
                             <phase>prepare-package</phase>
                             <goals>
-                                <goal>report</goal>
+                                <goal>report-aggregate</goal>
                             </goals>
                         </execution>
                     </executions>
