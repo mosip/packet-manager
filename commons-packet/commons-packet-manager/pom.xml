@@ -27,7 +27,7 @@
 		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
         <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version>
         <kernel.keygenerator.bouncycastle.version>1.2.1-java21-SNAPSHOT</kernel.keygenerator.bouncycastle.version>
-        <hazelcast.kubernetes.version>1.3.1</hazelcast.kubernetes.version>
+        <hazelcast.kubernetes.version>2.2.1</hazelcast.kubernetes.version>
 
         <kernel-keymanager-service.version>1.2.1-java21-SNAPSHOT</kernel-keymanager-service.version>
         <kernel-idobjectvalidator.version>1.2.1-java21-SNAPSHOT</kernel-idobjectvalidator.version>
