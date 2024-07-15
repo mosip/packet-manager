@@ -28,7 +28,7 @@
 
         <!-- spring -->
         <kernel.keygenerator.bouncycastle.version>1.2.1-java21-SNAPSHOT</kernel.keygenerator.bouncycastle.version>
-        <swagger.version>2.9.2</swagger.version>
+        <swagger.version>2.10.0</swagger.version>
 
         <kernel.core.version>1.2.1-java21-SNAPSHOT</kernel.core.version>
         <kernel.biometrics.api.version>1.2.1-java21-SNAPSHOT</kernel.biometrics.api.version>
