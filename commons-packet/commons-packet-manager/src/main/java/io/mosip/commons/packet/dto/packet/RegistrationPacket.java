@@ -23,7 +23,8 @@ import java.util.Map;
 public class RegistrationPacket {
 
 	private static final Logger LOGGER = PacketManagerLogger.getLogger(RegistrationPacket.class);
-	
+    private static final ObjectMapper mapper=new ObjectMapper();
+
 	private String registrationId;
 	private double idSchemaVersion;
 	private String creationDate;
@@ -85,16 +86,15 @@ public class RegistrationPacket {
 			if (value != null) {
 				Object json = new JSONTokener(value).nextValue();
 				if (json instanceof JSONObject) {
-					HashMap<String, Object> hashMap = new ObjectMapper().readValue(value, HashMap.class);
+					HashMap<String, Object> hashMap = mapper.readValue(value, HashMap.class);
 					finalMap.putIfAbsent(fieldName, hashMap);
 				}
 				else if (json instanceof JSONArray) {
 					List jsonList = new ArrayList<>();
 					JSONArray jsonArray = new JSONArray(value);
 					for (int i = 0; i < jsonArray.length(); i++) {
-						Object obj = jsonArray.get(i);
-						HashMap<String, Object> hashMap = new ObjectMapper().readValue(obj.toString(), HashMap.class);
-						jsonList.add(hashMap);
+                        Object obj = jsonArray.get(i);
+                        jsonList.add(obj instanceof org.json.JSONObject ? mapper.readValue(obj.toString(), HashMap.class):obj);
 					}
 					finalMap.putIfAbsent(fieldName, jsonList);
 				} else
