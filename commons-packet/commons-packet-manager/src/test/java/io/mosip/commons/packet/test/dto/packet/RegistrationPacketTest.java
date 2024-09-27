@@ -12,19 +12,20 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 public class RegistrationPacketTest {
+
     @Autowired
     private RegistrationPacket registrationPacket;
+
     @Before
     public void befor(){
         registrationPacket =new RegistrationPacket("yyyy-MM-dd'T'HH:mm:ss.SSS");
     }
 
     @Test
-    public void setFilesWithArrayOfStringTest()
+    public void setFiles_withArrayOfString_thenPass()
     {
         String arrayOfString="[\"handle1\", \"handle2\", \"handle3\"]";
         registrationPacket.setField("handle",arrayOfString);
-
         Map<String,Object> mapObj=registrationPacket.getDemographics();
         List<String> handleList= (List<String>) mapObj.get("handle");
         assertEquals(3, handleList.size());
@@ -34,7 +35,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFilesWithObjectofMapTest()
+    public void setFiles_withObjectofMap_thenPass()
     {
         String mapAsString="[\n" +
                 "        {\n" +
@@ -55,7 +56,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFilesWithHashmapTest()
+    public void setFiles_withHashmap_thenPass()
     {
         String mapAsString="{\n" +
                 "        \"format\": \"pdf\",\n" +
@@ -70,7 +71,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFilesWithStringTest()
+    public void setFiles_withString_thenPass()
     {
         String mapAsString="ExpString";
         registrationPacket.setField("StringExp",mapAsString);
