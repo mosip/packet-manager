@@ -17,12 +17,12 @@ public class RegistrationPacketTest {
     private RegistrationPacket registrationPacket;
 
     @Before
-    public void befor(){
+    public void before(){
         registrationPacket =new RegistrationPacket("yyyy-MM-dd'T'HH:mm:ss.SSS");
     }
 
     @Test
-    public void setFiles_withArrayOfString_thenPass()
+    public void setFields_withArrayOfString_thenPass()
     {
         String arrayOfString="[\"handle1\", \"handle2\", \"handle3\"]";
         registrationPacket.setField("handle",arrayOfString);
@@ -35,7 +35,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFiles_withObjectofMap_thenPass()
+    public void setFields_withObjectofMap_thenPass()
     {
         String mapAsString="[\n" +
                 "        {\n" +
@@ -56,7 +56,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFiles_withHashmap_thenPass()
+    public void setFields_withHashmap_thenPass()
     {
         String mapAsString="{\n" +
                 "        \"format\": \"pdf\",\n" +
@@ -71,10 +71,10 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFiles_withString_thenPass()
+    public void setFields_withString_thenPass()
     {
-        String mapAsString="ExpString";
-        registrationPacket.setField("StringExp",mapAsString);
+        String string="ExpString";
+        registrationPacket.setField("StringExp",string);
         Map<String,Object> mapObj=registrationPacket.getDemographics();
         String responceString= (String) mapObj.get("StringExp");
         assertEquals("ExpString",responceString);
