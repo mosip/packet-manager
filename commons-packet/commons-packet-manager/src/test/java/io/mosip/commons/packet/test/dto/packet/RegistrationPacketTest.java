@@ -37,7 +37,7 @@ public class RegistrationPacketTest {
     @Test
     public void setFields_withObjectofMap_thenPass()
     {
-        String mapAsString="[\n" +
+        String arrayofMapAsString="[\n" +
                 "        {\n" +
                 "          \"language\": \"eng\",\n" +
                 "          \"value\": \"NFR\"\n" +
@@ -47,7 +47,7 @@ public class RegistrationPacketTest {
                 "          \"value\": \"NFR\"\n" +
                 "        }\n" +
                 "      ]";
-        registrationPacket.setField("residenceStatus",mapAsString);
+        registrationPacket.setField("residenceStatus",arrayofMapAsString);
         Map<String,Object> mapObj=registrationPacket.getDemographics();
         List<Object> handleList= (List<Object>) mapObj.get("residenceStatus");
         HashMap<String,Object> has1= (HashMap<String, Object>) handleList.get(0);
