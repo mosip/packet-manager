@@ -43,7 +43,7 @@ Tests are performed for this repository using [DSL](https://github.com/mosip/mos
 ---
 
 ## APIs
-API documentation is available [here](https://mosip.github.io/documentation/1.2.0/commons-packet-service.html).
+API documentation is available [here](https://mosip.github.io/documentation/).
 
 ---
 
