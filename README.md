@@ -25,8 +25,8 @@ ___
 >$ cd `<service folder>` <br>
 $ docker build -f Dockerfile
 ## Configuration
-We are using two property files that are accessible in this [repository](https://github.com/mosip/mosip-config/blob/develop/).Please refer the required released tagged version for configuration.
-> 1: [application-default.properties](https://github.com/mosip/mosip-config/application-default.properties)<br> 2:[ packet-manager-default.properties](https://github.com/mosip/mosip-config/blob/develop/packet-manager-default.properties)
+We are using two property files that are accessible in this [repository](https://github.com/mosip/mosip-config). Please refer the required released tagged version for configuration.
+> 1: [application-default.properties](https://github.com/mosip/mosip-config/blob/master/application-default.properties)<br> 2:[ packet-manager-default.properties](https://github.com/mosip/mosip-config/blob/master/packet-manager-default.properties)
 
 ## Deployment 
 To deploy services on Kubernetes cluster using Dockers. Refer to [Sandbox Deployment](https://docs.mosip.io/1.2.0/deploymentnew/v3-installation).
