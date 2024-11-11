@@ -2,11 +2,11 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.2.0.1&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/dashboard?branch=release-1.2.0.1&id=mosip_packet-manager)
 
 # Packet Manager
-.
+
 
 ## Overview
 
-* This repository contains the source code MOSIP Packet Manager module.  For an overview refer [here](https://docs.mosip.io/1.2.0/modules/packet-manager). This Module Exposes some API endpoints that we can explore in this [Link](https://mosip.github.io/documentation/1.2.0/commons-packet-service.html).  
+* This repository contains the source code MOSIP Packet Manager module.  For an overview refer [here](https://docs.mosip.io/1.2.0/modules/packet-manager).
 ---
 
 
@@ -32,6 +32,9 @@ We are using two property files that are accessible in this [repository](https:/
 To deploy services on Kubernetes cluster using Dockers. Refer to [Sandbox Deployment](https://docs.mosip.io/1.2.0/deploymentnew/v3-installation).
 ## Test 
 Tests are performed for this repository using [DSL](https://github.com/mosip/mosip-automation-tests) automation testing.
+
+## APIs
+API documentation is available [here](https://mosip.github.io/documentation/1.2.0/commons-packet-service.html).
 
 ## License
 This project is licensed under the terms of [Mozilla Public License 2.0](LICENSE).
