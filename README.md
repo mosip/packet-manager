@@ -24,17 +24,28 @@ ___
 ## Build Docker for a service
 >$ cd `<service folder>` <br>
 $ docker build -f Dockerfile
+> 
+---
 ## Configuration
 We are using two property files that are accessible in this [repository](https://github.com/mosip/mosip-config). Please refer the required released tagged version for configuration.
 > 1: [application-default.properties](https://github.com/mosip/mosip-config/blob/master/application-default.properties)<br> 2:[ packet-manager-default.properties](https://github.com/mosip/mosip-config/blob/master/packet-manager-default.properties)
 
+---
 ## Deployment 
+
 To deploy services on Kubernetes cluster using Dockers. Refer to [Sandbox Deployment](https://docs.mosip.io/1.2.0/deploymentnew/v3-installation).
+
+---
+
 ## Test 
 Tests are performed for this repository using [DSL](https://github.com/mosip/mosip-automation-tests) automation testing.
 
+---
+
 ## APIs
 API documentation is available [here](https://mosip.github.io/documentation/1.2.0/commons-packet-service.html).
+
+---
 
 ## License
 This project is licensed under the terms of [Mozilla Public License 2.0](LICENSE).
