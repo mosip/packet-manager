@@ -6,7 +6,7 @@
 
 ## Overview
 
-* This repository contains the source code MOSIP Packet Manager module.  For an overview refer [here](https://docs.mosip.io/1.2.0/modules/packet-manager). This Module Exposes some API endpoints that we can explore in this [Swagger](https://<RESPECTIVE_ENVIRONMENT>/commons/v1/packetmanager/swagger-ui/index.html).  
+* This repository contains the source code MOSIP Packet Manager module.  For an overview refer [here](https://docs.mosip.io/1.2.0/modules/packet-manager). This Module Exposes some API endpoints that we can explore in this [Link](https://mosip.github.io/documentation/1.2.0/commons-packet-service.html).  
 ---
 
 
