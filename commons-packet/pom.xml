@@ -30,7 +30,7 @@
         <maven.deploy.plugin.version>2.8.1</maven.deploy.plugin.version>
 		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
 		<maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
-		<nexus.staging.plugin.version>1.6.7</nexus.staging.plugin.version>
+		<nexus.staging.plugin.version>1.6.14</nexus.staging.plugin.version>
 		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
