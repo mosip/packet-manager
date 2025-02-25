@@ -314,16 +314,11 @@ public class PacketValidator {
 
                     else if (json instanceof JSONArray) {
                         List jsonList = new ArrayList<>();
-
                         JSONArray jsonArray = new JSONArray(value);
-                        if (jsonArray.length() > 0 && jsonArray.get(0) instanceof String) {
-                            demographicIdentity.putIfAbsent(e.getKey(), jsonArray.toString());
-                        } else {
-                            for (int i = 0; i < jsonArray.length(); i++) {
-                                Object obj = jsonArray.get(i);
-                                HashMap<String, Object> hashMap = mapper.readValue(obj.toString(), HashMap.class);
-                                jsonList.add(hashMap);
-                            }
+
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            Object obj = jsonArray.get(i);
+                            jsonList.add(obj instanceof org.json.JSONObject ? mapper.readValue(obj.toString(), HashMap.class):obj);
                         }
                         demographicIdentity.putIfAbsent(e.getKey(), jsonList);
                     } else

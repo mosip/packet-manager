@@ -186,6 +186,9 @@ public class PacketReaderImplTest {
                 "    \"value\" : \"جهة الرباط سلا القنيطرة\"\n" +
                 "  } ],\n" +
                 "  \"email\" : \"niyati.swami@technoforte.co.in\"\n" +
+                "  \"selectedHandles\": [\n" +
+                "        \"nrcId\"\n" +
+                "      ]" +
                 "} } ";
 
         keyValueMap = new LinkedHashMap<>();
