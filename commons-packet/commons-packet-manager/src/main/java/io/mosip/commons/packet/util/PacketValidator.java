@@ -308,16 +308,17 @@ public class PacketValidator {
                 if (value != null) {
                     Object json = new JSONTokener(value).nextValue();
                     if (json instanceof org.json.JSONObject) {
-                        HashMap<String, Object> hashMap = new ObjectMapper().readValue(value, HashMap.class);
+                        HashMap<String, Object> hashMap = mapper.readValue(value, HashMap.class);
                         demographicIdentity.putIfAbsent(e.getKey(), hashMap);
                     }
+
                     else if (json instanceof JSONArray) {
                         List jsonList = new ArrayList<>();
                         JSONArray jsonArray = new JSONArray(value);
+
                         for (int i = 0; i < jsonArray.length(); i++) {
                             Object obj = jsonArray.get(i);
-                            HashMap<String, Object> hashMap = new ObjectMapper().readValue(obj.toString(), HashMap.class);
-                            jsonList.add(hashMap);
+                            jsonList.add(obj instanceof org.json.JSONObject ? mapper.readValue(obj.toString(), HashMap.class):obj);
                         }
                         demographicIdentity.putIfAbsent(e.getKey(), jsonList);
                     } else
