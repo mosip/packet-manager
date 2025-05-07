@@ -115,6 +115,11 @@ public class PacketKeeper {
      * @return
      */
     public boolean checkSignature(Packet packet, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
+        if(packet.getPacketInfo().getSignature() == null || packet.getPacketInfo().getSignature().isEmpty()) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                    getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Signature is null");
+            return false;
+        }
         boolean result = disablePacketSignatureVerification ? true :
         		getCryptoService().verify(helper.getRefId(
                         packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), packet.getPacket()

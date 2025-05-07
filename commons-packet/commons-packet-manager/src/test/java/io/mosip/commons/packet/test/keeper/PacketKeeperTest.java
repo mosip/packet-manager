@@ -1,12 +1,12 @@
 package io.mosip.commons.packet.test.keeper;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -169,7 +169,6 @@ public class PacketKeeperTest {
     }
 
     @Test(expected = PacketKeeperException.class)
-    @Ignore
     public void testPacketIntegrityFailure() throws PacketKeeperException {
         Mockito.when(onlineCrypto.verify(any(),any(), any())).thenReturn(false);
 
@@ -235,8 +234,27 @@ public class PacketKeeperTest {
 		packetKeeper.deleteTags(tagRequestDto);
 
     }
-   
-  
+
+    @Test
+    public void testSignetureNull() throws NoSuchAlgorithmException {
+    	PacketInfo packetInfo1 = new PacketInfo();
+        Packet packet1 = new Packet();
+        packetInfo1.setCreationDate(DateUtils.getCurrentDateTimeString());
+        packetInfo1.setEncryptedHash("yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA");
+    	packetInfo1.setId(id);
+    	packetInfo1.setSource(source);
+    	packetInfo1.setProcess(process);
+    	packetInfo1.setSignature(null);
+    	packetInfo1.setSchemaVersion("0.1");
+    	packetInfo1.setProviderVersion("1.0");
+        packet1 = new Packet();
+        packet1.setPacket("packet".getBytes());
+        packet1.setPacketInfo(packetInfo);
+        byte[] haseBytes=packetInfo1.getEncryptedHash().getBytes();
+        Mockito.when(onlineCrypto.sign(any())).thenReturn(null);
+        boolean result=packetKeeper.checkSignature(packet1,haseBytes);
+        assertFalse(result);
+    }
 }
 
 
