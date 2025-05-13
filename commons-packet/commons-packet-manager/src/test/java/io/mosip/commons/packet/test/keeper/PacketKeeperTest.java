@@ -236,9 +236,9 @@ public class PacketKeeperTest {
     }
 
     @Test
-    public void testSignetureNull() throws NoSuchAlgorithmException {
+    public void testPacketSignatureNullWithEnableSignatureVerification() throws NoSuchAlgorithmException {
+        ReflectionTestUtils.setField(packetKeeper, "disablePacketSignatureVerification", false);
     	PacketInfo packetInfo1 = new PacketInfo();
-        Packet packet1 = new Packet();
         packetInfo1.setCreationDate(DateUtils.getCurrentDateTimeString());
         packetInfo1.setEncryptedHash("yWxtW-jQihLntc3Bsgf6ayQwl0yGgD2IkWdedv2ZLCA");
     	packetInfo1.setId(id);
@@ -247,13 +247,55 @@ public class PacketKeeperTest {
     	packetInfo1.setSignature(null);
     	packetInfo1.setSchemaVersion("0.1");
     	packetInfo1.setProviderVersion("1.0");
-        packet1 = new Packet();
+        Packet packet1 = new Packet();
         packet1.setPacket("packet".getBytes());
-        packet1.setPacketInfo(packetInfo);
-        byte[] haseBytes=packetInfo1.getEncryptedHash().getBytes();
-        Mockito.when(onlineCrypto.sign(any())).thenReturn(null);
-        boolean result=packetKeeper.checkSignature(packet1,haseBytes);
+        packet1.setPacketInfo(packetInfo1);
+        byte[] haseBytes = packetInfo1.getEncryptedHash().getBytes();
+        boolean result = packetKeeper.checkSignature(packet1, haseBytes);
         assertFalse(result);
+    }
+
+
+    @Test
+    public void testPacketSignatureNullWithDisabledSignatureVerification() throws NoSuchAlgorithmException {
+        ReflectionTestUtils.setField(packetKeeper, "disablePacketSignatureVerification", true);
+        String packetString = "DpSj5Cn0re2Aj8ya7_TcfNATcQlU0xXK_Kl6lB4W8cU";
+        PacketInfo packetInfo1 = new PacketInfo();
+        packetInfo1.setCreationDate(DateUtils.getCurrentDateTimeString());
+        packetInfo1.setEncryptedHash("FBfFcZU1yldFIt3uPxZA3Hw33pIBlUZz41F2xP51NHw");
+        packetInfo1.setId(id);
+        packetInfo1.setSource(source);
+        packetInfo1.setProcess(process);
+        packetInfo1.setSignature(null);
+        packetInfo1.setSchemaVersion("0.1");
+        packetInfo1.setProviderVersion("1.0");
+        Packet packet1 = new Packet();
+        packet1.setPacket("packet".getBytes());
+        packet1.setPacketInfo(packetInfo1);
+        byte[] haseBytes = packetString.getBytes();
+        boolean result = packetKeeper.checkSignature(packet1, haseBytes);
+        assertTrue(result);
+    }
+
+    @Test
+    public void testPacketSignatureWithEnabledSignatureVerification() throws NoSuchAlgorithmException {
+        String packetString = "DpSj5Cn0re2Aj8ya7_TcfNATcQlU0xXK_Kl6lB4W8cU";
+        Mockito.when(onlineCrypto.verify(any(),any(), any())).thenReturn(true);
+        PacketInfo packetInfo1 = new PacketInfo();
+        packetInfo1.setCreationDate(DateUtils.getCurrentDateTimeString());
+        packetInfo1.setEncryptedHash("FBfFcZU1yldFIt3uPxZA3Hw33pIBlUZz41F2xP51NHw");
+        packetInfo1.setId(id);
+        packetInfo1.setSource(source);
+        packetInfo1.setProcess(process);
+        packetInfo1.setSignature("sign");
+        packetInfo1.setSchemaVersion("0.1");
+        packetInfo1.setProviderVersion("1.0");
+        Packet packet1 = new Packet();
+        packet1.setPacket("packet".getBytes());
+        packet1.setPacketInfo(packetInfo1);
+        byte[] haseBytes = packetString.getBytes();
+        boolean result = packetKeeper.checkSignature(packet1, haseBytes);
+        assertTrue(result);
     }
 }
 
