@@ -9,7 +9,7 @@
     <name>commons-packet-manager</name>
     <description>Mosip commons project </description>
     <url>https://github.com/mosip/commons</url>
-    <version>1.3.0-beta.2-SNAPSHOT</version>
+    <version>1.3.0-SNAPSHOT</version>
  <properties>
         <!-- maven -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -28,7 +28,7 @@
         <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version>
         <hazelcast.kubernetes.version>1.3.1</hazelcast.kubernetes.version>
 
-        <kernel-keymanager-service.version>1.3.0-beta.3-SNAPSHOT</kernel-keymanager-service.version>
+        <kernel-keymanager-service.version>1.3.0-SNAPSHOT</kernel-keymanager-service.version>
         <kernel-idobjectvalidator.version>1.3.0-beta.2</kernel-idobjectvalidator.version>
         <kernel.core.version>1.3.0-beta.2</kernel.core.version>
         <kernel.biometrics.api.version>1.3.0-beta.1</kernel.biometrics.api.version>
