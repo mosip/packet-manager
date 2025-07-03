@@ -41,16 +41,16 @@
         <module>commons-packet-service</module>
     </modules>
 
-<distributionManagement>
-		<snapshotRepository>
-                        <id>ossrh</id>
-                        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-		</snapshotRepository> 
-                 <repository>
-                        <id>ossrh</id>
-                        <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-                </repository> 
-        </distributionManagement> 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://central.sonatype.com/api/v1/publisher</url>
+        </repository>
+    </distributionManagement>
         <build>
           
             <plugins>
@@ -178,6 +178,16 @@
             		 </configuration>
                         </execution>
                   </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>${central.publishing.maven.plugin.version}</version>
+                    <extensions>true</extensions>
+                    <configuration>
+                        <publishingServerId>ossrh</publishingServerId>
+                        <autoPublish>false</autoPublish>
+                    </configuration>
                 </plugin>
 		<plugin>
     			<groupId>pl.project13.maven</groupId>
