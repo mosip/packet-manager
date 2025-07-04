@@ -328,7 +328,7 @@ public class PacketReaderImplTest {
 
         when(packetReader.getField("id",biometricFieldName,"source","process",false)).thenReturn(keyValueMap.get(biometricFieldName).toString());
 
-        BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process");
+        BiometricRecord result = iPacketReader.getBiometric("id", biometricFieldName, null, "source", "process", false);
 
         assertTrue("Should be true", result.getSegments().size() == 2);
     }
@@ -371,7 +371,7 @@ public class PacketReaderImplTest {
         PowerMockito.mockStatic(CbeffValidator.class);
         when(CbeffValidator.getBIRFromXML(any())).thenReturn(birType);
 
-        BiometricRecord result = iPacketReader.getBiometric("id", "officerBiometric", null, "source", "process");
+        BiometricRecord result = iPacketReader.getBiometric("id", "officerBiometric", null, "source", "process", any());
 
         assertTrue("Should be true", result.getSegments().size() == 2);
     }
