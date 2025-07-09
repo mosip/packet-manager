@@ -1,8 +1,16 @@
 package io.mosip.commons.packet.impl;
 
+import java.security.SecureRandom;
+import java.util.Arrays;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Component;
+
 import io.mosip.commons.khazana.util.EncryptionUtil;
 import io.mosip.commons.packet.constants.CryptomanagerConstant;
-import io.mosip.commons.packet.exception.PacketDecryptionFailureException;
 import io.mosip.commons.packet.spi.IPacketCryptoService;
 import io.mosip.kernel.clientcrypto.dto.TpmSignRequestDto;
 import io.mosip.kernel.clientcrypto.dto.TpmSignVerifyRequestDto;
@@ -12,20 +20,7 @@ import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.DateUtils;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
-import io.mosip.kernel.cryptomanager.service.impl.CryptomanagerServiceImpl;
-import io.mosip.kernel.signature.dto.TimestampRequestDto;
 import io.mosip.kernel.signature.service.SignatureService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationContext;
-import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 
 @Component
 @Qualifier("OfflinePacketCryptoServiceImpl")
@@ -42,21 +37,23 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
     /**
      * The cryptomanager service.
      */
-    private CryptomanagerService cryptomanagerService = null;
+    private volatile CryptomanagerService cryptomanagerService = null;
 
     /**
      * The key manager.
      */
-    private SignatureService signatureService = null;
+    private volatile SignatureService signatureService = null;
 
     /**
      * The key manager.
      */
-    private ClientCryptoManagerService tpmCryptoService = null;
+    private volatile ClientCryptoManagerService tpmCryptoService = null;
 
     @Value("${crypto.PrependThumbprint.enable:true}")
     private boolean isPrependThumbprintEnabled;
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    
     @Override
     public byte[] sign(byte[] packet) {
         TpmSignRequestDto signRequest = new TpmSignRequestDto();
@@ -66,17 +63,15 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
 
     @Override
     public byte[] encrypt(String refId, byte[] packet) {
-        String packetString = CryptoUtil.encodeToURLSafeBase64(packet);
-        CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
-        cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
-        cryptomanagerRequestDto.setData(packetString);
-        cryptomanagerRequestDto.setReferenceId(refId);
-
-        SecureRandom sRandom = new SecureRandom();
         byte[] nonce = new byte[CryptomanagerConstant.GCM_NONCE_LENGTH];
         byte[] aad = new byte[CryptomanagerConstant.GCM_AAD_LENGTH];
-        sRandom.nextBytes(nonce);
-        sRandom.nextBytes(aad);
+        SECURE_RANDOM.nextBytes(nonce);
+        SECURE_RANDOM.nextBytes(aad);
+
+        CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
+        cryptomanagerRequestDto.setApplicationId(APPLICATION_ID);
+        cryptomanagerRequestDto.setReferenceId(refId);
+        cryptomanagerRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(packet));
         cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
         cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
         cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
@@ -116,20 +111,32 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
     }
 
     private CryptomanagerService getCryptomanagerService() {
-        if (cryptomanagerService == null)
-            cryptomanagerService = applicationContext.getBean(CryptomanagerServiceImpl.class);
+        if (cryptomanagerService == null) {
+            synchronized (this) {
+                if (cryptomanagerService == null)
+                    cryptomanagerService = applicationContext.getBean(CryptomanagerService.class);
+            }
+        }
         return cryptomanagerService;
     }
 
     private SignatureService getSignatureService() {
-        if (signatureService == null)
-            signatureService = applicationContext.getBean(SignatureService.class);
+        if (signatureService == null) {
+            synchronized (this) {
+                if (signatureService == null)
+                    signatureService = applicationContext.getBean(SignatureService.class);
+            }
+        }
         return signatureService;
     }
 
     private ClientCryptoManagerService getTpmCryptoService() {
-        if (tpmCryptoService == null)
-            tpmCryptoService = applicationContext.getBean(ClientCryptoManagerService.class);
+        if (tpmCryptoService == null) {
+            synchronized (this) {
+                if (tpmCryptoService == null)
+                    tpmCryptoService = applicationContext.getBean(ClientCryptoManagerService.class);
+            }
+        }
         return tpmCryptoService;
     }
 }

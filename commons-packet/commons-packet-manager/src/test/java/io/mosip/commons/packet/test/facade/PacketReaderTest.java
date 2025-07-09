@@ -10,11 +10,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,10 +29,14 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.mosip.commons.khazana.dto.ObjectDto;
 import io.mosip.commons.packet.dto.Document;
 import io.mosip.commons.packet.exception.NoAvailableProviderException;
 import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.commons.packet.facade.PacketReaderProviderRegistry;
 import io.mosip.commons.packet.impl.PacketReaderImpl;
 import io.mosip.commons.packet.keeper.PacketKeeper;
 import io.mosip.commons.packet.spi.IPacketReader;
@@ -45,199 +49,234 @@ import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.biometrics.entities.RegistryIDType;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({PacketHelper.class})
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*"})
+@PrepareForTest({ PacketHelper.class })
+@PowerMockIgnore({ "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*" })
 public class PacketReaderTest {
 
-    @InjectMocks
-    private PacketReader packetReader = new PacketReader();
+	@InjectMocks
+	private PacketReader packetReader = new PacketReader();
 
-    @Mock
-    private PacketReaderImpl packetReaderProvider;
+	@Mock
+	private PacketReaderImpl packetReaderProvider;
 
-    private Map<String, Object> allFields;
+	@Mock
+	private PacketReaderProviderRegistry providerRegistry;
 
-    private static final String source = "reg-client";
-    private static final String process = "NEW";
-    private static final String id = "110111101120191111121111";
-    
-    @Mock
+	private Map<String, Object> allFields;
+
+	private static final String source = "reg-client";
+	private static final String process = "NEW";
+	private static final String id = "110111101120191111121111";
+
+	@Mock
 	private PacketKeeper packetKeeper;
-    @Spy
-    private ObjectMapper mapper = new ObjectMapper();
-    @Before
-    public void setup() {
-        PowerMockito.mockStatic(PacketHelper.class);
-        PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(),anyString(),anyString(),any())).thenReturn(true);
-        List<IPacketReader> referenceReaderProviders = new ArrayList<>();
-        referenceReaderProviders.add(packetReaderProvider);
-        ReflectionTestUtils.setField(packetReader, "referenceReaderProviders", referenceReaderProviders);
-        allFields = new HashMap<>();
-        allFields.put("name", "mono");
-        allFields.put("email", "mono@mono.com");
-        allFields.put("phone", "1234567");
+	@Spy
+	private ObjectMapper mapper = new ObjectMapper();
 
-        Mockito.when(packetReaderProvider.getAll(anyString(), anyString(), anyString())).thenReturn(allFields);
+	@Before
+	public void setup() {
+		PowerMockito.mockStatic(PacketHelper.class);
+		PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(), anyString(), anyString(), any()))
+				.thenReturn(true);
 
-    }
+		Mockito.when(providerRegistry.getReaderProvider(anyString(), anyString())).thenReturn(packetReaderProvider);
+		ReflectionTestUtils.setField(packetReader, "providerRegistry", providerRegistry);
 
-    @Test
-    public void testGetFieldWithBypassCache() {
-        String field = "name";
-        Mockito.when(packetReaderProvider.getField(anyString(), anyString(), anyString(), anyString())).thenReturn(field);
+		allFields = new HashMap<>();
+		allFields.put("name", "mono");
+		allFields.put("email", "mono@mono.com");
+		allFields.put("phone", "1234567");
 
-        String result = packetReader.getField(id, field, source, process, true);
+		Mockito.when(packetReaderProvider.getAll(anyString(), anyString(), anyString())).thenReturn(allFields);
+	}
 
-        assertTrue(result == field);
-    }
+	@Test
+	public void testGetFieldWithBypassCache() {
+		String field = "name";
+		Mockito.when(packetReaderProvider.getField(anyString(), anyString(), anyString(), anyString()))
+				.thenReturn(field);
 
-    @Test
-    public void testGetField() {
-        String field = "name";
+		String result = packetReader.getField(id, field, source, process, true);
 
-        String result = packetReader.getField(id, field, source, process, false);
+		assertTrue(result == field);
+	}
 
-        assertTrue(result.equals(allFields.get("name")));
-    }
+	@Test
+	public void testGetField() {
+		String field = "name";
 
-    @Test
-    public void testGetFields() throws JsonProcessingException {
-        String field = "name";
-        List<String> fieldList = Lists.newArrayList(field);
-        Map<String, String> fieldMap = new HashMap<>();
-        fieldMap.put(field, field);
-        Mockito.when(packetReaderProvider.getFields(anyString(), anyList(), anyString(), anyString())).thenReturn(fieldMap);
+		String result = packetReader.getField(id, field, source, process, false);
 
-        Map<String, String> result = packetReader.getFields(id, fieldList, source, process, true);
+		assertTrue(result.equals(allFields.get("name")));
+	}
 
-        assertTrue(result.size() == 1);
-    }
+	@Test
+	public void testGetFields() throws JsonProcessingException {
+		String field = "name";
+		List<String> fieldList = Lists.newArrayList(field);
+		Map<String, String> fieldMap = new HashMap<>();
+		fieldMap.put(field, field);
+		Mockito.when(packetReaderProvider.getFields(anyString(), anyList(), anyString(), anyString()))
+				.thenReturn(fieldMap);
 
-    @Test
-    public void testGetFieldsBypassCache() throws JsonProcessingException {
-        String field = "name";
-        List<String> fieldList = Lists.newArrayList(field);
-        Map<String, String> fieldMap = new HashMap<>();
-        fieldMap.put(field, field);
-        Mockito.when(packetReaderProvider.getFields(anyString(), anyList(), anyString(), anyString())).thenReturn(fieldMap);
+		Map<String, String> result = packetReader.getFields(id, fieldList, source, process, true);
 
-        Map<String, String> result = packetReader.getFields(id, fieldList, source, process, false);
+		assertTrue(result.size() == 1);
+	}
 
-        assertTrue(result.size() == 1);
-    }
+	@Test
+	public void testGetFieldsBypassCache() throws JsonProcessingException {
+		String field = "name";
+		List<String> fieldList = Lists.newArrayList(field);
+		Map<String, String> fieldMap = new HashMap<>();
+		fieldMap.put(field, field);
+		Mockito.when(packetReaderProvider.getFields(anyString(), anyList(), anyString(), anyString()))
+				.thenReturn(fieldMap);
 
-    @Test
-    public void testGetDocument() {
-        String docName = "poa";
-        Document document = new Document();
-        document.setValue("document");
+		Map<String, String> result = packetReader.getFields(id, fieldList, source, process, false);
 
-        Mockito.when(packetReaderProvider.getDocument(anyString(), anyString(), anyString(), anyString())).thenReturn(document);
+		assertTrue(result.size() == 1);
+	}
 
-        Document result = packetReader.getDocument(id, docName, source, process);
+	@Test
+	public void testGetDocument() {
+		String docName = "poa";
+		Document document = new Document();
+		document.setValue("document");
 
-        assertTrue(result.equals(document));
-    }
+		Mockito.when(packetReaderProvider.getDocument(anyString(), anyString(), anyString(), anyString()))
+				.thenReturn(document);
 
-    @Test
-    public void testGetBiometrics() {
-        List<BIR> birTypeList = new ArrayList<>();
-        BIR birType1 = new BIR.BIRBuilder().build();
-        BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
-        RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
-        QualityType quality = new QualityType();
-        quality.setAlgorithm(registryIDType);
-        quality.setScore(90l);
-        bdbInfoType1.setQuality(quality);
-        BiometricType singleType1 = BiometricType.FINGER;
-        List<BiometricType> singleTypeList1 = new ArrayList<>();
-        singleTypeList1.add(singleType1);
-        List<String> subtype1 = new ArrayList<>(Arrays.asList("Left", "RingFinger"));
-        bdbInfoType1.setSubtype(subtype1);
-        bdbInfoType1.setType(singleTypeList1);
-        birType1.setBdbInfo(bdbInfoType1);
-        birTypeList.add(birType1);
-        BiometricRecord biometricRecord = new BiometricRecord();
-        biometricRecord.setSegments(birTypeList);
+		Document result = packetReader.getDocument(id, docName, source, process);
 
-        Mockito.when(packetReaderProvider.getBiometric(anyString(), anyString(), anyList(), anyString(), anyString())).thenReturn(biometricRecord);
+		assertTrue(result.equals(document));
+	}
 
-        BiometricRecord result = packetReader.getBiometric(id, "individualBiometrics", Lists.newArrayList(), source, process, true);
+	@Test
+	public void testGetBiometrics() {
+		List<BIR> birTypeList = new ArrayList<>();
+		BIR birType1 = new BIR.BIRBuilder().build();
+		BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
+		RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
+		QualityType quality = new QualityType();
+		quality.setAlgorithm(registryIDType);
+		quality.setScore(90l);
+		bdbInfoType1.setQuality(quality);
+		BiometricType singleType1 = BiometricType.FINGER;
+		List<BiometricType> singleTypeList1 = new ArrayList<>();
+		singleTypeList1.add(singleType1);
+		List<String> subtype1 = new ArrayList<>(Arrays.asList("Left", "RingFinger"));
+		bdbInfoType1.setSubtype(subtype1);
+		bdbInfoType1.setType(singleTypeList1);
+		birType1.setBdbInfo(bdbInfoType1);
+		birTypeList.add(birType1);
+		BiometricRecord biometricRecord = new BiometricRecord();
+		biometricRecord.setSegments(birTypeList);
 
-        assertTrue(result.equals(biometricRecord));
-    }
+		Mockito.when(packetReaderProvider.getBiometric(anyString(), anyString(), anyList(), anyString(), anyString()))
+				.thenReturn(biometricRecord);
 
-    @Test
-    public void testGetMetaInfo() {
-        Map<String, String> metaMap = new HashMap<>();
-        metaMap.put("operationsData","officerid:1234");
+		BiometricRecord result = packetReader.getBiometric(id, "individualBiometrics", Lists.newArrayList(), source,
+				process, true);
 
-        Mockito.when(packetReaderProvider.getMetaInfo(anyString(), anyString(), anyString())).thenReturn(metaMap);
+		assertTrue(result.equals(biometricRecord));
+	}
 
-        Map<String, String> result = packetReader.getMetaInfo(id, source, process, true);
+	@Test
+	public void testGetMetaInfo() {
+		Map<String, String> metaMap = new HashMap<>();
+		metaMap.put("operationsData", "officerid:1234");
 
-        assertTrue(result.equals(metaMap));
-    }
+		Mockito.when(packetReaderProvider.getMetaInfo(anyString(), anyString(), anyString())).thenReturn(metaMap);
 
-    @Test
-    public void testGetAudits() {
-        Map<String, String> auditMap = new HashMap<>();
-        auditMap.put("audit","audit1");
-        List<Map<String, String>> auditList = new ArrayList<>();
-        auditList.add(auditMap);
+		Map<String, String> result = packetReader.getMetaInfo(id, source, process, true);
 
-        Mockito.when(packetReaderProvider.getAuditInfo(anyString(), anyString(), anyString())).thenReturn(auditList);
+		assertTrue(result.equals(metaMap));
+	}
 
-        List<Map<String, String>> result = packetReader.getAudits(id, source, process, true);
+	@Test
+	public void testGetAudits() {
+		Map<String, String> auditMap = new HashMap<>();
+		auditMap.put("audit", "audit1");
+		List<Map<String, String>> auditList = new ArrayList<>();
+		auditList.add(auditMap);
 
-        assertTrue(result.equals(auditList));
-    }
+		Mockito.when(packetReaderProvider.getAuditInfo(anyString(), anyString(), anyString())).thenReturn(auditList);
 
-    @Test
-    public void testValidatePacket() {
-        Map<String, String> auditMap = new HashMap<>();
-        auditMap.put("audit","audit1");
-        List<Map<String, String>> auditList = new ArrayList<>();
-        auditList.add(auditMap);
+		List<Map<String, String>> result = packetReader.getAudits(id, source, process, true);
 
-        Mockito.when(packetReaderProvider.validatePacket(anyString(), anyString(), anyString())).thenReturn(true);
+		assertTrue(result.equals(auditList));
+	}
 
-        boolean result = packetReader.validatePacket(id, source, process);
+	@Test
+	public void testValidatePacket() {
+		Map<String, String> auditMap = new HashMap<>();
+		auditMap.put("audit", "audit1");
+		List<Map<String, String>> auditList = new ArrayList<>();
+		auditList.add(auditMap);
 
-        assertTrue(result);
-    }
+		Mockito.when(packetReaderProvider.validatePacket(anyString(), anyString(), anyString())).thenReturn(true);
 
-    @Test(expected = NoAvailableProviderException.class)
-    public void testProviderException() {
-        PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(),anyString(),anyString(),any())).thenReturn(false);
+		boolean result = packetReader.validatePacket(id, source, process);
 
-        packetReader.validatePacket(id, source, process);
-    }
-    
-    @Test
-    public void testGetTags() {
-        Map<String, String> tags = new HashMap<>();
-        tags.put("test", "testValue");
-      
-        Mockito.when(packetKeeper.getTags(any())).thenReturn(tags);
+		assertTrue(result);
+	}
 
-        Map<String, String> expectedTags= packetReader.getTags("id");
+	@Test(expected = NoAvailableProviderException.class)
+	public void testProviderException() {
+		Mockito.when(providerRegistry.getReaderProvider(anyString(), anyString()))
+				.thenThrow(new NoAvailableProviderException());
 
-        assertEquals(expectedTags,tags); 
-    }
+		packetReader.validatePacket(id, source, process);
+	}
 
-    @Test
-    public void testInfo() {
-        ObjectDto objectDto = new ObjectDto("source1", "process1", "object1", new Date());
-        ObjectDto objectDto2 = new ObjectDto("source2", "process2", "object2", new Date());
-        ObjectDto objectDto3 = new ObjectDto("source3", "process3", "object3", new Date());
-        List<ObjectDto> objectDtos = Lists.newArrayList(objectDto, objectDto2, objectDto3);
+	@Test
+	public void testGetTags() {
+		Map<String, String> tags = new HashMap<>();
+		tags.put("test", "testValue");
 
+		Mockito.when(packetKeeper.getTags(any())).thenReturn(tags);
 
-        Mockito.when(packetKeeper.getAll(any())).thenReturn(objectDtos);
+		Map<String, String> expectedTags = packetReader.getTags("id");
 
-        List<ObjectDto> result = packetReader.info("id");
+		assertEquals(expectedTags, tags);
+	}
 
-        assertEquals(objectDtos.size(), result.size());
-    }
+	@Test
+	public void testInfo() {
+		ObjectDto objectDto = new ObjectDto("source1", "process1", "object1", new Date());
+		ObjectDto objectDto2 = new ObjectDto("source2", "process2", "object2", new Date());
+		ObjectDto objectDto3 = new ObjectDto("source3", "process3", "object3", new Date());
+		List<ObjectDto> objectDtos = Lists.newArrayList(objectDto, objectDto2, objectDto3);
+
+		Mockito.when(packetKeeper.getAll(any())).thenReturn(objectDtos);
+
+		List<ObjectDto> result = packetReader.info("id");
+
+		assertEquals(objectDtos.size(), result.size());
+	}
+
+	@Test
+	public void testGetAllKeys() {
+		Set<String> expectedKeys = new HashSet<>(Arrays.asList("name", "email", "phone"));
+		Mockito.when(packetReaderProvider.getAll(anyString(), anyString(), anyString())).thenReturn(allFields);
+
+		Set<String> result = packetReader.getAllKeys(id, source, process);
+
+		assertEquals(expectedKeys, result);
+	}
+
+	@Test
+	public void testGetAuditsCached() {
+		Map<String, String> auditMap = new HashMap<>();
+		auditMap.put("audit", "audit1");
+		List<Map<String, String>> auditList = new ArrayList<>();
+		auditList.add(auditMap);
+
+		Mockito.when(packetReaderProvider.getAuditInfo(anyString(), anyString(), anyString())).thenReturn(auditList);
+
+		List<Map<String, String>> result = packetReader.getAudits(id, source, process, false);
+
+		assertEquals(auditList, result);
+	}
 }

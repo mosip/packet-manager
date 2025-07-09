@@ -1,10 +1,23 @@
 package io.mosip.commons.packet.util;
 
-import io.mosip.kernel.core.logger.spi.Logger;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.stereotype.Component;
+
+import io.mosip.kernel.core.logger.spi.Logger;
 
 @Component
 public class IdObjectsSchemaValidationOperationMapper {
+	/*
+	 * @Value("${mosip.kernel.applicant.type.age.limit}") private String ageLimit;
+	 */
+
+	/** The reg proc logger. */
+	private static Logger LOGGER = PacketManagerLogger.getLogger(IdObjectsSchemaValidationOperationMapper.class);
+	private static final String ENTRY_LOG = "IdObjectsSchemaValidationOperationMapper::getOperation()::entry";
+	private static final String EXIT_LOG_PREFIX = "IdObjectsSchemaValidationOperationMapper::getOperation()::exit-";
 
 	enum SyncTypeDto {
 
@@ -16,7 +29,6 @@ public class IdObjectsSchemaValidationOperationMapper {
 
 		/** The lost uin. */
 		LOST("LOST"),
-
 
 		/** The activate uin. */
 		ACTIVATED("ACTIVATED"),
@@ -31,14 +43,14 @@ public class IdObjectsSchemaValidationOperationMapper {
 		RES_REPRINT("RES_REPRINT");
 
 		/** The value. */
-		private String value;
+		private final String value;
 
 		/**
 		 * Instantiates a new sync type dto.
 		 *
 		 * @param value the value
 		 */
-		private SyncTypeDto (String value) {
+		private SyncTypeDto(String value) {
 			this.value = value;
 		}
 
@@ -73,72 +85,36 @@ public class IdObjectsSchemaValidationOperationMapper {
 		}
 	}
 
-	/*@Value("${mosip.kernel.applicant.type.age.limit}")
-	private String ageLimit;*/
-	
-		/** The reg proc logger. */
-	private static Logger LOGGER = PacketManagerLogger.getLogger(IdObjectsSchemaValidationOperationMapper.class);
-	
-	public static String getOperation(String process) {
-		LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-				"IdObjectsSchemaValidationOperationMapper::getOperation()::entry");
+	private static final Map<String, String> PROCESS_TO_OPERATION;
 
-		if(process.equalsIgnoreCase(SyncTypeDto.NEW.getValue())) {
-			/*int age = 20;//utility.getApplicantAge(id);
-			int ageThreshold = Integer.parseInt(ageLimit);
-			if (age < ageThreshold) {
-				LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-						"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-NEW child");
-				return IdObjectValidatorSupportedOperations.CHILD_REGISTRATION;
-			}*/
-			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-NEW");
-			return IdObjectValidatorSupportedOperations.NEW_REGISTRATION.getOperation();
-		}
-		else if(process.equalsIgnoreCase(SyncTypeDto.LOST.getValue())) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-LOST");
-			return IdObjectValidatorSupportedOperations.LOST.getOperation();
-		}
-		else if(process.equalsIgnoreCase(SyncTypeDto.UPDATE.getValue())) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-UPDATE");
-			return IdObjectValidatorSupportedOperations.OTHER.getOperation();
-		}
-		else if(process.equalsIgnoreCase(SyncTypeDto.RES_UPDATE.getValue())) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-RES_UPDATE");
-			return IdObjectValidatorSupportedOperations.OTHER.getOperation();
-		}
-		else if(process.equalsIgnoreCase(SyncTypeDto.ACTIVATED.getValue())) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-ACTIVATED");
-			return IdObjectValidatorSupportedOperations.OTHER.getOperation();
-		}
-		else if(process.equalsIgnoreCase(SyncTypeDto.DEACTIVATED.getValue())) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
-					"IdObjectsSchemaValidationOperationMapper::getOperation()::exit-DEACTIVATED");
-			return IdObjectValidatorSupportedOperations.OTHER.getOperation();
-		}
-		return PacketHelper.getProcessWithoutIteration(process).toLowerCase();
-		
+	static {
+		Map<String, String> map = new HashMap<>();
+		map.put(SyncTypeDto.NEW.getValue(), IdObjectValidatorSupportedOperations.NEW_REGISTRATION.getOperation());
+		map.put(SyncTypeDto.LOST.getValue(), IdObjectValidatorSupportedOperations.LOST.getOperation());
+		map.put(SyncTypeDto.UPDATE.getValue(), IdObjectValidatorSupportedOperations.OTHER.getOperation());
+		map.put(SyncTypeDto.RES_UPDATE.getValue(), IdObjectValidatorSupportedOperations.OTHER.getOperation());
+		map.put(SyncTypeDto.ACTIVATED.getValue(), IdObjectValidatorSupportedOperations.OTHER.getOperation());
+		map.put(SyncTypeDto.DEACTIVATED.getValue(), IdObjectValidatorSupportedOperations.OTHER.getOperation());
+		PROCESS_TO_OPERATION = Collections.unmodifiableMap(map);
 	}
 
-	/*private int getApplicantAge(String registrationId) throws IOException, ApisResourceAccessException,
-			PacketDecryptionFailureException, io.mosip.kernel.core.exception.IOException, RegistrationProcessorCheckedException, ApiNotAccessibleException {
+	public static String getOperation(String process) {
+		LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
+				ENTRY_LOG);
 
-		JSONObject regProcessorIdentityJson = getRegistrationProcessorMappingJson();
-		String ageKey = JsonUtil.getJSONValue(JsonUtil.getJSONObject(regProcessorIdentityJson, MappingJsonConstants.AGE), VALUE);
-		String dobKey = JsonUtil.getJSONValue(JsonUtil.getJSONObject(regProcessorIdentityJson, MappingJsonConstants.DOB), VALUE);
+		String normalizedProcess = process.toUpperCase();
+		String operation = PROCESS_TO_OPERATION.get(normalizedProcess);
 
-
-		String applicantDob = JsonUtil.getJSONValue(getDemographicIdentityJSONObject(registrationId,dobKey), dobKey);
-		Integer applicantAge = JsonUtil.getJSONValue(getDemographicIdentityJSONObject(registrationId,ageKey), ageKey);
-		if (applicantDob != null) {
-			return calculateAge(applicantDob);
-		} else if (applicantAge != null) {
-			return applicantAge;
-
+		if (operation != null) {
+			LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
+					EXIT_LOG_PREFIX + normalizedProcess);
+			return operation;
 		}
-	}*/
+
+		// fallback to legacy logic
+		String fallback = PacketHelper.getProcessWithoutIteration(process).toLowerCase();
+		LOGGER.debug(PacketManagerLogger.SESSIONID.toString(), PacketManagerLogger.REGISTRATIONID.toString(), "",
+				EXIT_LOG_PREFIX + "FALLBACK-" + fallback);
+		return fallback;
+	}
 }

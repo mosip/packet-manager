@@ -4,21 +4,18 @@
 package io.mosip.commons.packet.util;
 
 import static io.mosip.commons.packet.constants.PacketManagerConstants.FIELDCATEGORY;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.PROPERTIES;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.RESPONSE;
-import static io.mosip.commons.packet.constants.PacketManagerConstants.SCHEMA_JSON;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.ArrayUtils;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +25,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.mosip.commons.packet.constants.PacketManagerConstants;
 import io.mosip.commons.packet.exception.ApiNotAccessibleException;
@@ -42,8 +41,10 @@ import io.mosip.commons.packet.exception.ApiNotAccessibleException;
 @Component
 public class IdSchemaUtils {
 
-    private org.json.simple.JSONObject mappingJsonObject = null;
     private static Map<String, String> categorySubpacketMapping = new HashMap<>();
+    private static final Map<Double, String> idSchemaCache = new ConcurrentHashMap<>();
+    
+    private org.json.simple.JSONObject mappingJsonObject = null;
     private Map<Double, String> idschema = null;
     public static final String RESPONSE = "response";
     public static final String PROPERTIES = "properties";
@@ -98,12 +99,13 @@ public class IdSchemaUtils {
      */
     public String getSource(String fieldName, Double idschemaVersion) throws IOException, ApiNotAccessibleException {
         String idSchema = getIdSchema(idschemaVersion);
-        JSONObject properties = getJSONObjFromStr(idSchema, PROPERTIES);
-        JSONObject identity = getJSONObj(properties, IDENTITY);
-        JSONObject property = getJSONObj(identity, PROPERTIES);
-        JSONObject value = getJSONObj(property, fieldName);
-        String fieldCategory = getFieldCategory(value);
-        return fieldCategory;
+        JSONObject fieldObj;
+		try {
+			fieldObj = getFieldFromSchema(idSchema, fieldName);
+		} catch (JSONException e) {
+			throw new IOException(e);
+		}
+		return resolveFieldCategory(fieldObj);
     }
 
     /**
@@ -113,163 +115,121 @@ public class IdSchemaUtils {
      * @throws ApiNotAccessibleException
      * @throws IOException
      */
-    public String getIdSchema(Double version) throws ApiNotAccessibleException, IOException {
-        if (idschema != null && !idschema.isEmpty() && idschema.get(version) != null)
+    public String getIdSchema(Double version) throws ApiNotAccessibleException, IOException {    	
+    	 // Check cache first
+        if (idschema.containsKey(version)) {
             return idschema.get(version);
+        }
+
+        // Build URI with query param
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(idschemaUrl);
-        if (version != null)
+        if (version != null) {
             builder.queryParam(PacketManagerConstants.SCHEMA_VERSION_QUERY_PARAM, version);
+        }
         UriComponents uriComponents = builder.build(false).encode();
 
-        String response = restTemplate.getForObject(uriComponents.toUri(), String.class);
-        String responseString = null;
+        // Make REST call
+        String response;
+        try {
+            response = restTemplate.getForObject(uriComponents.toUri(), String.class);
+        } catch (Exception e) {
+            throw new ApiNotAccessibleException("Failed to fetch ID schema from URL: " + uriComponents.toUri(), e);
+        }
+
+        // Parse JSON
+        String responseString;
         try {
             JSONObject jsonObject = new JSONObject(response);
-            JSONObject respObj = (JSONObject) jsonObject.get(RESPONSE);
-            responseString = respObj != null ? (String) respObj.get(SCHEMA_JSON) : null;
+            JSONObject respObj = jsonObject.optJSONObject(RESPONSE);
+            responseString = respObj != null ? respObj.optString(SCHEMA_JSON, null) : null;
         } catch (JSONException e) {
-            throw new IOException(e);
+            throw new IOException("Invalid JSON received from ID Schema service", e);
         }
 
-        if (responseString != null) {
-            if (idschema == null) {
-                idschema = new HashMap<>();
-                idschema.put(version, responseString);
-            } else
-                idschema.put(version, responseString);
-        } else
-            throw new ApiNotAccessibleException("Could not get id schema");
+        // Final validation and cache
+        if (responseString == null) {
+            throw new ApiNotAccessibleException("Could not get ID schema for version: " + version);
+        }
 
-        return idschema.get(version);
+        idschema.put(version, responseString);
+        return responseString;
     }
 
-    /**
-     * Gets the field category.
-     *
-     * @param jsonObject the json object
-     * @return the field category
-     */
-    private String getFieldCategory(JSONObject jsonObject) {
-        String fieldCategory = null;
-        try {
-            fieldCategory = jsonObject != null ? jsonObject.getString(FIELDCATEGORY) : null;
-        } catch (JSONException e) {
-            fieldCategory = null;
-        }
-        String[] defaultCategories = defaultFieldCategory != null ? defaultFieldCategory.split(",") : null;
-        if (fieldCategory != null && defaultCategories != null
-                && ArrayUtils.contains(defaultCategories, fieldCategory)) {
-            fieldCategory = defaultSource;
-        }
-        return fieldCategory;
-    }
-
-    /**
-     * Search a field in json
-     *
-     * @param jsonObject
-     * @param id
-     * @return
-     */
-    private JSONObject getJSONObj(JSONObject jsonObject, String id) {
-        try {
-            return (jsonObject == null) ? null : (JSONObject) jsonObject.get(id);
-        } catch (JSONException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Search a field in json string
-     *
-     * @param jsonString
-     * @param id
-     * @return
-     */
-    private JSONObject getJSONObjFromStr(String jsonString, String id) {
-        try {
-            return (jsonString == null) ? null : (JSONObject) new JSONObject(jsonString).get(id);
-        } catch (JSONException e) {
-            return null;
-        }
-    }
+    private JSONObject getFieldFromSchema(String schemaJson, String fieldName) throws JSONException {
+		JSONObject schema = new JSONObject(schemaJson)
+				.getJSONObject(PROPERTIES)
+				.getJSONObject(IDENTITY)
+				.getJSONObject(PROPERTIES);
+		return schema.getJSONObject(fieldName);
+	}
+    
+    private String resolveFieldCategory(JSONObject jsonObject) {
+		String category = jsonObject.optString(FIELDCATEGORY, null);
+		if (category != null && defaultFieldCategory != null &&
+				ArrayUtils.contains(defaultFieldCategory.split(","), category)) {
+			return defaultSource;
+		}
+		return category;
+	}
 
     public List<String> getDefaultFields(Double schemaVersion) throws JSONException, IOException {
-        List<String> fieldList = new ArrayList<>();
-        List<Map<String, String>> fieldMapList = loadDefaultFields(schemaVersion);
-        fieldMapList.stream().forEach(f -> fieldList.add(f.get(SCHEMA_ID)));
-        return fieldList;
+    	List<Map<String, String>> defaultFieldMaps = loadDefaultFields(schemaVersion);
+		List<String> fieldIds = new ArrayList<>(defaultFieldMaps.size());
+		defaultFieldMaps.forEach(map -> fieldIds.add(map.get(SCHEMA_ID)));
+		return fieldIds;
     }
 
     public List<Map<String, String>> loadDefaultFields(Double schemaVersion) throws JSONException, IOException {
-        Map<String, List<Map<String, String>>> packetBasedMap = new HashMap<String, List<Map<String, String>>>();
+        JSONObject identitySchema = getIdentityFieldsSchema(getIdSchema(schemaVersion));
+        Map<String, List<Map<String, String>>> packetBasedMap = new HashMap<>();
 
-        String schemaJson = getIdSchema(schemaVersion);
+        Iterator<String> fieldNames = identitySchema.keys();
+        while (fieldNames.hasNext()) {
+            String fieldName = fieldNames.next();
+            JSONObject fieldDetail = identitySchema.getJSONObject(fieldName);
+            String category = fieldDetail.optString(SCHEMA_CATEGORY, "none");
+            String[] packets = categorySubpacketMapping.getOrDefault(category.toLowerCase(), "id").split(",");
 
-        JSONObject schema = getIdentityFieldsSchema(schemaJson);
-
-        JSONArray fieldNames = schema.names();
-        for(int i=0;i<fieldNames.length();i++) {
-            String fieldName = fieldNames.getString(i);
-            JSONObject fieldDetail = schema.getJSONObject(fieldName);
-            String fieldCategory = fieldDetail.has(SCHEMA_CATEGORY) ?
-                    fieldDetail.getString(SCHEMA_CATEGORY) : "none";
-            String packets = categorySubpacketMapping.get(fieldCategory.toLowerCase());
-
-            String[] packetNames = packets.split(",");
-            for(String packetName : packetNames) {
-                if(!packetBasedMap.containsKey(packetName)) {
-                    packetBasedMap.put(packetName, new ArrayList<Map<String, String>>());
-                }
-
-                Map<String, String> attributes = new HashMap<>();
-                attributes.put(SCHEMA_ID, fieldName);
-                attributes.put(SCHEMA_TYPE, fieldDetail.has(SCHEMA_REF) ?
-                        fieldDetail.getString(SCHEMA_REF) : fieldDetail.getString(SCHEMA_TYPE));
-                packetBasedMap.get(packetName).add(attributes);
+            for (String packet : packets) {
+                packetBasedMap.computeIfAbsent(packet, k -> new ArrayList<>());
+                Map<String, String> attr = new HashMap<>();
+                attr.put(SCHEMA_ID, fieldName);
+                attr.put(SCHEMA_TYPE, fieldDetail.has(SCHEMA_REF)
+                        ? fieldDetail.getString(SCHEMA_REF)
+                        : fieldDetail.optString(SCHEMA_TYPE, "string")); // Default to "string" if missing
+                packetBasedMap.get(packet).add(attr);
             }
         }
-        return packetBasedMap.get("id");
+
+        return packetBasedMap.getOrDefault("id", Collections.emptyList());
     }
 
     private JSONObject getIdentityFieldsSchema(String schemaJson) throws JSONException {
-
-        JSONObject schema = new JSONObject(schemaJson);
-        schema =  schema.getJSONObject(PROPERTIES);
-        schema =  schema.getJSONObject(IDENTITY);
-        schema =  schema.getJSONObject(PROPERTIES);
-
-        return schema;
+    	return new JSONObject(schemaJson)
+				.getJSONObject(PROPERTIES)
+				.getJSONObject(IDENTITY)
+				.getJSONObject(PROPERTIES);
     }
 
-
     public String getIdschemaVersionFromMappingJson() throws IOException {
-        String field = getJSONValue(getJSONObject(getMappingJson(), PacketManagerConstants.IDSCHEMA_VERSION), PacketManagerConstants.VALUE);
-        return field;
-
+    	return getJSONValue(getJSONObject(getMappingJson(), PacketManagerConstants.IDSCHEMA_VERSION), PacketManagerConstants.VALUE);
     }
 
     public org.json.simple.JSONObject getMappingJson() throws IOException {
-
-        if (mappingJsonObject == null) {
-            String mappingJsonString = restTemplate.getForObject(configServerUrl + "/" + mappingjsonFileName, String.class);
-            mappingJsonObject = objMapper.readValue(mappingJsonString, org.json.simple.JSONObject.class);
-
-        }
-        return getJSONObject(mappingJsonObject, PacketManagerConstants.IDENTITY);
+    	if (mappingJsonObject == null) {
+			String mappingJsonString = restTemplate.getForObject(configServerUrl + "/" + mappingjsonFileName, String.class);
+			mappingJsonObject = objMapper.readValue(mappingJsonString, org.json.simple.JSONObject.class);
+		}
+		return getJSONObject(mappingJsonObject, IDENTITY);
     }
 
     public static org.json.simple.JSONObject getJSONObject(org.json.simple.JSONObject jsonObject, Object key) {
-        if(jsonObject == null)
-            return null;
-        LinkedHashMap identity = (LinkedHashMap) jsonObject.get(key);
-        return identity != null ? new org.json.simple.JSONObject(identity) : null;
+    	if (jsonObject == null) return null;
+		LinkedHashMap<?, ?> map = (LinkedHashMap<?, ?>) jsonObject.get(key);
+		return map != null ? new org.json.simple.JSONObject(map) : null;
     }
 
     public static <T> T getJSONValue(org.json.simple.JSONObject jsonObject, String key) {
-        if(jsonObject == null)
-            return null;
-        T value = (T) jsonObject.get(key);
-        return value;
+    	return (jsonObject != null) ? (T) jsonObject.get(key) : null;
     }
 }
