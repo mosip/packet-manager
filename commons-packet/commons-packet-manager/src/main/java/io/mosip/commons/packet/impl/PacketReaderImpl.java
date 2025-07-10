@@ -338,6 +338,5 @@ public class PacketReaderImpl implements IPacketReader {
 		if (e instanceof BaseUncheckedException ex)
 			throw new GetBiometricException(ex.getErrorCode(), ex.getErrorText());
 		throw new GetBiometricException(e.getMessage());
-	}
-	
+	}	
 }

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -54,16 +53,23 @@ public class PacketHelper {
 		};
 
 		if (configurations == null || configurations.isEmpty()) {
+			System.out.println("No provider configurations found for type: " + type);
 			throw new NoAvailableProviderException();
 		}
 
 		String process = getProcessWithoutIteration(providerProcess);
-
-		return configurations.stream()
-				.filter(dto -> StringUtils.containsIgnoreCase(dto.getSource(), providerSource)
+		String baseProviderName = getBaseClassName(providerName);
+		boolean matchFound = configurations.stream()
+				.anyMatch(dto -> StringUtils.containsIgnoreCase(dto.getSource(), providerSource)
 						&& StringUtils.containsIgnoreCase(dto.getProcess(), process)
-						&& StringUtils.containsIgnoreCase(providerName, dto.getClassName()))
-				.findAny().isPresent();
+						&& StringUtils.containsIgnoreCase(baseProviderName, dto.getClassName()));
+
+		return matchFound;
+	}
+
+	private static String getBaseClassName(String providerName) {
+		int idx = providerName.indexOf("$$");
+		return idx > 0 ? providerName.substring(0, idx) : providerName;
 	}
 
 	private static List<ProviderDto> getReader(Map<String, String> config) {
@@ -81,23 +87,24 @@ public class PacketHelper {
 	}
 
 	private static List<ProviderDto> parseConfiguration(Map<String, String> config) {
-		List<ProviderDto> providers = new ArrayList<>();
-		if (config != null && !config.isEmpty()) {
-			for (String value : config.values()) {
-				ProviderDto dto = new ProviderDto();
-				for (String token : value.split(",")) {
-					if (token.startsWith(SOURCE)) {
-						dto.setSource(token.substring(SOURCE.length()));
-					} else if (token.startsWith(PROCESS)) {
-						dto.setProcess(token.substring(PROCESS.length()));
-					} else if (token.startsWith(CLASSNAME)) {
-						dto.setClassName(token.substring(CLASSNAME.length()));
-					}
-				}
-				providers.add(dto);
-			}
-		}
-		return providers;
+	    List<ProviderDto> providers = new ArrayList<>();
+	    if (config != null && !config.isEmpty()) {
+	        for (String value : config.values()) {
+	            ProviderDto dto = new ProviderDto();
+	            for (String token : value.split(",")) {
+	                token = token.trim(); // Trim whitespace
+	                if (token.startsWith(SOURCE + ":")) {
+	                    dto.setSource(token.substring((SOURCE + ":").length()).trim());
+	                } else if (token.startsWith(PROCESS + ":")) {
+	                    dto.setProcess(token.substring((PROCESS + ":").length()).trim());
+	                } else if (token.startsWith(CLASSNAME + ":")) {
+	                    dto.setClassName(token.substring((CLASSNAME + ":").length()).trim());
+	                }
+	            }
+	            providers.add(dto);
+	        }
+	    }
+	    return providers;
 	}
 
 	private static Set<String> getProviderClassNames(List<ProviderDto> providers) {

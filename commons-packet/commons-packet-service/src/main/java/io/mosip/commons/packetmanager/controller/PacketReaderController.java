@@ -1,6 +1,7 @@
 package io.mosip.commons.packetmanager.controller;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,21 +82,22 @@ public class PacketReaderController {
 	public ResponseWrapper<FieldResponseDto> searchFields(
 			@RequestBody(required = true) RequestWrapper<FieldDtos> request) {
 		FieldDtos dto = request.getRequest();
-		Map<String, String> results;
-
-		if (dto.getSource() == null) {
-			results = dto.getFields().stream()
-					.collect(Collectors.toMap(field -> field,
-							field -> getSourceProcess(dto.getId(), field, dto.getSource(), dto.getProcess())
-									.map(sp -> packetReader.getField(dto.getId(), field, sp.getSource(),
-											sp.getProcess(), dto.getBypassCache()))
-									.orElse(null)));
-		} else {
-			results = packetReader.getFields(dto.getId(), dto.getFields(), dto.getSource(), dto.getProcess(),
+		Map<String, String> resultFields = new HashMap<>();
+        if ((dto.getSource()) == null) {
+            for (String field : dto.getFields()) {
+                SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(dto.getId(),
+                        field, dto.getSource(), dto.getProcess());
+                String value = sourceProcessDto == null ? null :
+                        packetReader.getField(dto.getId(), field, sourceProcessDto.getSource(),
+                        sourceProcessDto.getProcess(), dto.getBypassCache());
+                resultFields.put(field, value);
+            }
+        } else {
+            resultFields = packetReader.getFields(dto.getId(), dto.getFields(), dto.getSource(), dto.getProcess(),
 					dto.getBypassCache());
 		}
 
-		return wrapResponse(new FieldResponseDto(results));
+		return wrapResponse(new FieldResponseDto(resultFields));
 	}
 
 	@ResponseFilter

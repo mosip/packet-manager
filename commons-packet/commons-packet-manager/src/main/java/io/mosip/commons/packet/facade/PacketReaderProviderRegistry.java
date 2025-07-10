@@ -28,7 +28,6 @@ public class PacketReaderProviderRegistry {
 
     public IPacketReader getReaderProvider(String source, String process) {
         String cacheKey = source + UNDERSCORE + process;
-
         return providerCache.computeIfAbsent(cacheKey, key -> {
             Optional<IPacketReader> provider = referenceReaderProviders.stream()
                     .filter(pr -> PacketHelper.isSourceAndProcessPresent(

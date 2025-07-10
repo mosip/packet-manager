@@ -205,6 +205,7 @@ public class PacketKeeper {
 			packet.setPacket(decrypted);
 
 			// Step 4: Verify signature and integrity
+
 			if (!checkSignature(packet, encryptedSubPacket)) {
 				LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
 						getName(packet.getPacketInfo().getId(), packetInfo.getPacketName()),
