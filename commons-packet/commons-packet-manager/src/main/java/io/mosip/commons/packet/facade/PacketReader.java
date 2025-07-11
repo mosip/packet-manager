@@ -114,6 +114,8 @@ public class PacketReader {
      * @param process    : the process
      * @return BiometricRecord : the biometric record
      */
+
+    // The caching is removed from this method and moved to the implementation class as part of MOSIP-42180 JIRA. If we use the older implementation class logic (Customized Packet Reader Implementation) then caching logic will not work because of newly introduced getBiometric() method in IPacketReader interface i.e. we need to implement the caching logic in new getBiometric() method in implementation class.
     @PreAuthorize("hasRole('BIOMETRIC_READ')")
     public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,

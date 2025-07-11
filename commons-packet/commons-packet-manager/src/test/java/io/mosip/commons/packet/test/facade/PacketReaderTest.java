@@ -156,7 +156,7 @@ public class PacketReaderTest {
 
         Mockito.when(packetReaderProvider.getBiometric(anyString(), anyString(), anyList(), anyString(), anyString(), anyBoolean())).thenReturn(biometricRecord);
 
-        BiometricRecord result = packetReader.getBiometric(id, "individualBiometrics", Lists.newArrayList(), source, process, false);
+        BiometricRecord result = packetReader.getBiometric(id, "individualBiometrics", Lists.newArrayList(), source, process, true);
 
         assertTrue(result.equals(biometricRecord));
     }

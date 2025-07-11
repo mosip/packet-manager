@@ -30,6 +30,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
@@ -83,6 +85,8 @@ public class PacketReaderImpl implements IPacketReader {
 	@Autowired
 	private PacketValidator packetValidator;
 
+	@Autowired
+	private CacheManager cacheManager;
 	/**
 	 * Perform packet validations and audit errors. List of validations - 1. schema
 	 * & idobject reference validation 2. files validation 3. decrypted packet
@@ -225,11 +229,11 @@ public class PacketReaderImpl implements IPacketReader {
 	@Override
 	public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source, String process, boolean byPassCache) {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getBiometric :: for - " + biometricFieldName);
+				"getBiometric :: for - " + biometricFieldName + " with byPassCache - " + byPassCache);
 		BiometricRecord biometricRecord = null;
 
 		try {
-			BIR bir = fetchBiometricsFromObjectStore(id, biometricFieldName, source, process, byPassCache);
+			BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process, byPassCache);
 			biometricRecord = new BiometricRecord();
 			if(bir.getOthers() != null) {
 				HashMap<String, String> others = new HashMap<>();
@@ -255,13 +259,48 @@ public class PacketReaderImpl implements IPacketReader {
 		return biometricRecord;
 	}
 
+	// Kept for backward compatibility. This method will not utilize the cache. Will be removed in future
 	@Override
 	public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source, String process) {
 		return getBiometric(id, biometricFieldName, modalities, source, process, false);
 	}
 
-	@Cacheable(value = "packets", key = "'biometrics'.concat('-').#id.concat('-').concat(#biometricFieldName).concat('-').concat(#source).concat('-').concat(#process)", condition = "#bypassCache == false")
-	private BIR fetchBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process, boolean byPassCache) throws Exception {
+	private String generateKey(String id, String biometricFieldName, String source, String process) {
+		return String.format("biometrics-%s-%s-%s-%s", id, biometricFieldName, source, process);
+	}
+
+	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process, boolean byPassCache) throws Exception {
+		String cacheKey = generateKey(id, biometricFieldName, source, process);
+		Cache cache = cacheManager.getCache("packets");
+
+		if(byPassCache || cache == null) {
+			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
+			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+		}
+
+		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+				"Continuing Cache check");
+		BIR cachedValue = cache.get(cacheKey, BIR.class);
+		if(cachedValue != null) {
+			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					"Cache Found for the Key : " + cacheKey);
+			return cachedValue;
+		}
+
+		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
+		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+		if(bir != null) {
+			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					"Adding cache the Key : " + cacheKey);
+			cache.put(cacheKey, bir);
+		}
+
+		return bir;
+	}
+
+	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
