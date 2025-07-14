@@ -203,13 +203,11 @@ public class PacketKeeper {
 	        packet.setPacket(decrypted);
 
 	        // Optional: Step 4 - Verify signature and integrity
-	        /*
 	        if (!checkSignature(packet, encryptedSubPacket)) {
 	            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
 	                    "Packet Integrity and Signature check failed");
 	            throw new PacketIntegrityFailureException();
 	        }
-	        */
 
 	        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
 	                "Packet successfully retrieved and verified");
