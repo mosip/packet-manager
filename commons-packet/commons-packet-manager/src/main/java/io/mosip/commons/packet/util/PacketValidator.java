@@ -2,6 +2,7 @@ package io.mosip.commons.packet.util;
 
 import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,18 +15,19 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.apache.commons.io.IOUtils;
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONTokener;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.util.StandardCharset;
 
@@ -34,7 +36,6 @@ import io.mosip.commons.packet.constants.PacketManagerConstants;
 import io.mosip.commons.packet.dto.Packet;
 import io.mosip.commons.packet.dto.PacketInfo;
 import io.mosip.commons.packet.dto.packet.FieldValueArray;
-import io.mosip.commons.packet.exception.GetAllMetaInfoException;
 import io.mosip.commons.packet.exception.PacketKeeperException;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.commons.packet.keeper.PacketKeeper;
@@ -145,76 +146,66 @@ public class PacketValidator {
 	 * @throws IOException
 	 */
 	public boolean fileAndChecksumValidation(String id, String source, String process)
-			throws IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException {
-		if (packetNames == null || packetNames.isEmpty()) {
-			LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-					"No packet names provided");
-			return false;
-		}
+	        throws IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException {
 
-		boolean isValid = false;
-		PacketInfo info = new PacketInfo(); // Reuse single instance
-		info.setId(id);
-		info.setSource(source);
-		info.setProcess(process);
-		for (String packetName : packetNames.split(",")) {
-			if (packetName == null || packetName.isEmpty()) {
-				LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-						"Skipping empty packet name");
-				continue;
-			}
+	    if (packetNames == null || packetNames.isEmpty()) {
+	        LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "No packet names provided");
+	        return false;
+	    }
 
-			info.setPacketName(packetName);
-			Packet packet = packetKeeper.getPacket(info);
-			Map<String, String> metaInfo = getMetaInfoJson(packet);
-			if (metaInfo.isEmpty()) {
-				LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-						"Empty meta info for packet: {}", packetName);
-				isValid = false;
-				continue;
-			}
+	    boolean isValid = false;
+	    PacketInfo info = new PacketInfo();
+	    info.setId(id);
+	    info.setSource(source);
+	    info.setProcess(process);
 
-			List<Object> hashseq1List = metaInfo.get("hashSequence1") != null
-					? mapper.readValue(metaInfo.get("hashSequence1"), ArrayList.class)
-					: null;
-			List<Object> hashseq2List = metaInfo.get("hashSequence2") != null
-					? mapper.readValue(metaInfo.get("hashSequence2"), ArrayList.class)
-					: null;
+	    for (String packetName : packetNames.split(",")) {
+	        if (packetName == null || packetName.isEmpty()) {
+	            LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Skipping empty packet name");
+	            continue;
+	        }
 
-			Map<String, InputStream> checksumMap = new HashMap<>((hashseq1List != null ? hashseq1List.size() : 0)
-					+ (hashseq2List != null ? hashseq2List.size() : 0));
+	        info.setPacketName(packetName);
+	        Packet packet = packetKeeper.getPacket(info);
+	        Map<String, byte[]> fileCache = ZipUtils.unzipAll(packet.getPacket()); // Caching all files once
 
-			boolean fileValid = validateFiles(hashseq1List, hashseq2List, checksumMap, packet);
-			String fileLogMessage = fileValid ? "File validation successful" : "File validation failed";
-			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "{} for packet name: {}",
-					fileLogMessage, packetName);
-			auditLogEntry.addAudit(fileLogMessage, eventId, eventName, eventType, null, null, id);
-			if (!fileValid) {
-				isValid = false;
-				break;
-			}
+	        Map<String, String> metaInfo = getMetaInfoJson(fileCache);
+	        if (metaInfo.isEmpty()) {
+	            LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+	                    "Empty meta info for packet: {}", packetName);
+	            return false;
+	        }
 
-			boolean checksumValid = checksumValidation(hashseq1List, hashseq2List, checksumMap, packet);
-			String checksumLogMessage = checksumValid ? "Checksum validation successful" : "Checksum validation failed";
-			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "{} for packet name: {}",
-					checksumLogMessage, packetName);
-			auditLogEntry.addAudit(checksumLogMessage, eventId, eventName, eventType, null, null, id);
-			if (!checksumValid) {
-				isValid = false;
-				break;
-			}
-			isValid = true;
-		}
-		return isValid;
+	        List<FieldValueArray> hashseq1List = parseHashSequences(metaInfo.get("hashSequence1"));
+	        List<FieldValueArray> hashseq2List = parseHashSequences(metaInfo.get("hashSequence2"));
+
+	        Map<String, InputStream> checksumMap = new HashMap<>(32);
+
+	        boolean fileValid = validateFiles(hashseq1List, hashseq2List, checksumMap, fileCache);
+	        logAudit(fileValid, "File validation", packetName, id);
+	        if (!fileValid) return false;
+
+	        boolean checksumValid = checksumValidation(hashseq1List, hashseq2List, checksumMap, fileCache);
+	        logAudit(checksumValid, "Checksum validation", packetName, id);
+	        if (!checksumValid) return false;
+
+	        isValid = true;
+	    }
+
+	    return isValid;
 	}
 
-	private PacketInfo getPacketInfo(String id, String packetName, String source, String process) {
-		PacketInfo packetInfo = new PacketInfo();
-		packetInfo.setId(id);
-		packetInfo.setPacketName(packetName);
-		packetInfo.setProcess(process);
-		packetInfo.setSource(source);
-		return packetInfo;
+	@SuppressWarnings("unchecked")
+	private List<FieldValueArray> parseHashSequences(String json)
+			throws JsonProcessingException, JsonMappingException, com.fasterxml.jackson.core.JsonProcessingException {
+		if (json == null || json.isEmpty())
+			return null;
+		List<Object> rawList = mapper.readValue(json, List.class);
+		List<FieldValueArray> result = new ArrayList<>(rawList.size());
+		for (Object obj : rawList) {
+			result.add(mapper.convertValue(obj, FieldValueArray.class));
+		}
+		return result;
 	}
 
 	private byte[] generateHash(List<FieldValueArray> hashSequence, Map<String, InputStream> checksumMap)
@@ -223,7 +214,8 @@ public class PacketValidator {
 		for (FieldValueArray fva : hashSequence) {
 			for (String file : fva.getValue()) {
 				try (InputStream input = checksumMap.get(file)) {
-					output.write(IOUtils.toByteArray(input));
+					if (input != null)
+						output.write(IOUtils.toByteArray(input));
 				} catch (IOException e) {
 					LOGGER.error("Error in hash generation: {}", ExceptionUtils.getStackTrace(e));
 				}
@@ -233,128 +225,120 @@ public class PacketValidator {
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<String, String> getMetaInfoJson(Packet packet) throws PacketKeeperException, IOException {
+	private Map<String, String> getMetaInfoJson(Map<String, byte[]> fileCache)
+			throws IOException, JsonProcessingException {
 		Map<String, String> finalMap = new HashMap<>();
-		InputStream metaInfoJson = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO");
-		try {
-			if (metaInfoJson != null) {
-				byte[] bytearray = IOUtils.toByteArray(metaInfoJson);
-				LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-						.readValue(new String(bytearray, StandardCharset.UTF_8), LinkedHashMap.class).get(IDENTITY);
+		byte[] metaInfoBytes = getFileIgnoreCase (fileCache, "PACKET_META_INFO");
+		if (metaInfoBytes != null) {
+			LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
+					.readValue(new String(metaInfoBytes, StandardCharset.UTF_8), LinkedHashMap.class).get(IDENTITY);
 
-				currentIdMap.keySet().forEach(key -> {
-					try {
-						finalMap.putIfAbsent(key,
-								currentIdMap.get(key) != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key))
-										: null);
-					} catch (JsonProcessingException e) {
-						throw new GetAllMetaInfoException(e.getMessage());
-					}
-				});
+			for (Map.Entry<String, Object> entry : currentIdMap.entrySet()) {
+				finalMap.put(entry.getKey(),
+						entry.getValue() != null ? JsonUtils.javaObjectToJsonString(entry.getValue()) : null);
 			}
-		} finally {
-			metaInfoJson.close();
 		}
 		return finalMap;
 	}
 
-	private boolean validateFiles(List<Object> hashseq1List, List<Object> hashseq2List, Map<String, InputStream> checksumMap,
-			Packet packet) throws JsonProcessingException, IOException {
-		Set<String> fileNames = new HashSet<>(
-				(hashseq1List != null ? hashseq1List.size() : 0) + (hashseq2List != null ? hashseq2List.size() : 0));
-		if (hashseq1List != null) {
-			for (Object o : hashseq1List) {
-				FieldValueArray fva = mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class);
-				fileNames.addAll(fva.getValue());
-			}
-		}
-		if (hashseq2List != null) {
-			for (Object o : hashseq2List) {
-				FieldValueArray fva = mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class);
-				fileNames.addAll(fva.getValue());
+	private boolean validateFiles(List<FieldValueArray> hashseq1List, List<FieldValueArray> hashseq2List,
+			Map<String, InputStream> checksumMap, Map<String, byte[]> fileCache) {
+		Set<String> requiredFiles = new HashSet<>();
+		Stream.of(hashseq1List, hashseq2List).filter(Objects::nonNull).flatMap(List::stream)
+				.forEach(fva -> requiredFiles.addAll(fva.getValue()));
+
+		Set<String> notFound = new HashSet<>(requiredFiles);
+		for (String file : requiredFiles) {
+			byte[] content = getFileIgnoreCase (fileCache, file);
+			if (content != null && content.length > 0) {
+				checksumMap.put(file, new ByteArrayInputStream(content));
+				notFound.remove(file);
 			}
 		}
 
-		Set<String> notFound = new HashSet<>(fileNames);
-		for (String file : fileNames) {
-			InputStream input = ZipUtils.unzipAndGetFile(packet.getPacket(), file);
-			if (input != null && input.available() > 0)
-				checksumMap.put(file, input);
-			notFound.remove(file);
-		}
 		return notFound.isEmpty();
 	}
 
-	private boolean checksumValidation(List hashseq1List, List hashseq2List, Map<String, InputStream> checksumMap,
-			Packet packet) throws JsonProcessingException, IOException, NoSuchAlgorithmException {
-		List<FieldValueArray> hash1 = new ArrayList<>(hashseq1List != null ? hashseq1List.size() : 0);
-		List<FieldValueArray> hash2 = new ArrayList<>(hashseq2List != null ? hashseq2List.size() : 0);
+	private boolean checksumValidation(List<FieldValueArray> hash1, List<FieldValueArray> hash2,
+			Map<String, InputStream> checksumMap, Map<String, byte[]> fileCache) throws NoSuchAlgorithmException {
 
-		if (hashseq1List != null) {
-			for (Object o : hashseq1List) {
-				hash1.add(mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class));
-			}
-		}
-		if (hashseq2List != null) {
-			for (Object o : hashseq2List) {
-				hash2.add(mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class));
-			}
+		boolean dataEqual = true, opsEqual = true;
+
+		byte[] dataHashBytes = getFileIgnoreCase (fileCache, "PACKET_DATA_HASH");
+		if (dataHashBytes != null) {
+			byte[] calculatedDataHash = generateHash(hash1, checksumMap);
+			dataEqual = MessageDigest.isEqual(dataHashBytes, calculatedDataHash);
 		}
 
-		InputStream dataHashStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_DATA_HASH");
-		InputStream operationsHashStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_OPERATIONS_HASH");
-
-		boolean dataEqual = dataHashStream == null
-				|| MessageDigest.isEqual(IOUtils.toByteArray(dataHashStream), generateHash(hash1, checksumMap));
-		boolean opsEqual = operationsHashStream == null
-				|| MessageDigest.isEqual(IOUtils.toByteArray(operationsHashStream), generateHash(hash2, checksumMap));
-
-		if (dataHashStream != null)
-			dataHashStream.close();
-		if (operationsHashStream != null)
-			operationsHashStream.close();
+		byte[] opsHashBytes = getFileIgnoreCase (fileCache, "PACKET_OPERATIONS_HASH");
+		if (opsHashBytes != null) {
+			byte[] calculatedOpsHash = generateHash(hash2, checksumMap);
+			opsEqual = MessageDigest.isEqual(opsHashBytes, calculatedOpsHash);
+		}
 
 		return dataEqual && opsEqual;
 	}
 
-	private LinkedHashMap<String, Object> loadDemographicIdentity(Map<String, Object> fieldMap)
-			throws IOException, JSONException {
-		LinkedHashMap<String, Object> demographicIdentity = new LinkedHashMap<>(fieldMap.size());
+	private LinkedHashMap<String, Object> loadDemographicIdentity(Map<String, Object> fieldMap) throws IOException {
+		if (fieldMap == null) {
+			return new LinkedHashMap<>();
+		}
 
+		LinkedHashMap<String, Object> demographicIdentity = new LinkedHashMap<>(fieldMap.size());
 		for (Map.Entry<String, Object> entry : fieldMap.entrySet()) {
-			Object val = entry.getValue();
-			if (val == null) {
+			String key = entry.getKey();
+			Object value = entry.getValue();
+
+			if (key == null || value == null) {
+				demographicIdentity.putIfAbsent(key, value);
 				continue;
 			}
 
-			String key = entry.getKey();
-			String value = val.toString();
-
-			// Try to parse as JSON only if necessary
-			try {
-				JSONTokener tokener = new JSONTokener(value);
-				char firstChar = value.trim().charAt(0);
-
-				if (firstChar == '{') {
-					// Handle JSON Object
-					demographicIdentity.put(key, mapper.readValue(value, LinkedHashMap.class));
-				} else if (firstChar == '[') {
-					// Handle JSON Array
-					JSONArray array = new JSONArray(value);
-					List<Object> jsonList = new ArrayList<>(array.length());
-					for (int i = 0; i < array.length(); i++) {
-						Object obj = array.get(i);
-						jsonList.add(obj instanceof JSONObject ? mapper.readValue(obj.toString(), LinkedHashMap.class)
-								: obj);
+			if (value instanceof String stringValue) {
+				try {
+					// Try parsing as JSON object
+					if (stringValue.startsWith("{")) {
+						Map<String, Object> jsonMap = mapper.readValue(stringValue, Map.class);
+						demographicIdentity.putIfAbsent(key, jsonMap);
 					}
-					demographicIdentity.put(key, jsonList);
-				} else {
-					demographicIdentity.put(key, value);
+					// Try parsing as JSON array
+					else if (stringValue.startsWith("[")) {
+						List<Object> jsonList = new ArrayList<>();
+						List<Object> rawList = mapper.readValue(stringValue, List.class);
+						for (Object obj : rawList) {
+							jsonList.add(obj instanceof Map ? obj : obj);
+						}
+						demographicIdentity.putIfAbsent(key, jsonList);
+					}
+					// Treat as simple string
+					else {
+						demographicIdentity.putIfAbsent(key, stringValue);
+					}
+				} catch (IOException e) {
+					// Fallback to raw string if JSON parsing fails
+					demographicIdentity.putIfAbsent(key, stringValue);
 				}
-			} catch (JSONException e) {
-				demographicIdentity.put(key, value);
+			} else {
+				// Non-string values (e.g., Map, List, or primitives)
+				demographicIdentity.putIfAbsent(key, value);
 			}
 		}
 		return demographicIdentity;
+	}
+
+	private void logAudit(boolean status, String type, String packetName, String id) {
+		String message = type + (status ? " successful" : " failed");
+		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "{} for packet name: {}",
+				message, packetName);
+		auditLogEntry.addAudit(message, eventId, eventName, eventType, null, null, id);
+	}
+	
+	private byte[] getFileIgnoreCase(Map<String, byte[]> fileCache, String targetFileBase) {
+	    for (String key : fileCache.keySet()) {
+	        if (key.equalsIgnoreCase(targetFileBase) || key.toLowerCase().startsWith(targetFileBase.toLowerCase())) {
+	            return fileCache.get(key);
+	        }
+	    }
+	    return null;
 	}
 }

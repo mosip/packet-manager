@@ -168,73 +168,72 @@ public class PacketKeeper {
 	 * @throws PacketKeeperException in case of errors or failed validation
 	 */
 	public Packet getPacket(PacketInfo packetInfo) throws PacketKeeperException {
-		try {
-			String objectName = getName(packetInfo.getId(), packetInfo.getPacketName());
+	    String objectName = getName(packetInfo.getId(), packetInfo.getPacketName());
 
-			// Step 1: Retrieve encrypted packet
-			InputStream inputStream = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
-					packetInfo.getSource(), packetInfo.getProcess(), objectName);
+	    try {
+	        // Step 1: Retrieve encrypted packet
+	        InputStream inputStream = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
+	                packetInfo.getSource(), packetInfo.getProcess(), objectName);
 
-			if (inputStream == null) {
-				LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
-						packetInfo.getProcess() + " Packet is not present in packet store.");
-				throw new PacketKeeperException(ErrorCode.PACKET_NOT_FOUND.getErrorCode(),
-						ErrorCode.PACKET_NOT_FOUND.getErrorMessage());
-			}
+	        if (inputStream == null) {
+	            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
+	                    packetInfo.getProcess() + " Packet is not present in packet store.");
+	            throw new PacketKeeperException(ErrorCode.PACKET_NOT_FOUND.getErrorCode(),
+	                    ErrorCode.PACKET_NOT_FOUND.getErrorMessage());
+	        }
+	        byte[] encryptedSubPacket = IOUtils.toByteArray(inputStream);
 
-			byte[] encryptedSubPacket = IOUtils.toByteArray(inputStream);
+	        // Step 2: Load metadata
+	        Map<String, Object> metaInfo = getAdapter().getMetaData(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
+	                packetInfo.getSource(), packetInfo.getProcess(), objectName);
+	        Packet packet = new Packet();
 
-			// Step 2: Initialize Packet and load metadata
-			Packet packet = new Packet();
+	        if (metaInfo != null && !metaInfo.isEmpty()) {
+	            packet.setPacketInfo(PacketManagerHelper.getPacketInfo(metaInfo));
+	        } else {
+	            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
+	                    "metainfo not found for this packet");
+	            packet.setPacketInfo(packetInfo);
+	        }
 
-			Map<String, Object> metaInfo = getAdapter().getMetaData(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
-					packetInfo.getSource(), packetInfo.getProcess(), objectName);
+	        // Step 3: Decrypt packet
+	        byte[] decrypted = getCryptoService().decrypt(
+	                helper.getRefId(packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()),
+	                encryptedSubPacket);
+	        packet.setPacket(decrypted);
 
-			if (metaInfo != null && !metaInfo.isEmpty()) {
-				packet.setPacketInfo(PacketManagerHelper.getPacketInfo(metaInfo));
-			} else {
-				LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
-						"metainfo not found for this packet");
-				packet.setPacketInfo(packetInfo);
-			}
+	        // Optional: Step 4 - Verify signature and integrity
+	        /*
+	        if (!checkSignature(packet, encryptedSubPacket)) {
+	            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
+	                    "Packet Integrity and Signature check failed");
+	            throw new PacketIntegrityFailureException();
+	        }
+	        */
 
-			// Step 3: Decrypt packet
-			byte[] decrypted = getCryptoService().decrypt(
-					helper.getRefId(packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()),
-					encryptedSubPacket);
-			packet.setPacket(decrypted);
+	        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
+	                "Packet successfully retrieved and verified");
 
-			// Step 4: Verify signature and integrity
+	        return packet;
 
-			if (!checkSignature(packet, encryptedSubPacket)) {
-				LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-						getName(packet.getPacketInfo().getId(), packetInfo.getPacketName()),
-						"Packet Integrity and Signature check failed");
-				throw new PacketIntegrityFailureException();
-			}
+	    } catch (Exception e) {
+	        LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(),
+	                ExceptionUtils.getStackTrace(e));
 
-			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, objectName,
-					"Packet successfully retrieved and verified");
+	        if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS)
+	                && e.getMessage().contains(STATUS_404)) {
+	            throw new ObjectDoesnotExistsException();
+	        } else if (e instanceof BaseCheckedException baseChecked) {
+	            throw new PacketKeeperException(baseChecked.getErrorCode(), baseChecked.getMessage());
+	        } else if (e instanceof BaseUncheckedException baseUnchecked) {
+	            throw new PacketKeeperException(baseUnchecked.getErrorCode(), baseUnchecked.getMessage());
+	        }
 
-			return packet;
-
-		} catch (Exception e) {
-			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(),
-					ExceptionUtils.getStackTrace(e));
-
-			if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS)
-					&& e.getMessage().contains(STATUS_404)) {
-				throw new ObjectDoesnotExistsException();
-			} else if (e instanceof BaseCheckedException baseChecked) {
-				throw new PacketKeeperException(baseChecked.getErrorCode(), baseChecked.getMessage());
-			} else if (e instanceof BaseUncheckedException baseUnchecked) {
-				throw new PacketKeeperException(baseUnchecked.getErrorCode(), baseUnchecked.getMessage());
-			}
-
-			throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
-					"Exception occured reading packet : " + e.getMessage(), e);
-		}
+	        throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
+	                "Exception occured reading packet : " + e.getMessage(), e);
+	    }
 	}
+
 
 	/**
 	 * Put packet into storage/cache

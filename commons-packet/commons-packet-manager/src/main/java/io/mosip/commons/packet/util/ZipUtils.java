@@ -4,11 +4,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOCase;
+import org.apache.commons.io.IOUtils;
 
 /**
  * Utility class to unzip packets and extract specific files from them.
@@ -49,5 +52,17 @@ public class ZipUtils {
 
 		// File not found in ZIP
 		return null;
+	}
+	
+	public static Map<String, byte[]> unzipAll(byte[] zipBytes) throws IOException {
+	    Map<String, byte[]> fileMap = new HashMap<>();
+	    try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+	        ZipEntry entry;
+	        while ((entry = zis.getNextEntry()) != null) {
+	            byte[] content = IOUtils.toByteArray(zis);
+	            fileMap.put(entry.getName(), content);
+	        }
+	    }
+	    return fileMap;
 	}
 }

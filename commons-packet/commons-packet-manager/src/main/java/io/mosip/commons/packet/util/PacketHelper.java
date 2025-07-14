@@ -53,7 +53,6 @@ public class PacketHelper {
 		};
 
 		if (configurations == null || configurations.isEmpty()) {
-			System.out.println("No provider configurations found for type: " + type);
 			throw new NoAvailableProviderException();
 		}
 
