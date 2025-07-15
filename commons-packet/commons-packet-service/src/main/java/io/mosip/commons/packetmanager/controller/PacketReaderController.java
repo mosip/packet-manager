@@ -4,16 +4,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
-import io.mosip.commons.packetmanager.dto.SourceProcessDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.google.common.collect.Lists;
 
 import io.mosip.commons.packet.dto.Document;
 import io.mosip.commons.packet.dto.TagRequestDto;
@@ -27,6 +26,7 @@ import io.mosip.commons.packetmanager.dto.FieldResponseDto;
 import io.mosip.commons.packetmanager.dto.InfoDto;
 import io.mosip.commons.packetmanager.dto.InfoRequestDto;
 import io.mosip.commons.packetmanager.dto.InfoResponseDto;
+import io.mosip.commons.packetmanager.dto.SourceProcessDto;
 import io.mosip.commons.packetmanager.dto.ValidatePacketResponse;
 import io.mosip.commons.packetmanager.service.PacketReaderService;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
@@ -34,225 +34,229 @@ import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.util.DateUtils;
-
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 @RestController
 @Tag(name = "packet-reader-controller", description = "Packet Reader Controller")
 public class PacketReaderController {
 
-    @Autowired
-    private PacketReader packetReader;
+	@Autowired
+	private PacketReader packetReader;
 
-    @Autowired
-    private PacketReaderService packetReaderService;
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfield())")
-    @ResponseFilter
-    @PostMapping(path = "/searchField", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "searchField", description = "searchField", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-        public ResponseWrapper<FieldResponseDto> searchField(@RequestBody(required = true) RequestWrapper<FieldDto> fieldDto) {
-        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(fieldDto.getRequest().getId(),
-                fieldDto.getRequest().getField(), fieldDto.getRequest().getSource(), fieldDto.getRequest().getProcess());
-        String resultField = sourceProcessDto == null ? null :
-                packetReader.getField(fieldDto.getRequest().getId(),
-                fieldDto.getRequest().getField(), sourceProcessDto.getSource(), sourceProcessDto.getProcess(), fieldDto.getRequest().getBypassCache());
-        ResponseWrapper<FieldResponseDto> response = new ResponseWrapper<FieldResponseDto>();
-        Map<String, String> responseMap = new HashMap<>();
-        responseMap.put(fieldDto.getRequest().getField(), resultField);
-        FieldResponseDto fieldResponseDto = new FieldResponseDto(responseMap);
+	@Autowired
+	private PacketReaderService packetReaderService;
 
-        response.setResponse(fieldResponseDto);
-        return response;
-    }
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfield())")
+	@ResponseFilter
+	@PostMapping(path = "/searchField", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "searchField", description = "searchField", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<FieldResponseDto> searchField(
+			@RequestBody(required = true) RequestWrapper<FieldDto> fieldDto) {
+		FieldDto req = fieldDto.getRequest();
+		String value = getSourceProcess(req.getId(), req.getField(), req.getSource(), req.getProcess())
+				.map(sp -> packetReader.getField(req.getId(), req.getField(), sp.getSource(), sp.getProcess(),
+						req.getBypassCache()))
+				.orElse(null);
+		return wrapResponse(new FieldResponseDto(Map.of(req.getField(), value)));
+	}
 
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfields())")
-    @ResponseFilter
-    @PostMapping(path = "/searchFields", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "searchFields", description = "searchFields", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<FieldResponseDto> searchFields(@RequestBody(required = true) RequestWrapper<FieldDtos> request)  {
-        FieldDtos fieldDtos = request.getRequest();
-        Map<String, String> resultFields = new HashMap<>();
-        if ((fieldDtos.getSource()) == null) {
-            for (String field : fieldDtos.getFields()) {
-                SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(fieldDtos.getId(),
-                        field, fieldDtos.getSource(), fieldDtos.getProcess());
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfields())")
+	@ResponseFilter
+	@PostMapping(path = "/searchFields", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "searchFields", description = "searchFields", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<FieldResponseDto> searchFields(
+			@RequestBody(required = true) RequestWrapper<FieldDtos> request) {
+		FieldDtos dto = request.getRequest();
+		Map<String, String> resultFields = new HashMap<>();
+        if ((dto.getSource()) == null) {
+            for (String field : dto.getFields()) {
+                SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(dto.getId(),
+                        field, dto.getSource(), dto.getProcess());
                 String value = sourceProcessDto == null ? null :
-                        packetReader.getField(fieldDtos.getId(), field, sourceProcessDto.getSource(),
-                        sourceProcessDto.getProcess(), fieldDtos.getBypassCache());
+                        packetReader.getField(dto.getId(), field, sourceProcessDto.getSource(),
+                        sourceProcessDto.getProcess(), dto.getBypassCache());
                 resultFields.put(field, value);
             }
-        } else
-        resultFields = packetReader.getFields(fieldDtos.getId(), fieldDtos.getFields(), fieldDtos.getSource(), fieldDtos.getProcess(), fieldDtos.getBypassCache());
-        FieldResponseDto resultField = new FieldResponseDto(resultFields);
-        ResponseWrapper<FieldResponseDto> response = new ResponseWrapper<FieldResponseDto>();
-        response.setResponse(resultField);
-        return response;
-    }
+        } else {
+            resultFields = packetReader.getFields(dto.getId(), dto.getFields(), dto.getSource(), dto.getProcess(),
+					dto.getBypassCache());
+		}
 
-    @ResponseFilter
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostdocument())")
-    @PostMapping(path = "/document", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "getDocument", description = "getDocument", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<Document> getDocument(@RequestBody(required = true) RequestWrapper<DocumentDto> request) {
-        DocumentDto documentDto = request.getRequest();
-        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(documentDto.getId(),
-                documentDto.getDocumentName(), documentDto.getSource(), documentDto.getProcess());
-        Document document = sourceProcessDto == null ? null :
-                packetReader.getDocument(documentDto.getId(), documentDto.getDocumentName(),
-                sourceProcessDto.getSource(), sourceProcessDto.getProcess());
-        ResponseWrapper<Document> response = new ResponseWrapper<Document>();
-        response.setResponse(document);
-        return response;
-    }
+		return wrapResponse(new FieldResponseDto(resultFields));
+	}
 
-    @ResponseFilter
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostbiometrics())")
-    @PostMapping(path = "/biometrics", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "getBiometrics", description = "getBiometrics", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<BiometricRecord> getBiometrics(@RequestBody(required = true) RequestWrapper<BiometricRequestDto> request) {
-        BiometricRequestDto bioRequest = request.getRequest();
-        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(bioRequest.getId(),
-                bioRequest.getPerson(), bioRequest.getSource(), bioRequest.getProcess());
-        List<String> modalities = bioRequest.getModalities() == null ? Lists.newArrayList() : bioRequest.getModalities();
-        BiometricRecord responseDto = sourceProcessDto == null ? null :
-                packetReader.getBiometric(bioRequest.getId(), bioRequest.getPerson(), modalities,
-                sourceProcessDto.getSource(), sourceProcessDto.getProcess(), bioRequest.isBypassCache());
-        ResponseWrapper<BiometricRecord> response = getResponseWrapper();
-        response.setResponse(responseDto);
-        return response;
-    }
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostdocument())")
+	@PostMapping(path = "/document", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "getDocument", description = "getDocument", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<Document> getDocument(@RequestBody(required = true) RequestWrapper<DocumentDto> request) {
+		DocumentDto dto = request.getRequest();
+		Document doc = getSourceProcess(dto.getId(), dto.getDocumentName(), dto.getSource(), dto.getProcess()).map(
+				sp -> packetReader.getDocument(dto.getId(), dto.getDocumentName(), sp.getSource(), sp.getProcess()))
+				.orElse(null);
+		return wrapResponse(doc);
+	}
 
-    @ResponseFilter
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostmetainfo())")
-    @PostMapping(path = "/metaInfo", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "getMetaInfo", description = "getMetaInfo", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<FieldResponseDto> getMetaInfo(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
-        InfoDto metaDto = request.getRequest();
-        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
-        Map<String, String> resultFields = packetReader.getMetaInfo(metaDto.getId(),
-                sourceProcessDto.getSource(), sourceProcessDto.getProcess(), metaDto.getBypassCache());
-        FieldResponseDto resultField = new FieldResponseDto(resultFields);
-        ResponseWrapper<FieldResponseDto> response = getResponseWrapper();
-        response.setResponse(resultField);
-        return response;
-    }
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostbiometrics())")
+	@PostMapping(path = "/biometrics", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "getBiometrics", description = "getBiometrics", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<BiometricRecord> getBiometrics(
+			@RequestBody(required = true) RequestWrapper<BiometricRequestDto> request) {
+		BiometricRequestDto dto = request.getRequest();
+		List<String> modalities = Optional.ofNullable(dto.getModalities()).orElseGet(ArrayList::new);
 
-    @ResponseFilter
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostaudits())")
-    @PostMapping(path = "/audits", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "getAudits", description = "getAudits", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<List<FieldResponseDto>> getAudits(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
-        InfoDto metaDto = request.getRequest();
-        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
-        List<Map<String, String>> resultFields = packetReader.getAudits(metaDto.getId(),
-                sourceProcessDto.getSource(), sourceProcessDto.getProcess(), metaDto.getBypassCache());
-        List<FieldResponseDto> resultField = new ArrayList<>();
-        if (resultFields != null && !resultFields.isEmpty()) {
-            resultFields.stream().forEach(e -> {
-                FieldResponseDto fieldResponseDto = new FieldResponseDto(e);
-                resultField.add(fieldResponseDto);
-            });
-        }
-        ResponseWrapper<List<FieldResponseDto>> response = getResponseWrapper();
-        response.setResponse(resultField);
-        return response;
-    }
+		BiometricRecord bio = getSourceProcess(dto.getId(), dto.getPerson(), dto.getSource(), dto.getProcess())
+				.map(sp -> packetReader.getBiometric(dto.getId(), dto.getPerson(), modalities, sp.getSource(),
+						sp.getProcess(), dto.isBypassCache()))
+				.orElse(null);
+		return wrapResponse(bio);
+	}
 
-    @ResponseFilter
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostvalidatepacket())")
-    @PostMapping(path = "/validatePacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "validatePacket", description = "validatePacket", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<ValidatePacketResponse> validatePacket(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
-        InfoDto metaDto = request.getRequest();
-        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
-        boolean resultFields = packetReader.validatePacket(metaDto.getId(), sourceProcessDto.getSource(), sourceProcessDto.getProcess());
-        ResponseWrapper<ValidatePacketResponse> response = getResponseWrapper();
-        response.setResponse(new ValidatePacketResponse(resultFields));
-        return response;
-    }
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostmetainfo())")
+	@PostMapping(path = "/metaInfo", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "getMetaInfo", description = "getMetaInfo", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<FieldResponseDto> getMetaInfo(
+			@RequestBody(required = true) RequestWrapper<InfoDto> request) {
+		InfoDto metaDto = request.getRequest();
+		Optional<SourceProcessDto> sourceProcessOpt = getSourceProcess(metaDto.getId(), metaDto.getSource(),
+				metaDto.getProcess());
 
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostgettags())")
-    @ResponseFilter
+		if (sourceProcessOpt.isEmpty()) {
+			return wrapResponse(new FieldResponseDto(Map.of()));
+		}
+
+		Map<String, String> fields = packetReader.getMetaInfo(metaDto.getId(), sourceProcessOpt.get().getSource(),
+				sourceProcessOpt.get().getProcess(), metaDto.getBypassCache());
+
+		return wrapResponse(new FieldResponseDto(fields));
+	}
+
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaudits())")
+	@PostMapping(path = "/audits", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "getAudits", description = "getAudits", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<List<FieldResponseDto>> getAudits(
+			@RequestBody(required = true) RequestWrapper<InfoDto> request) {
+		InfoDto metaDto = request.getRequest();
+		Optional<SourceProcessDto> sourceProcessOpt = getSourceProcess(metaDto.getId(), metaDto.getSource(),
+				metaDto.getProcess());
+
+		if (sourceProcessOpt.isEmpty()) {
+			return wrapResponse(List.of());
+		}
+
+		List<Map<String, String>> audits = packetReader.getAudits(metaDto.getId(), sourceProcessOpt.get().getSource(),
+				sourceProcessOpt.get().getProcess(), metaDto.getBypassCache());
+
+		List<FieldResponseDto> auditList = Optional.ofNullable(audits).orElseGet(List::of).stream()
+				.map(FieldResponseDto::new).collect(Collectors.toList());
+
+		return wrapResponse(auditList);
+	}
+
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostvalidatepacket())")
+	@PostMapping(path = "/validatePacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "validatePacket", description = "validatePacket", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<ValidatePacketResponse> validatePacket(
+			@RequestBody(required = true) RequestWrapper<InfoDto> request) {
+		InfoDto dto = request.getRequest();
+
+		Optional<SourceProcessDto> sourceProcessOpt = getSourceProcess(dto.getId(), dto.getSource(), dto.getProcess());
+
+		boolean isValid = sourceProcessOpt
+				.map(sp -> packetReader.validatePacket(dto.getId(), sp.getSource(), sp.getProcess())).orElse(false);
+
+		return wrapResponse(new ValidatePacketResponse(isValid));
+	}
+
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostgettags())")
+	@ResponseFilter
 	@PostMapping(path = "/getTags", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "getTags", description = "getTags", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	@Operation(summary = "getTags", description = "getTags", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
 	public ResponseWrapper<TagResponseDto> getTags(
 			@RequestBody(required = true) RequestWrapper<TagRequestDto> request) {
+		TagResponseDto tags = packetReaderService.getTags(request.getRequest());
+		return wrapResponse(tags);
+	}
 
-		TagResponseDto tagResponseDto = packetReaderService.getTags(request.getRequest());
-		ResponseWrapper<TagResponseDto> response = getResponseWrapper();
-		response.setResponse(tagResponseDto);
+	@ResponseFilter
+	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostinfo())")
+	@PostMapping(path = "/info", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@Operation(summary = "info", description = "info", tags = { "packet-reader-controller" })
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
+			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
+			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
+	public ResponseWrapper<InfoResponseDto> info(@RequestBody(required = true) RequestWrapper<InfoRequestDto> request) {
+		InfoRequestDto dto = request.getRequest();
+		InfoResponseDto info = (dto.getId() != null && !dto.getId().isEmpty()) ? packetReaderService.info(dto.getId())
+				: null;
+		return wrapResponse(info);
+	}
+
+	private <T> ResponseWrapper<T> wrapResponse(T data) {
+		ResponseWrapper<T> response = new ResponseWrapper<>();
+		response.setId("mosip.registration.packet.reader");
+		response.setVersion("v1");
+		response.setResponsetime(DateUtils.getUTCCurrentDateTime());
+		response.setResponse(data);
 		return response;
 	}
 
-    @ResponseFilter
-    @PreAuthorize("hasAnyRole(@authorizedRoles.getPostinfo())")
-    @PostMapping(path = "/info", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "info", description = "info", tags = { "packet-reader-controller" })
-    @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
-            @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<InfoResponseDto> info(@RequestBody(required = true) RequestWrapper<InfoRequestDto> request) {
-        String id = request.getRequest().getId();
-        InfoResponseDto resultFields = null;
-        if (id != null && !id.isEmpty())
-            resultFields = packetReaderService.info(id);
-        ResponseWrapper<InfoResponseDto> response = getResponseWrapper();
-        response.setResponse(resultFields);
-        return response;
-    }
+	private Optional<SourceProcessDto> getSourceProcess(String id, String field, String source, String process) {
+		return Optional.ofNullable(packetReaderService.getSourceAndProcess(id, field, source, process));
+	}
 
-    private ResponseWrapper getResponseWrapper() {
-        ResponseWrapper<Object> response = new ResponseWrapper<>();
-        response.setId("mosip.registration.packet.reader");
-        response.setVersion("v1");
-        response.setResponsetime(DateUtils.getUTCCurrentDateTime());
-        return response;
-    }
+	private Optional<SourceProcessDto> getSourceProcess(String id, String source, String process) {
+		return Optional.ofNullable(packetReaderService.getSourceAndProcess(id, source, process));
+	}
 }

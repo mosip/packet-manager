@@ -53,16 +53,7 @@ public class PacketManagerConfig {
      */
     @PostConstruct
     public void validateReferenceReaderProvider() throws ClassNotFoundException {
-		Set<String> readerProviders = PacketHelper.getReaderProvider(packetReaderConfig);
-            if (!CollectionUtils.isEmpty(readerProviders)) {
-                for (String className : readerProviders) {
-                    logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                            "Validating the reference provider readers are present or not.");
-                    getBean(className);
-                }
-            } else
-            logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                    "Reference provider reader class is not provided.");
+    	validateProviders(PacketHelper.getReaderProvider(packetReaderConfig), "reader");
     }
 
     /**
@@ -72,16 +63,7 @@ public class PacketManagerConfig {
      */
     @PostConstruct
     public void validateReferenceWriterProvider() throws ClassNotFoundException {
-		Set<String> writerProviders = PacketHelper.getWriterProvider(packetWriterConfig);
-        if (!CollectionUtils.isEmpty(writerProviders)) {
-            for (String className : writerProviders) {
-                logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                        "Validating the reference provider writers are present or not.");
-                getBean(className);
-            }
-        } else
-            logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                "Reference provider writer class is not provided.");
+    	validateProviders(PacketHelper.getWriterProvider(packetWriterConfig), "writer");
     }
 
     /**
@@ -95,19 +77,7 @@ public class PacketManagerConfig {
     @Bean
     @Lazy
     public List<IPacketReader> referenceReaderProviders() throws ClassNotFoundException {
-        List<IPacketReader> iPacketReaders = new ArrayList<>();
-		Set<String> readerProviders = PacketHelper.getReaderProvider(packetReaderConfig);
-        if (!CollectionUtils.isEmpty(readerProviders)) {
-            for (String className : readerProviders) {
-                logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                        "Validating the reference provider readers are present or not.");
-                iPacketReaders.add((IPacketReader) getBean(className));
-            }
-        } else {
-            logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                    "reference provider reader is not present.");
-        }
-        return iPacketReaders;
+        return loadProviders(PacketHelper.getReaderProvider(packetReaderConfig), IPacketReader.class);
     }
 
     /**
@@ -121,23 +91,56 @@ public class PacketManagerConfig {
     @Bean
     @Lazy
     public List<IPacketWriter> referenceWriterProviders() throws ClassNotFoundException {
-        List<IPacketWriter> iPacketWriters = new ArrayList<>();
-		Set<String> writerProviders = PacketHelper.getWriterProvider(packetWriterConfig);
-        if (!CollectionUtils.isEmpty(writerProviders)) {
-            for (String className : writerProviders) {
-                logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                        "Validating the reference provider writers are present or not.");
-                iPacketWriters.add((IPacketWriter) getBean(className));
-            }
-        } else {
-            logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
-                    "reference provider writer is not present.");
-        }
-        return iPacketWriters;
+        return loadProviders(PacketHelper.getWriterProvider(packetWriterConfig), IPacketWriter.class);
     }
 
-    private Object getBean(String className) throws ClassNotFoundException {
-        Class<?> clazz = Class.forName(className);
-        return applicationContext.getBean(clazz);
+    private void validateProviders(Set<String> classNames, String type) {
+        if (CollectionUtils.isEmpty(classNames)) {
+            logger.warn(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
+                    String.format("No reference provider %s classes provided.", type));
+            return;
+        }
+
+        for (String className : classNames) {
+            try {
+                logger.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
+                        String.format("Validating reference provider %s class: %s", type, className));
+                getBean(className);
+            } catch (RuntimeException e) {
+                logger.error(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(), null,
+                        String.format("Invalid %s class %s: %s", type, className, e.getMessage()));
+                throw e;
+            }
+        }
+    }
+    
+    private <T> List<T> loadProviders(Set<String> classNames, Class<T> expectedType) {
+        List<T> providers = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(classNames)) {
+            for (String className : classNames) {
+                Object bean = getBean(className);
+                if (expectedType.isInstance(bean)) {
+                    providers.add(expectedType.cast(bean));
+                } else {
+                    throw new IllegalArgumentException(String.format("Bean %s is not of expected type %s", className, expectedType.getSimpleName()));
+                }
+            }
+        }
+        return providers;
+    }
+    
+    private Object getBean(String className) {
+        try {
+            if (className == null || className.trim().isEmpty()) {
+                throw new ClassNotFoundException("Invalid class name: " + className);
+            }
+            className = className.replace(":", "").trim();
+            Class<?> clazz = Class.forName(className.trim());
+            return applicationContext.getBean(clazz);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Class not found: " + className, e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load bean: " + className, e);
+        }
     }
 }

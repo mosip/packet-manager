@@ -22,50 +22,39 @@ import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
 import io.mosip.kernel.core.util.DateUtils;
-
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 
 @RestController
 @Tag(name = "packet-writer-controller", description = "Packet Writer Controller")
 public class PacketWriterController {
 
-    @Autowired
-    private PacketWriter packetWriter;
+	@Autowired
+	private PacketWriter packetWriter;
 
-    @Autowired
-    private PacketWriterService packetWriterService;
+	@Autowired
+	private PacketWriterService packetWriterService;
+
 	@PreAuthorize("hasAnyRole(@authorizedRoles.getPutcreatepacket())")
-    @ResponseFilter
-    @PutMapping(path = "/createPacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseFilter
+	@PutMapping(path = "/createPacket", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "createPacket", description = "createPacket", tags = { "packet-writer-controller" })
 	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
 			@ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<List<PacketInfo>> createPacket(@RequestBody(required = true) RequestWrapper<PacketDto> requestr) {
+	public ResponseWrapper<List<PacketInfo>> createPacket(
+			@RequestBody(required = true) RequestWrapper<PacketDto> request) {
+		List<PacketInfo> packets = packetWriter.createPacket(request.getRequest());
+		return wrapResponse(packets);
+	}
 
-        List<PacketInfo> resultField = packetWriter.createPacket(requestr.getRequest());
-        ResponseWrapper<List<PacketInfo>> response = getResponseWrapper();
-        response.setResponse(resultField);
-        return response;
-    }
-
-    private ResponseWrapper getResponseWrapper() {
-        ResponseWrapper<Object> response = new ResponseWrapper<>();
-		response.setId("mosip.registration.packet.writer");
-        response.setVersion("v1");
-        response.setResponsetime(DateUtils.getUTCCurrentDateTime());
-        return response;
-    }
-
-	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	// @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
 	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaddtag())")
 	@ResponseFilter
 	@PostMapping(path = "/addTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -75,16 +64,13 @@ public class PacketWriterController {
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-	public ResponseWrapper<TagResponseDto> setTags(
-			@RequestBody(required = true) RequestWrapper<TagDto> tagRequest) {
-
-		TagResponseDto tagResponse = packetWriterService.addTags(tagRequest.getRequest());
-		ResponseWrapper<TagResponseDto> response = getResponseWrapper();
-		response.setResponse(tagResponse);
-		return response;
+	public ResponseWrapper<TagResponseDto> setTags(@RequestBody(required = true) RequestWrapper<TagDto> tagRequest) {
+		TagResponseDto responseDto = packetWriterService.addTags(tagRequest.getRequest());
+		return wrapResponse(responseDto);
 	}
+
 	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostaddorupdatetag())")
-	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+	// @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
 	@ResponseFilter
 	@PostMapping(path = "/addOrUpdateTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "updateTags", description = "updateTags", tags = { "packet-writer-controller" })
@@ -94,13 +80,11 @@ public class PacketWriterController {
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
 	public ResponseWrapper<TagResponseDto> updateTags(@RequestBody(required = true) RequestWrapper<TagDto> tagRequest) {
-
-		TagResponseDto tagResponse = packetWriterService.updateTags(tagRequest.getRequest());
-		ResponseWrapper<TagResponseDto> response = getResponseWrapper();
-		response.setResponse(tagResponse);
-		return response;
+		TagResponseDto responseDto = packetWriterService.updateTags(tagRequest.getRequest());
+		return wrapResponse(responseDto);
 	}
-	//@PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
+
+	// @PreAuthorize("hasAnyRole('REGISTRATION_PROCESSOR')")
 	@ResponseFilter
 	@PreAuthorize("hasAnyRole(@authorizedRoles.getPostdeletetag())")
 	@PostMapping(path = "/deleteTag", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -110,11 +94,18 @@ public class PacketWriterController {
 			@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
 			@ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-	public ResponseWrapper<TagDeleteResponseDto> deleteTags(@RequestBody(required = true) RequestWrapper<TagRequestDto> tagRequest) {
+	public ResponseWrapper<TagDeleteResponseDto> deleteTags(
+			@RequestBody(required = true) RequestWrapper<TagRequestDto> tagRequest) {
+		TagDeleteResponseDto responseDto = packetWriterService.deleteTags(tagRequest.getRequest());
+		return wrapResponse(responseDto);
+	}
 
-		TagDeleteResponseDto tagResponse = packetWriterService.deleteTags(tagRequest.getRequest());
-		ResponseWrapper<TagDeleteResponseDto> response = getResponseWrapper();
-		response.setResponse(tagResponse);
+	private <T> ResponseWrapper<T> wrapResponse(T data) {
+		ResponseWrapper<T> response = new ResponseWrapper<>();
+		response.setId("mosip.registration.packet.writer");
+		response.setVersion("v1");
+		response.setResponsetime(DateUtils.getUTCCurrentDateTime());
+		response.setResponse(data);
 		return response;
 	}
 }
