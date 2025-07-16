@@ -274,25 +274,23 @@ public class PacketReaderImpl implements IPacketReader {
 		Cache cache = cacheManager.getCache("packets");
 
 		if(byPassCache || cache == null) {
-			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
 			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
 		}
 
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"Continuing Cache check");
 		BIR cachedValue = cache.get(cacheKey, BIR.class);
 		if(cachedValue != null) {
-			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Cache Found for the Key : " + cacheKey);
 			return cachedValue;
 		}
 
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
 		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
 		if(bir != null) {
-			LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Adding cache the Key : " + cacheKey);
 			cache.put(cacheKey, bir);
 		}
