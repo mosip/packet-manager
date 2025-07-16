@@ -266,7 +266,7 @@ public class PacketReaderImpl implements IPacketReader {
 	}
 
 	private String generateKey(String id, String biometricFieldName, String source, String process) {
-		return String.format("biometrics-%s-%s-%s-%s", id, biometricFieldName, source, process);
+		return String.format("%s-%s-%s-%s", id, biometricFieldName, source, process);
 	}
 
 	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process, boolean byPassCache) throws Exception {

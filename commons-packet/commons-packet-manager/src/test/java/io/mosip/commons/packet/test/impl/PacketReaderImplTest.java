@@ -28,11 +28,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -69,6 +72,9 @@ import io.mosip.kernel.core.util.exception.JsonProcessingException;
 @PropertySource("classpath:application-test.properties")
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*"})
 public class PacketReaderImplTest {
+
+    @Mock
+    private CacheManager cacheManager;
 
     @InjectMocks
     private IPacketReader iPacketReader = new PacketReaderImpl();
@@ -216,6 +222,8 @@ public class PacketReaderImplTest {
         when(idSchemaUtils.getSource(any(), any())).thenReturn("id");
         when(idSchemaUtils.getIdschemaVersionFromMappingJson()).thenReturn("0.1");
 
+        Cache mockCache = Mockito.mock(Cache.class);
+        Mockito.when(cacheManager.getCache("packets")).thenReturn(mockCache);
     }
 
     @Test
