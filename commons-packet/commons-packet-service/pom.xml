@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.mosip.commons</groupId>
     <artifactId>commons-packet-service</artifactId>
-   <version>1.2.0.4-SNAPSHOT</version>
+   <version>1.2.0.3</version>
     <name>commons-packet-service</name>
     <description>Mosip commons project </description>
     <url>https://github.com/mosip/commons</url>
@@ -23,7 +23,6 @@
         <!-- <maven.sonar.plugin.version>3.7.0.1746</maven.sonar.plugin.version> -->
         <maven.javadoc.version>3.2.0</maven.javadoc.version>
         <maven-shade-plugin.version>2.3</maven-shade-plugin.version>
-        <central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 
         <!-- spring -->
         <spring.boot.version>2.0.2.RELEASE</spring.boot.version>
@@ -42,10 +41,10 @@
         <kernel-dataaccess-hibernate.version>1.2.0.1</kernel-dataaccess-hibernate.version>
         <kernel.logger.logback.version>1.2.0.1</kernel.logger.logback.version>
         <spring.boot.co>2.0.2.RELEASE</spring.boot.co>
-        <khazana.version>1.2.0.2-SNAPSHOT</khazana.version>
+        <khazana.version>1.2.0.1</khazana.version>
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
-        <packet.manager.version>1.2.0.4-SNAPSHOT</packet.manager.version>
+        <packet.manager.version>1.2.0.3</packet.manager.version>
         <springdoc.version>1.5.10</springdoc.version>
  </properties>
 
@@ -106,17 +105,17 @@
     </dependencies>
 
 
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://central.sonatype.com/api/v1/publisher</url>
-        </repository>
-    </distributionManagement>
-    <build>
+<distributionManagement>
+		<snapshotRepository>
+                        <id>ossrh</id>
+                        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository> 
+                 <repository>
+                        <id>ossrh</id>
+                        <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository> 
+        </distributionManagement> 
+        <build>
 <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -132,9 +131,6 @@
                             <goal>build-info</goal>
                             <goal>repackage</goal>
                         </goals>
-                        <configuration>
-                            <attach>false</attach>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -166,6 +162,26 @@
                  </execution>
               </executions>
            </plugin>
+               <plugin>
+                  <groupId>org.sonatype.plugins</groupId>
+                  <artifactId>nexus-staging-maven-plugin</artifactId>
+                  <version>1.6.7</version>
+                  <extensions>true</extensions>
+                  <executions>
+                    <execution>
+                      <id>default-deploy</id>
+                      <phase>deploy</phase>
+                      <goals>
+                        <goal>deploy</goal>
+                      </goals>
+                    </execution>
+                  </executions>
+                  <configuration>
+                        <serverId>ossrh</serverId>
+                        <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                        <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                  </configuration>
+                </plugin> 
 
                <plugin>
                   <groupId>org.apache.maven.plugins</groupId>
@@ -341,16 +357,6 @@
                             <outputFileName>${name}-openapi.json</outputFileName>
                             <outputDir>${project.build.directory}</outputDir>
                             <skip>false</skip>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>${central.publishing.maven.plugin.version}</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>ossrh</publishingServerId>
-                            <autoPublish>false</autoPublish>
                         </configuration>
                     </plugin>
                 </plugins>
