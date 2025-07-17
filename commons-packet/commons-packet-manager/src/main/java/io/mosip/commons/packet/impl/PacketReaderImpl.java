@@ -9,9 +9,7 @@ import static io.mosip.commons.packet.constants.PacketManagerConstants.REFNUMBER
 import static io.mosip.commons.packet.constants.PacketManagerConstants.TYPE;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.VALUE;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,32 +29,28 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.util.Lists;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.mosip.commons.packet.constants.PacketManagerConstants;
 import io.mosip.commons.packet.dto.Document;
 import io.mosip.commons.packet.dto.Packet;
 import io.mosip.commons.packet.dto.PacketInfo;
-import io.mosip.commons.packet.exception.ApiNotAccessibleException;
 import io.mosip.commons.packet.exception.GetAllIdentityException;
 import io.mosip.commons.packet.exception.GetAllMetaInfoException;
 import io.mosip.commons.packet.exception.GetBiometricException;
 import io.mosip.commons.packet.exception.GetDocumentException;
-import io.mosip.commons.packet.exception.PacketDecryptionFailureException;
-import io.mosip.commons.packet.exception.PacketKeeperException;
 import io.mosip.commons.packet.exception.PacketValidationFailureException;
 import io.mosip.commons.packet.keeper.PacketKeeper;
 import io.mosip.commons.packet.spi.IPacketReader;
 import io.mosip.commons.packet.util.IdSchemaUtils;
-import io.mosip.commons.packet.util.PacketManagerHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.commons.packet.util.PacketValidator;
 import io.mosip.commons.packet.util.ZipUtils;
@@ -93,6 +87,8 @@ public class PacketReaderImpl implements IPacketReader {
 	@Autowired
 	private PacketValidator packetValidator;
 
+	@Autowired
+	private CacheManager cacheManager;
 	/**
 	 * Perform packet validations and audit errors. List of validations - 1. schema
 	 * & idobject reference validation 2. files validation 3. decrypted packet
@@ -233,50 +229,13 @@ public class PacketReaderImpl implements IPacketReader {
 	}
 
 	@Override
-    public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source,
-                                        String process) {
+    public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source, String process, boolean byPassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-                "getBiometric :: for - " + biometricFieldName);
+                "getBiometric :: for - " + biometricFieldName + " with byPassCache - " + byPassCache);
         BiometricRecord biometricRecord = null;
-        String packetName = null;
-        String fileName = null;
-        try {
-            String bioString = packetReader.getField(id, biometricFieldName, source, process, false);//(String) idobjectMap.get(biometricFieldName);
-            JSONObject biometricMap = null;
-            if (bioString != null)
-                biometricMap = new JSONObject(bioString);
-            if (bioString == null || biometricMap == null || biometricMap.isNull(VALUE)) {
-                // biometric file not present in idobject. Search in meta data.
-                Map<String, String> metadataMap = getMetaInfo(id, source, process);
-                String operationsData = metadataMap.get(META_INFO_OPERATIONS_DATA);
-                if (StringUtils.isNotEmpty(operationsData)) {
-                    JSONArray jsonArray = new JSONArray(operationsData);
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject jsonObject = (JSONObject) jsonArray.get(i);
-                        if (jsonObject.has(LABEL)
-                                && jsonObject.get(LABEL).toString().equalsIgnoreCase(biometricFieldName)) {
-                            packetName = ID;
-                            fileName = jsonObject.isNull(VALUE) ? null : jsonObject.get(VALUE).toString();
-                            break;
-                        }
-                    }
-                }
-            } else {
-                String idSchemaVersion = packetReader.getField(id,
-                        idSchemaUtils.getIdschemaVersionFromMappingJson(), source, process, false);
-                Double schemaVersion = idSchemaVersion != null ? Double.valueOf(idSchemaVersion) : null;
-                packetName = idSchemaUtils.getSource(biometricFieldName, schemaVersion);
-                fileName = biometricMap.get(VALUE).toString();
-            }
-
-            if (packetName == null || fileName == null)
-                return null;
-
-            Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
-            InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
-            if (biometrics == null)
-                return null;
-            BIR bir = CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+		
+		try {
+			BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process, byPassCache);
             biometricRecord = new BiometricRecord();
             if(bir.getOthers() != null) {
                 HashMap<String, String> others = new HashMap<>();
@@ -298,9 +257,90 @@ public class PacketReaderImpl implements IPacketReader {
             }
             throw new GetBiometricException(e.getMessage());
         }
-
         return biometricRecord;
     }
+
+	// Kept for backward compatibility. This method will not utilize the cache. Will be removed in future
+	@Override
+	public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source, String process) {
+		return getBiometric(id, biometricFieldName, modalities, source, process, false);
+	}
+
+	private String generateKey(String id, String biometricFieldName, String source, String process) {
+		return String.format("%s-%s-%s-%s", id, biometricFieldName, source, process);
+	}
+
+	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process, boolean byPassCache) throws Exception {
+		String cacheKey = generateKey(id, biometricFieldName, source, process);
+		Cache cache = cacheManager.getCache("packets");
+
+		if(byPassCache || cache == null) {
+			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
+			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+		}
+
+		BIR cachedValue = cache.get(cacheKey, BIR.class);
+		if(cachedValue != null) {
+			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					"Cache Found for the Key : " + cacheKey);
+			return cachedValue;
+		}
+
+		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
+		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+		if(bir != null) {
+			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					"Adding cache the Key : " + cacheKey);
+			cache.put(cacheKey, bir);
+		}
+
+		return bir;
+	}
+
+	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+		String packetName = null;
+		String fileName = null;
+
+		String bioString = packetReader.getField(id, biometricFieldName, source, process, false);//(String) idobjectMap.get(biometricFieldName);
+		JSONObject biometricMap = null;
+		if (bioString != null)
+			biometricMap = new JSONObject(bioString);
+		if (bioString == null || biometricMap == null || biometricMap.isNull(VALUE)) {
+			// biometric file not present in idobject. Search in meta data.
+			Map<String, String> metadataMap = getMetaInfo(id, source, process);
+			String operationsData = metadataMap.get(META_INFO_OPERATIONS_DATA);
+			if (StringUtils.isNotEmpty(operationsData)) {
+				JSONArray jsonArray = new JSONArray(operationsData);
+				for (int i = 0; i < jsonArray.length(); i++) {
+					JSONObject jsonObject = (JSONObject) jsonArray.get(i);
+					if (jsonObject.has(LABEL)
+							&& jsonObject.get(LABEL).toString().equalsIgnoreCase(biometricFieldName)) {
+						packetName = ID;
+						fileName = jsonObject.isNull(VALUE) ? null : jsonObject.get(VALUE).toString();
+						break;
+					}
+				}
+			}
+		} else {
+			String idSchemaVersion = packetReader.getField(id,
+					idSchemaUtils.getIdschemaVersionFromMappingJson(), source, process, false);
+			Double schemaVersion = idSchemaVersion != null ? Double.valueOf(idSchemaVersion) : null;
+			packetName = idSchemaUtils.getSource(biometricFieldName, schemaVersion);
+			fileName = biometricMap.get(VALUE).toString();
+		}
+
+		if (packetName == null || fileName == null)
+			return null;
+
+		Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
+		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
+		if (biometrics == null)
+			return null;
+
+		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+	}
 
 	@Override
 	public Map<String, String> getMetaInfo(String id, String source, String process) {
