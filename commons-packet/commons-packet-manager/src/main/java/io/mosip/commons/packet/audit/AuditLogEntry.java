@@ -94,5 +94,4 @@ public class AuditLogEntry {
 
 		return responseWrapper != null ? responseWrapper.getBody() : null;
 	}
-
 }
