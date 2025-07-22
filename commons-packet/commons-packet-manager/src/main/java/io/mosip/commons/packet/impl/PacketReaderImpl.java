@@ -235,7 +235,7 @@ public class PacketReaderImpl implements IPacketReader {
 		try {
 			BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process, byPassCache);
 			if(bir == null) {
-				LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+				LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 						"Biometric data not found for id: " + id + " and biometricFieldName: " + biometricFieldName);
 				return null;
 			}
