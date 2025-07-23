@@ -28,7 +28,6 @@
 
         <!-- spring -->
         <swagger.version>2.9.2</swagger.version>
-
         <kernel.core.version>1.3.0-beta.2</kernel.core.version>
         <kernel.biometrics.api.version>1.3.0-beta.1</kernel.biometrics.api.version>
         <kernel.auth.adaptor.version>1.3.0-beta.1</kernel.auth.adaptor.version>
@@ -109,7 +108,6 @@
         </dependency>
 
     </dependencies>
-
 
     <distributionManagement>
         <snapshotRepository>

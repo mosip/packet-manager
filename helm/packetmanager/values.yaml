@@ -118,6 +118,7 @@ resources:
   requests:
     cpu: 1000m
     memory: 3000Mi
+
 additionalResources:
   ## Specify any JAVA_OPTS string here. These typically will be specified in conjunction with above resources
   ## Example: java_opts: "-Xms500M -Xmx500M"
@@ -220,7 +221,8 @@ extraEnvVarsCM:
   - artifactory-share
 ## Secret with extra environment variables
 ##
-extraEnvVarsSecret:
+extraEnvVarsSecret: []
+
 ## Extra volumes to add to the deployment
 ##
 extraVolumes: []
