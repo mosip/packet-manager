@@ -29,4 +29,8 @@ public interface IPacketReader {
     public Map<String, String> getMetaInfo(String id, String source, String process);
 
     public List<Map<String, String>> getAuditInfo(String id, String source, String process);
+
+    public default BiometricRecord getBiometric(String id, String biometricSchemaField, List<String> modalities, String source, String process, boolean byPassCache) {
+        return null;
+    };
 }
