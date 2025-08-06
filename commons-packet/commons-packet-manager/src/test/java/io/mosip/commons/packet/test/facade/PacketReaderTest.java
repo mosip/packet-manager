@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +28,8 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import io.mosip.commons.khazana.dto.ObjectDto;
@@ -48,6 +51,9 @@ import io.mosip.kernel.biometrics.entities.RegistryIDType;
 @PrepareForTest({PacketHelper.class})
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*"})
 public class PacketReaderTest {
+
+    @Mock
+    private CacheManager cacheManager;
 
     @InjectMocks
     private PacketReader packetReader = new PacketReader();
@@ -78,7 +84,8 @@ public class PacketReaderTest {
         allFields.put("phone", "1234567");
 
         Mockito.when(packetReaderProvider.getAll(anyString(), anyString(), anyString())).thenReturn(allFields);
-
+        Cache mockCache = Mockito.mock(Cache.class);
+        Mockito.when(cacheManager.getCache("packets")).thenReturn(mockCache);
     }
 
     @Test
@@ -160,7 +167,7 @@ public class PacketReaderTest {
         BiometricRecord biometricRecord = new BiometricRecord();
         biometricRecord.setSegments(birTypeList);
 
-        Mockito.when(packetReaderProvider.getBiometric(anyString(), anyString(), anyList(), anyString(), anyString())).thenReturn(biometricRecord);
+        Mockito.when(packetReaderProvider.getBiometric(anyString(), anyString(), anyList(), anyString(), anyString(), anyBoolean())).thenReturn(biometricRecord);
 
         BiometricRecord result = packetReader.getBiometric(id, "individualBiometrics", Lists.newArrayList(), source, process, true);
 
