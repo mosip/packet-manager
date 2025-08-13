@@ -352,7 +352,9 @@ public class PacketReaderImpl implements IPacketReader {
 		String[] sourcePacketNames = packetNames.split(",");
 
 		try {
+			LOGGER.info("input packet:: "+ id + " " +source+ " "+ process);
 			for (String packetName : sourcePacketNames) {
+				LOGGER.info("input packetName:: "+ id + " " +source+ " "+ process+ " "+ packetName);
 				Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
 				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO");
 				if (idJsonStream != null) {
