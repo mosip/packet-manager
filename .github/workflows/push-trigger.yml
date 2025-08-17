@@ -20,7 +20,6 @@ on:
       - 'develop'
       - 'master'
       - '1.*'
-      - '2.*'
 
 jobs:
   build-maven-packet-manager:
