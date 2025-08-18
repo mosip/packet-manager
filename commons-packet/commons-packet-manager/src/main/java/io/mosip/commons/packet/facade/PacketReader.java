@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Lazy;
@@ -40,6 +41,27 @@ public class PacketReader {
 
 	@Autowired
 	private PacketKeeper packetKeeper;
+
+    /*
+     * Note on enabling info cache:
+     *
+     * Previously, issues were observed when the info cache was not cleared
+     * while processing a BIOMETRIC_CORRECTION packet for a given RID, since
+     * the correction packet is uploaded with the same RID.
+     *
+     * In production, we can enable the info cache for performance improvements,
+     * provided the following assumptions hold true:
+     *
+     * 1. By the time a BIOMETRIC_CORRECTION packet is uploaded, the info cache
+     *    for that RID will already be cleared. This is because, in production,
+     *    BIOMETRIC_CORRECTION packets are typically uploaded after some time,
+     *    and the cache duration is relatively short — reducing the risk of stale data.
+     *
+     * 2. Packet data is not modified "in-flight" (i.e., during processing),
+     *    ensuring that caching will not introduce inconsistencies.
+     */
+    @Value("${packetmanager.cache.info.enabled:false}")
+    private boolean isInfoCacheEnabled;
 
     /**
      * Get a field from identity file
@@ -148,7 +170,7 @@ public class PacketReader {
      * @return
      */
     @PreAuthorize("hasRole('DATA_READ')")
-    @Cacheable(value = "info", key = "#id", condition = "@propertyUtils.infoCacheEnabled")
+    @Cacheable(value = "info", key = "#id", condition = "@packetReader.isInfoCacheEnabled()")
     public List<ObjectDto> info(String id) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "info called");
@@ -227,6 +249,11 @@ public class PacketReader {
         }
 
         return provider;
+    }
+
+    public boolean isInfoCacheEnabled() {
+        LOGGER.info("isInfoCacheEnabled : {}", isInfoCacheEnabled);
+        return isInfoCacheEnabled;
     }
 
 }
