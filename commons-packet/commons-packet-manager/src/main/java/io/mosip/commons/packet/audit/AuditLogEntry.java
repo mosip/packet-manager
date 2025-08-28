@@ -57,7 +57,7 @@ public class AuditLogEntry {
 
 			auditRequestDto = new AuditRequestDto();
 			auditRequestDto.setDescription(description);
-			auditRequestDto.setActionTimeStamp(DateUtils.getUTCCurrentDateTime());
+			auditRequestDto.setActionTimeStamp(DateUtils.getUTCCurrentDateTimeWithZString());
 			auditRequestDto.setApplicationId(LoggerFileConstant.MOSIP_4.toString());
 			auditRequestDto.setApplicationName(LoggerFileConstant.PACKET_MANAGER.toString());
 			auditRequestDto.setCreatedBy(LoggerFileConstant.SYSTEM.toString());
