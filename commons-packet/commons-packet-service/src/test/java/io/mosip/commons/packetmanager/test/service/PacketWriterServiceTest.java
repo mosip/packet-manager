@@ -31,21 +31,21 @@ import io.mosip.kernel.core.exception.BaseUncheckedException;
 public class PacketWriterServiceTest {
 	@Mock
     private PacketReader packetReader;
-    
+
 	@Mock
     private PacketWriter packetWriter;
-	
+
     @InjectMocks
     private  PacketWriterService  packetWriterService;
-	
+
 	@Before
     public void setup() {
 		 Map<String, String> tags = new HashMap<>();
 	        tags.put("test", "testValue");
-	    	 Mockito.when(packetReader.getTags(anyString())).thenReturn(tags);
-	    	
+		 Mockito.when(packetReader.getTags(anyString())).thenReturn(tags);
+
 	}
-	
+
 	 @Test
 	 public void testAddTagsSuccess() {
 		 TagDto tagDto=new TagDto();
@@ -67,7 +67,7 @@ public class PacketWriterServiceTest {
 		Mockito.when(packetWriter.addTags(any(),anyString())).thenReturn(tags);
 		packetWriterService.addTags(tagDto);
 	}
-		
+
 	@Test(expected = TagCreationException.class)
 	public void testAddTagsException() {
 		TagDto tagDto = new TagDto();
@@ -124,5 +124,15 @@ public class PacketWriterServiceTest {
 
 		packetWriterService.deleteTags(tagRequestDto);
 
+	}
+
+	@Test(expected = TagDeletionException.class)
+	public void testDeleteTagNotFound() {
+		TagRequestDto tagRequestDto = new TagRequestDto();
+		tagRequestDto.setId("id");
+		List<String> tagNames = new ArrayList<String>();
+		tagNames.add("testtag");
+		tagRequestDto.setTagNames(tagNames);
+		packetWriterService.deleteTags(tagRequestDto);
 	}
 }

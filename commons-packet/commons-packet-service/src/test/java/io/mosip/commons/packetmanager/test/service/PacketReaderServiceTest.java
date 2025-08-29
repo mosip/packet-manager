@@ -165,4 +165,31 @@ public class PacketReaderServiceTest {
     	 tagRequestDto.setTagNames(tagNames);
     	 packetReaderService.getTags(tagRequestDto);  
 	    }
+
+	 @Test
+	 public void testGetBiometric() throws Exception {
+		 BiometricRecord biometricRecord = packetReaderService.getBiometric("id", "source", "process", "type", null, false);
+		 assertEquals(1, biometricRecord.getSegments().size());
+	 }
+
+	 @Test
+	 public void testGetDocument() throws Exception {
+		 Mockito.when(packetReader.getDocument(anyString(), anyString(), anyString(), anyString(), anyBoolean())).thenReturn("test".getBytes());
+		 byte[] document = packetReaderService.getDocument("id", "source", "process", "type", false);
+		 assertEquals("test", new String(document));
+	 }
+
+	 @Test
+	 public void testGetAll() throws Exception {
+		 Mockito.when(packetReader.getAll(anyString(), anyString(), anyString(), anyBoolean())).thenReturn("test".getBytes());
+		 byte[] all = packetReaderService.getAll("id", "source", "process", false);
+		 assertEquals("test", new String(all));
+	 }
+
+	 @Test
+	 public void testGetAllMeta() throws Exception {
+		 Mockito.when(packetReader.getAllMeta(anyString(), anyString(), anyString(), anyBoolean())).thenReturn("test".getBytes());
+		 byte[] allMeta = packetReaderService.getAllMeta("id", "source", "process", false);
+		 assertEquals("test", new String(allMeta));
+	 }
 }
