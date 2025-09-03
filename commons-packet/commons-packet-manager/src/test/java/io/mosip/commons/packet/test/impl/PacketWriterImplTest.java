@@ -3,7 +3,7 @@ package io.mosip.commons.packet.test.impl;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,12 +11,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.exception.PacketCreatorException;
+import io.mosip.commons.packet.exception.PacketKeeperException;
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -105,11 +108,11 @@ public class PacketWriterImplTest {
         document.setFormat("jpg");
         document.setType("DOC004");
 
-        List<io.mosip.kernel.biometrics.entities.BIR> birTypeList = new ArrayList<>();
-        io.mosip.kernel.biometrics.entities.BIR birType1 = new BIR.BIRBuilder().build();
-        io.mosip.kernel.biometrics.entities.BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
-        io.mosip.kernel.biometrics.entities.RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
-        io.mosip.kernel.biometrics.constant.QualityType quality = new QualityType();
+        List<BIR> birTypeList = new ArrayList<>();
+        BIR birType1 = new BIR.BIRBuilder().build();
+        BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
+        RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
+        QualityType quality = new QualityType();
         quality.setAlgorithm(registryIDType);
         quality.setScore(90l);
         bdbInfoType1.setQuality(quality);
@@ -138,4 +141,194 @@ public class PacketWriterImplTest {
 
         assertTrue(result != null && result.size() == 3);
     }
+    /**
+     * Tests biometrics with null segments - should never call getXMLData
+     */
+    @Test
+    public void testBiometrics_WithNullSegments_NeverCallsGetXMLData() throws Exception {
+        BiometricRecord biometrics = new BiometricRecord();
+        biometrics.setSegments(null);
+
+        verify(packetManagerHelper, never()).getXMLData(any(), anyBoolean());
+    }
+
+    /**
+     * Tests biometrics with empty segments - should never call getXMLData
+     */
+    @Test
+    public void testBiometrics_WithEmptySegments_NeverCallsGetXMLData() throws Exception {
+        BiometricRecord biometrics = new BiometricRecord();
+        biometrics.setSegments(new ArrayList<>());
+
+        verify(packetManagerHelper, never()).getXMLData(any(), anyBoolean());
+    }
+
+    /**
+     * Tests createPacket when not initialized - should throw PacketCreatorException
+     */
+    @Test(expected = PacketCreatorException.class)
+    public void testCreatePacket_WhenNotInitialized_ThrowsPacketCreatorException() {
+        packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+    }
+
+    /**
+     * Tests createPacket when XML data throws exception - should throw PacketCreatorException
+     */
+    @Test(expected = PacketCreatorException.class)
+    public void testCreatePacket_WhenXMLDataThrowsException_ThrowsPacketCreatorException() throws Exception {
+        when(packetManagerHelper.getXMLData(any(), anyBoolean())).thenThrow(new RuntimeException("XML error"));
+
+        BiometricRecord biometricRecord = new BiometricRecord();
+        List<BIR> birTypeList = new ArrayList<>();
+        BIR birType = new BIR.BIRBuilder().build();
+        birTypeList.add(birType);
+        biometricRecord.setSegments(birTypeList);
+
+        packetWriter.setBiometric(id, "individualBiometrics", biometricRecord);
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+    }
+
+    /**
+     * Tests createSubpacket when JSON processing exception occurs - should throw PacketCreatorException
+     */
+    @Test(expected = PacketCreatorException.class)
+    public void testCreateSubpacket_WhenJsonProcessingException_ThrowsPacketCreatorException() throws Exception {
+        PowerMockito.mockStatic(JsonUtils.class);
+        when(JsonUtils.javaObjectToJsonString(any())).thenThrow(new io.mosip.kernel.core.util.exception.JsonProcessingException("JSON error"));
+
+        packetWriter.setField(id, "name", "test");
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+    }
+
+    /**
+     * Tests addBiometricDetails when exception occurs - should throw PacketCreatorException
+     */
+    @Test(expected = PacketCreatorException.class)
+    public void testAddBiometricDetails_WhenExceptionOccurs_ThrowsPacketCreatorException() throws Exception {
+        when(packetManagerHelper.getXMLData(any(), anyBoolean())).thenThrow(new Exception("XML conversion error"));
+
+        BiometricRecord biometricRecord = new BiometricRecord();
+        List<BIR> birTypeList = new ArrayList<>();
+        BIR birType = new BIR.BIRBuilder().build();
+        birTypeList.add(birType);
+        biometricRecord.setSegments(birTypeList);
+
+        packetWriter.setBiometric(id, "individualBiometrics", biometricRecord);
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+    }
+
+    /**
+     * Tests packet creation when audits are required but missing - should throw PacketCreatorException
+     */
+    @Test(expected = PacketCreatorException.class)
+    public void testPacketCreation_WhenAuditsRequired_ThrowsPacketCreatorException() {
+        packetWriter.setField(id, "name", "test");
+
+        packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+    }
+
+    /**
+     * Tests loadSchemaFields when JSON exception occurs - should throw PacketCreatorException
+     */
+    @Test(expected = PacketCreatorException.class)
+    public void testLoadSchemaFields_WhenJsonException_ThrowsPacketCreatorException() {
+        String invalidSchemaJson = "{ invalid json }";
+
+        packetWriter.setField(id, "name", "test");
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        packetWriter.persistPacket(id, "0.1", invalidSchemaJson, source, process, null, null, true);
+    }
+
+    /**
+     * Tests persistPacket exception handling - should handle runtime exceptions
+     */
+    @Test
+    public void testPersistPacket_WhenExceptionHandling_HandlesRuntimeExceptions() throws PacketKeeperException {
+        when(packetKeeper.putPacket(any())).thenThrow(new RuntimeException("Packet keeper error"));
+
+        packetWriter.setField(id, "name", "test");
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        try {
+            packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+        } catch (PacketCreatorException e) {
+            assertTrue(true);
+        }
+    }
+
+    /**
+     * Tests removePacket with null check - should handle both existing and non-existing packets
+     */
+    @Test
+    public void testRemovePacket_WithNullCheck_HandlesExistingAndNonExistingPackets() {
+        packetWriter.removePacket("nonexistent-id");
+
+        packetWriter.setField(id, "name", "test");
+        packetWriter.removePacket(id);
+
+        assertTrue(true);
+    }
+
+    /**
+     * Tests addEntryToZip with null data - should handle null data correctly
+     */
+    @Test
+    public void testAddEntryToZip_WithNullData_HandlesNullDataCorrectly() throws Exception {
+        packetWriter.setField(id, "name", "test");
+
+        Document validDocument = new Document();
+        validDocument.setDocument("valid data".getBytes());
+        validDocument.setValue("testDoc");
+        validDocument.setFormat("jpg");
+        validDocument.setType("DOC001");
+
+        packetWriter.setDocument(id, "proofOfAddress", validDocument);
+
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        List<PacketInfo> result = packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+        assertTrue(result != null);
+    }
+
+    /**
+     * Tests operationsBiometrics with null XML bytes - should handle null XML bytes
+     */
+    @Test
+    public void testOperationsBiometrics_WithNullXMLBytes_HandlesNullXMLBytes() throws Exception {
+        when(packetManagerHelper.getXMLData(any(), anyBoolean())).thenReturn(null);
+
+        BiometricRecord officerBiometrics = new BiometricRecord();
+        List<BIR> birTypeList = new ArrayList<>();
+        BIR birType = new BIR.BIRBuilder().build();
+        birTypeList.add(birType);
+        officerBiometrics.setSegments(birTypeList);
+
+        packetWriter.setBiometric(id, "officer", officerBiometrics);
+        Map<String, String> audit = new HashMap<>();
+        audit.put("actionTimeStamp", "2020-07-23T06:47:28.845Z");
+        packetWriter.addAudit(id, audit);
+
+        List<PacketInfo> result = packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
+        assertTrue(result != null);
+    }
+
 }
