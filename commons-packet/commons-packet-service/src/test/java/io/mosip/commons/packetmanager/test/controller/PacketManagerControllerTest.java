@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import io.mosip.commons.packet.dto.*;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -29,11 +30,6 @@ import org.springframework.web.client.RestTemplate;
 
 import com.google.common.collect.Lists;
 
-import io.mosip.commons.packet.dto.Document;
-import io.mosip.commons.packet.dto.TagDeleteResponseDto;
-import io.mosip.commons.packet.dto.TagDto;
-import io.mosip.commons.packet.dto.TagRequestDto;
-import io.mosip.commons.packet.dto.TagResponseDto;
 import io.mosip.commons.packet.dto.packet.PacketDto;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.commons.packet.facade.PacketWriter;
@@ -376,4 +372,155 @@ public class PacketManagerControllerTest {
         this.mockMvc.perform(post("/deleteTag").contentType(MediaType.APPLICATION_JSON).content(JsonUtils.javaObjectToJsonString(request)))
                 .andExpect(status().isOk());
     }
+
+    /**
+     * Tests searchFields endpoint when source is null - should use default source and process
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testSearchFields_WhenSourceIsNull_UsesDefaultSourceAndProcess() throws Exception {
+        FieldDtos fieldDto = new FieldDtos();
+        fieldDto.setFields(Lists.newArrayList("fullname", "email"));
+        fieldDto.setBypassCache(false);
+        fieldDto.setId("id");
+        fieldDto.setProcess("NEW");
+        fieldDto.setSource(null);
+
+        Mockito.when(packetReaderService.getSourceAndProcess(anyString(), anyString(), any(), anyString()))
+                .thenReturn(new SourceProcessDto("source", "process"));
+
+        Mockito.when(packetReader.getField(anyString(), anyString(), anyString(), anyString(), anyBoolean()))
+                .thenReturn("value");
+
+        request.setRequest(fieldDto);
+
+        this.mockMvc.perform(post("/searchFields").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Tests info endpoint when id is null - should handle null id gracefully
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testInfo_WhenIdIsNull_HandlesNullIdGracefully() throws Exception {
+        InfoRequestDto infoDto = new InfoRequestDto();
+        infoDto.setId(null);
+
+        request.setRequest(infoDto);
+
+        this.mockMvc.perform(post("/info").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Tests info endpoint when id is empty - should handle empty id gracefully
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testInfo_WhenIdIsEmpty_HandlesEmptyIdGracefully() throws Exception {
+        InfoRequestDto infoDto = new InfoRequestDto();
+        infoDto.setId("");
+
+        request.setRequest(infoDto);
+
+        this.mockMvc.perform(post("/info").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Tests controller advice when BaseCheckedException occurs - should handle exception gracefully
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testControllerAdvice_WhenBaseCheckedException_HandlesExceptionGracefully() throws Exception {
+        InfoDto infoDto = new InfoDto();
+        infoDto.setBypassCache(false);
+        infoDto.setId("id");
+        infoDto.setProcess("NEW");
+        infoDto.setSource("REGISTRATION");
+
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
+        Mockito.when(packetReader.getMetaInfo(anyString(), anyString(), anyString(), anyBoolean()))
+                .thenThrow(new RuntimeException(new BaseCheckedException("TEST_ERROR", "Test error message")));
+
+        request.setRequest(infoDto);
+
+        this.mockMvc.perform(post("/metaInfo").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Tests controller advice when BaseUncheckedException occurs - should handle exception gracefully
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testControllerAdvice_WhenBaseUncheckedException_HandlesExceptionGracefully() throws Exception {
+        InfoDto infoDto = new InfoDto();
+        infoDto.setBypassCache(false);
+        infoDto.setId("id");
+        infoDto.setProcess("NEW");
+        infoDto.setSource("REGISTRATION");
+
+        Mockito.when(packetReaderService.getSourceAndProcess(any(),any(),any())).thenReturn(new SourceProcessDto("source", "process"));
+        Mockito.when(packetReader.getMetaInfo(anyString(), anyString(), anyString(), anyBoolean()))
+                .thenThrow(new BaseUncheckedException("UNCHECKED_ERROR", "Unchecked error message"));
+
+        request.setRequest(infoDto);
+
+        this.mockMvc.perform(post("/metaInfo").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Tests createPacket endpoint when operation succeeds - should return success response
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testCreatePacket_WhenOperationSucceeds_ReturnsSuccessResponse() throws Exception {
+        PacketDto packetDto = new PacketDto();
+        packetDto.setId("id");
+        packetDto.setProcess("NEW");
+        packetDto.setSource("REGISTRATION");
+
+        List<PacketInfo> packetInfoList = new ArrayList<>();
+        PacketInfo packetInfo = new PacketInfo();
+        packetInfo.setId("id");
+        packetInfoList.add(packetInfo);
+
+        Mockito.when(packetWriter.createPacket(any())).thenReturn(packetInfoList);
+
+        request.setRequest(packetDto);
+
+        this.mockMvc.perform(put("/createPacket").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Tests createPacket endpoint when exception occurs - should handle exception gracefully
+     */
+    @Test
+    @WithUserDetails("reg-processor")
+    public void testCreatePacket_WhenExceptionOccurs_HandlesExceptionGracefully() throws Exception {
+        PacketDto packetDto = new PacketDto();
+        packetDto.setId("id");
+        packetDto.setProcess("NEW");
+        packetDto.setSource("REGISTRATION");
+
+        Mockito.when(packetWriter.createPacket(any()))
+                .thenThrow(new BaseUncheckedException("CREATE_ERROR", "Error creating packet"));
+
+        request.setRequest(packetDto);
+
+        this.mockMvc.perform(put("/createPacket").contentType(MediaType.APPLICATION_JSON)
+                        .content(JsonUtils.javaObjectToJsonString(request)))
+                .andExpect(status().isOk());
+    }
+
 }

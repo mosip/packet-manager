@@ -102,11 +102,11 @@ public class PacketWriterTest {
 
     @Test
     public void testSetBiometrics() {
-        List<io.mosip.kernel.biometrics.entities.BIR> birTypeList = new ArrayList<>();
-        io.mosip.kernel.biometrics.entities.BIR birType1 = new BIR.BIRBuilder().build();
-        io.mosip.kernel.biometrics.entities.BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
-        io.mosip.kernel.biometrics.entities.RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
-        io.mosip.kernel.biometrics.constant.QualityType quality = new QualityType();
+        List<BIR> birTypeList = new ArrayList<>();
+        BIR birType1 = new BIR.BIRBuilder().build();
+        BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
+        RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
+        QualityType quality = new QualityType();
         quality.setAlgorithm(registryIDType);
         quality.setScore(90l);
         bdbInfoType1.setQuality(quality);
