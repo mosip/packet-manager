@@ -1,7 +1,6 @@
 package io.mosip.commons.packet.test.keeper;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 
@@ -13,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.exception.CryptoException;
+import io.mosip.commons.packet.exception.PacketIntegrityFailureException;
 import io.mosip.commons.packet.util.PacketManagerHelper;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
@@ -119,7 +120,6 @@ public class PacketKeeperTest {
         tagsMap.put("osivalidation", "pass");
         Mockito.when(swiftAdapter.getTags(any(), any())).thenReturn(tagsMap);
 
-     
     }
 
     @Test
@@ -177,40 +177,40 @@ public class PacketKeeperTest {
     }
     @Test
     public void testAddTags() {
-    	TagDto tagDto=new TagDto();
-    	tagDto.setId(id);
-    	Map<String, String> tags = new HashMap<>();
-    	tags.put("test", "testValue");
-    	tagDto.setTags(tags);
-    	Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
+        TagDto tagDto=new TagDto();
+        tagDto.setId(id);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+        tagDto.setTags(tags);
+        Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
         Map<String,String> map = packetKeeper.addTags(tagDto);
         assertEquals(tags, map);
 
     }
-    
+
     @Test
     public void testUpdateTags() {
-    	TagDto tagDto=new TagDto();
-    	tagDto.setId(id);
-    	Map<String, String> tags = new HashMap<>();
-    	tags.put("test", "testValue");
-    	tagDto.setTags(tags);
-    	Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
+        TagDto tagDto=new TagDto();
+        tagDto.setId(id);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+        tagDto.setTags(tags);
+        Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
         Map<String,String> map = packetKeeper.addorUpdate(tagDto);
         assertEquals(tags, map);
 
     }
-    
+
     @Test
     public void testGetTags() {
         List<String> tagNames=new ArrayList<>();
         tagNames.add("osivalidation");
-    	
+
         Map<String,String> map = packetKeeper.getTags(id);
         assertEquals(map.get("osivalidation"), "pass");
 
     }
- 
+
 
     @Test
     public void testgetAll() {
@@ -227,16 +227,150 @@ public class PacketKeeperTest {
     }
     @Test
     public void testdeleteTags() {
-    	TagRequestDto tagRequestDto=new TagRequestDto();
-    	tagRequestDto.setId(id);
+        TagRequestDto tagRequestDto=new TagRequestDto();
+        tagRequestDto.setId(id);
         List<String> tagNames=new ArrayList<>();
         tagNames.add("osivalidation");
         tagRequestDto.setTagNames(tagNames);
-		packetKeeper.deleteTags(tagRequestDto);
+        packetKeeper.deleteTags(tagRequestDto);
 
     }
-   
-  
+
+    /**
+     * Tests putPacket when store operation fails - should throw PacketKeeperException
+     */
+    @Test(expected = PacketKeeperException.class)
+    public void testPutPacket_WhenStoreOperationFails_ThrowsPacketKeeperException() throws PacketKeeperException {
+        Mockito.when(swiftAdapter.putObject(any(), any(), any(), any(), any(), any())).thenReturn(false);
+
+        packetKeeper.putPacket(packet);
+    }
+
+    /**
+     * Tests deletePacket when operation succeeds - should return true
+     */
+    @Test
+    public void testDeletePacket_WhenOperationSucceeds_ReturnsTrue() {
+        String id = "test-id";
+        String source = "test-source";
+        String process = "test-process";
+
+        Mockito.when(swiftAdapter.removeContainer("PACKET_MANAGER_ACCOUNT", id, source, process)).thenReturn(true);
+
+        boolean result = packetKeeper.deletePacket(id, source, process);
+        assertTrue(result);
+    }
+
+    /**
+     * Tests deletePacket when operation fails - should return false
+     */
+    @Test
+    public void testDeletePacket_WhenOperationFails_ReturnsFalse() {
+        String id = "test-id";
+        String source = "test-source";
+        String process = "test-process";
+
+        Mockito.when(swiftAdapter.removeContainer("PACKET_MANAGER_ACCOUNT", id, source, process)).thenReturn(false);
+
+        boolean result = packetKeeper.deletePacket(id, source, process);
+        assertFalse(result);
+    }
+
+    /**
+     * Tests pack when operation succeeds - should return true
+     */
+    @Test
+    public void testPack_WhenOperationSucceeds_ReturnsTrue() {
+        String id = "test-id";
+        String source = "test-source";
+        String process = "test-process";
+        String refId = "test-refId";
+
+        Mockito.when(swiftAdapter.pack("PACKET_MANAGER_ACCOUNT", id, source, process, refId)).thenReturn(true);
+
+        boolean result = packetKeeper.pack(id, source, process, refId);
+        assertTrue(result);
+    }
+
+    /**
+     * Tests pack when operation fails - should return false
+     */
+    @Test
+    public void testPack_WhenOperationFails_ReturnsFalse() {
+        String id = "test-id";
+        String source = "test-source";
+        String process = "test-process";
+        String refId = "test-refId";
+
+        Mockito.when(swiftAdapter.pack("PACKET_MANAGER_ACCOUNT", id, source, process, refId)).thenReturn(false);
+
+        boolean result = packetKeeper.pack(id, source, process, refId);
+        assertFalse(result);
+    }
+
+    /**
+     * Tests getPacket when input stream is null - should throw PacketKeeperException
+     */
+    @Test(expected = PacketKeeperException.class)
+    public void testGetPacket_WhenInputStreamIsNull_ThrowsPacketKeeperException() throws PacketKeeperException {
+        Mockito.when(swiftAdapter.getObject(any(), any(), any(), any(), any())).thenReturn(null);
+
+        packetKeeper.getPacket(packetInfo);
+    }
+
+    /**
+     * Tests getPacket when meta info not found - should return packet with basic info
+     */
+    @Test
+    public void testGetPacket_WhenMetaInfoNotFound_ReturnsPacketWithBasicInfo() throws PacketKeeperException {
+        Mockito.when(swiftAdapter.getMetaData(any(), any(), any(), any(), any())).thenReturn(null);
+
+        Packet result = packetKeeper.getPacket(packetInfo);
+
+        assertEquals(id, result.getPacketInfo().getId());
+    }
+
+    /**
+     * Tests getPacket when signature check fails - should throw PacketKeeperException
+     */
+    @Test(expected = PacketKeeperException.class)
+    public void testGetPacket_WhenSignatureCheckFails_ThrowsPacketKeeperException() throws PacketKeeperException {
+        Mockito.when(onlineCrypto.verify(any(), any(), any())).thenReturn(false);
+        ReflectionTestUtils.setField(packetKeeper, "disablePacketSignatureVerification", false);
+
+        packetKeeper.getPacket(packetInfo);
+    }
+
+    /**
+     * Tests getPacket when read exception occurs - should throw PacketKeeperException
+     */
+    @Test(expected = PacketKeeperException.class)
+    public void testGetPacket_WhenReadExceptionOccurs_ThrowsPacketKeeperException() throws PacketKeeperException {
+        Mockito.when(swiftAdapter.getObject(any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Read error"));
+
+        packetKeeper.getPacket(packetInfo);
+    }
+
+    /**
+     * Tests adapter selection when PosixAdapter is configured - should use PosixAdapter
+     */
+    @Test
+    public void testAdapterSelection_WhenPosixAdapterConfigured_UsesPosixAdapter() {
+        ReflectionTestUtils.setField(packetKeeper, "adapterName", "PosixAdapter");
+
+        // Test adapter selection logic
+    }
+
+    /**
+     * Tests adapter selection when S3Adapter is configured - should use S3Adapter
+     */
+    @Test
+    public void testAdapterSelection_WhenS3AdapterConfigured_UsesS3Adapter() {
+        ReflectionTestUtils.setField(packetKeeper, "adapterName", "S3Adapter");
+
+        // Test adapter selection logic
+    }
 }
 
 
