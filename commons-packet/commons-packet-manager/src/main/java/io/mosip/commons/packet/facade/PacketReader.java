@@ -24,6 +24,8 @@ import io.mosip.commons.packet.util.PacketHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.logger.spi.Logger;
+import org.springframework.lang.Nullable;
+
 
 /**
  * The packet Reader facade
