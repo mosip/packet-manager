@@ -24,7 +24,6 @@ import io.mosip.commons.packet.util.PacketHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.logger.spi.Logger;
-import org.springframework.lang.Nullable;
 
 
 /**
@@ -123,13 +122,7 @@ public class PacketReader {
     @PreAuthorize("hasRole('DOCUMENT_READ')")
     @Cacheable(value = "packets",key = "'documents'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2).concat('-').concat(#p3)"
     ,unless = "#result == null")
-    @Nullable
     public Document getDocument(String id, String documentName, String source, String process) {
-        System.out.println("insed getdocument");
-        System.out.println("id "+id);
-        System.out.println("documentName "+documentName);
-        System.out.println("source "+source);
-        System.out.println("process "+process);
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
         return getProvider(source, process).getDocument(id, documentName, source, process);
@@ -175,8 +168,6 @@ public class PacketReader {
      * Get all field names from identity object
      *
      * @param id
-     * @param source
-     * @param process
      * @return
      */
     @PreAuthorize("hasRole('DATA_READ')")
