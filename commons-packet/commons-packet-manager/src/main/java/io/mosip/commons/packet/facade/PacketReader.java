@@ -125,9 +125,10 @@ public class PacketReader {
     public Document getDocument(String id, String documentName, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
+        LOGGER.info("id inside getdocument "+id);
         Document document = getProvider(source, process).getDocument(id, documentName, source, process);
         if(document==null){
-            System.out.println("document is null");
+            LOGGER.info("document is null");
         }
         return document;
     }
