@@ -120,8 +120,8 @@ public class PacketReader {
      * @return Document : document information
      */
     @PreAuthorize("hasRole('DOCUMENT_READ')")
-//    @Cacheable(value = "packets",key = "'documents'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2).concat('-').concat(#p3)"
-//    ,unless = "#result == null")
+    @Cacheable(value = "packets",key = "'documents'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2).concat('-').concat(#p3)"
+    ,unless = "#result == null")
     public Document getDocument(String id, String documentName, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
