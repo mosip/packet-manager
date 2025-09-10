@@ -157,7 +157,7 @@ public class PacketReader {
      * @return Map fields
      */
     @PreAuthorize("hasRole('METADATA_READ')")
-    @Cacheable(value = "packets", key ="{'metaInfo'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false")
+    @Cacheable(value = "packets", key ="{'metaInfo'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false",unless = "#result == null")
     public Map<String, String> getMetaInfo(String id, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getMetaInfo for source : " + source + " process : " + process);
@@ -171,7 +171,7 @@ public class PacketReader {
      * @return
      */
     @PreAuthorize("hasRole('DATA_READ')")
-    @Cacheable(value = "info", key = "#id", condition = "@packetReader.isInfoCacheEnabled()")
+    @Cacheable(value = "info", key = "#id", condition = "@packetReader.isInfoCacheEnabled()" ,unless = "#result == null")
     public List<ObjectDto> info(String id) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "info called");
@@ -215,14 +215,14 @@ public class PacketReader {
      * @param process : the process
      * @return Map fields
      */
-    @Cacheable(value = "packets", key = "{#p0.concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false")
+    @Cacheable(value = "packets", key = "{#p0.concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false" ,unless = "#result == null")
     public List<Map<String, String>> getAudits(String id, String source, String process, boolean bypassCache) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "getAllFields for source : " + source + " process : " + process);
         return getProvider(source, process).getAuditInfo(id, source, process);
     }
 
-    @Cacheable(value = "tags", key = "{#p0}")
+    @Cacheable(value = "tags", key = "{#p0}" ,unless = "#result == null")
     public  Map<String, String>  getTags(String id) {
         Map<String, String> tags = packetKeeper.getTags(id);
         return tags;
