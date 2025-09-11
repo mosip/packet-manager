@@ -121,7 +121,7 @@ public class PacketReaderImpl implements IPacketReader {
 	 * @return
 	 */
 	@Override
-    @Cacheable(value = "packet", key="{'allFields'.concat('-').concat(#p0).concat('-').concat(#p2)}")
+    @Cacheable(value = "packet", key="{'allFields'.concat('-').concat(#p0).concat('-').concat(#p2)}" ,unless = "#result == null")
 	public Map<String, Object> getAll(String id, String source, String process) {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Getting all fields :: enrtry");
