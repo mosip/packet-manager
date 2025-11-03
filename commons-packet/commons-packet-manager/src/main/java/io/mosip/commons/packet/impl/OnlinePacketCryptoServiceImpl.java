@@ -302,6 +302,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
 
 	private String getPublicKey(String refId) throws IOException {
         String machineId = refId.split("_")[1];
+        System.out.println("i am machine id "+machineId);
 		ResponseEntity<String> response = restTemplate.exchange(syncdataGetTpmKeyUrl+machineId, HttpMethod.GET, null,
                 String.class);
 		 LinkedHashMap responseMap = (LinkedHashMap) mapper.readValue(response.getBody(), LinkedHashMap.class).get("response");//.get("signature");
