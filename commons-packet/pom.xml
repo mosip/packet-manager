@@ -249,6 +249,11 @@
                 </activation>
                 <build>
                     <plugins>
+						<plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <version>3.2.3</version>
+        </plugin>
                         <plugin>
                             <groupId>org.sonarsource.scanner.maven</groupId>
                             <artifactId>sonar-maven-plugin</artifactId>
