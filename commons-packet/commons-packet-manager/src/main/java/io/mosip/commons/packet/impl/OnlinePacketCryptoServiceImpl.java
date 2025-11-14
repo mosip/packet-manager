@@ -17,7 +17,7 @@ import io.mosip.kernel.core.exception.ServiceError;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,7 +94,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             request.setMetadata(null);
             DateTimeFormatter format = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
             LocalDateTime localdatetime = LocalDateTime
-                    .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
+                    .parse(DateUtils2.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
             HttpEntity<RequestWrapper<TpmSignRequestDto>> httpEntity = new HttpEntity<>(request);
             ResponseEntity<String> response = restTemplate.exchange(keymanagerCsSignUrl, HttpMethod.POST, httpEntity,
@@ -131,14 +131,14 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             sRandom.nextBytes(aad);
             cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
             cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
-            cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
+            cryptomanagerRequestDto.setTimeStamp(DateUtils2.getUTCCurrentDateTime());
 
             request.setId(DECRYPT_SERVICE_ID);
             request.setMetadata(null);
             request.setRequest(cryptomanagerRequestDto);
             DateTimeFormatter format = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
             LocalDateTime localdatetime = LocalDateTime
-                    .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
+                    .parse(DateUtils2.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
             request.setVersion(APPLICATION_VERSION);
             HttpEntity<RequestWrapper<CryptomanagerRequestDto>> httpEntity = new HttpEntity<>(request);
@@ -203,14 +203,14 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
             cryptomanagerRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(encryptedData));
             cryptomanagerRequestDto.setPrependThumbprint(isPrependThumbprintEnabled);
-            cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
+            cryptomanagerRequestDto.setTimeStamp(DateUtils2.getUTCCurrentDateTime());
 
             request.setId(DECRYPT_SERVICE_ID);
             request.setMetadata(null);
             request.setRequest(cryptomanagerRequestDto);
             DateTimeFormatter format = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
             LocalDateTime localdatetime = LocalDateTime
-                    .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
+                    .parse(DateUtils2.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
             request.setVersion(APPLICATION_VERSION);
             HttpEntity<RequestWrapper<CryptomanagerRequestDto>> httpEntity = new HttpEntity<>(request);
@@ -272,7 +272,7 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
             request.setMetadata(null);
             DateTimeFormatter format = DateTimeFormatter.ofPattern(DATETIME_PATTERN);
             LocalDateTime localdatetime = LocalDateTime
-                    .parse(DateUtils.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
+                    .parse(DateUtils2.getUTCCurrentDateTimeString(DATETIME_PATTERN), format);
             request.setRequesttime(localdatetime);
             HttpEntity<RequestWrapper<TpmSignVerifyRequestDto>> httpEntity = new HttpEntity<>(request);
             ResponseEntity<String> response = restTemplate.exchange(keymanagerCsverifysignUrl, HttpMethod.POST, httpEntity,
