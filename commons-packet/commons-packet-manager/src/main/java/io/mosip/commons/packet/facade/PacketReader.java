@@ -171,7 +171,7 @@ public class PacketReader {
      * @return
      */
     @PreAuthorize("hasRole('DATA_READ')")
-    @Cacheable(value = "info", key = "#id", condition = "@packetReader.isInfoCacheEnabled()" ,unless = "#result == null")
+    @Cacheable(value = "info", key = "#p0", condition = "@packetReader.isInfoCacheEnabled()" ,unless = "#result == null")
     public List<ObjectDto> info(String id) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "info called");
