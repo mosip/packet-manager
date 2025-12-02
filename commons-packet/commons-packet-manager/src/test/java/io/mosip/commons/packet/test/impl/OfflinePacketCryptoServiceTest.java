@@ -113,4 +113,46 @@ public class OfflinePacketCryptoServiceTest {
         boolean result = offlinePacketCryptoService.verify("12345","packet".getBytes(), packetSignature.getBytes());
         assertTrue(result);
     }
+
+    /**
+     * Tests getCryptomanagerService method when service is null - should create and return new instance
+     */
+    @Test
+    public void testGetCryptomanagerService_WhenServiceIsNull_CreatesAndReturnsNewInstance() {
+        ReflectionTestUtils.setField(offlinePacketCryptoService, "cryptomanagerService", null);
+        CryptomanagerServiceImpl result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getCryptomanagerService");
+        assertNotNull(result);
+        assertEquals(cryptomanagerService, result);
+
+        result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getCryptomanagerService");
+        assertEquals(cryptomanagerService, result);
+    }
+
+    /**
+     * Tests getSignatureService method when service is null - should create and return new instance
+     */
+    @Test
+    public void testGetSignatureService_WhenServiceIsNull_CreatesAndReturnsNewInstance() {
+        ReflectionTestUtils.setField(offlinePacketCryptoService, "signatureService", null);
+        SignatureService result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getSignatureService");
+        assertNotNull(result);
+        assertEquals(signatureService, result);
+
+        result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getSignatureService");
+        assertEquals(signatureService, result);
+    }
+
+    /**
+     * Tests getTpmCryptoService method when service is null - should create and return new instance
+     */
+    @Test
+    public void testGetTpmCryptoService_WhenServiceIsNull_CreatesAndReturnsNewInstance() {
+        ReflectionTestUtils.setField(offlinePacketCryptoService, "tpmCryptoService", null);
+        ClientCryptoManagerService result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getTpmCryptoService");
+        assertNotNull(result);
+        assertEquals(clientCryptoManagerService, result);
+
+        result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getTpmCryptoService");
+        assertEquals(clientCryptoManagerService, result);
+    }
 }

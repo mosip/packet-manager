@@ -1,5 +1,6 @@
 package io.mosip.commons.packet.test.keeper;
 
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
@@ -15,6 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.commons.packet.exception.CryptoException;
+import io.mosip.commons.packet.exception.PacketIntegrityFailureException;
 import io.mosip.commons.packet.util.PacketManagerHelper;
 import org.assertj.core.util.Lists;
 import org.junit.Before;
@@ -121,7 +124,6 @@ public class PacketKeeperTest {
         tagsMap.put("osivalidation", "pass");
         Mockito.when(swiftAdapter.getTags(any(), any())).thenReturn(tagsMap);
 
-     
     }
 
     @Test
@@ -178,40 +180,40 @@ public class PacketKeeperTest {
     }
     @Test
     public void testAddTags() {
-    	TagDto tagDto=new TagDto();
-    	tagDto.setId(id);
-    	Map<String, String> tags = new HashMap<>();
-    	tags.put("test", "testValue");
-    	tagDto.setTags(tags);
-    	Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
+        TagDto tagDto=new TagDto();
+        tagDto.setId(id);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+        tagDto.setTags(tags);
+        Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
         Map<String,String> map = packetKeeper.addTags(tagDto);
         assertEquals(tags, map);
 
     }
-    
+
     @Test
     public void testUpdateTags() {
-    	TagDto tagDto=new TagDto();
-    	tagDto.setId(id);
-    	Map<String, String> tags = new HashMap<>();
-    	tags.put("test", "testValue");
-    	tagDto.setTags(tags);
-    	Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
+        TagDto tagDto=new TagDto();
+        tagDto.setId(id);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+        tagDto.setTags(tags);
+        Mockito.when(swiftAdapter.addTags(any(), any(),any())).thenReturn(tags);
         Map<String,String> map = packetKeeper.addorUpdate(tagDto);
         assertEquals(tags, map);
 
     }
-    
+
     @Test
     public void testGetTags() {
         List<String> tagNames=new ArrayList<>();
         tagNames.add("osivalidation");
-    	
+
         Map<String,String> map = packetKeeper.getTags(id);
         assertEquals(map.get("osivalidation"), "pass");
 
     }
- 
+
 
     @Test
     public void testgetAll() {
@@ -228,12 +230,12 @@ public class PacketKeeperTest {
     }
     @Test
     public void testdeleteTags() {
-    	TagRequestDto tagRequestDto=new TagRequestDto();
-    	tagRequestDto.setId(id);
+        TagRequestDto tagRequestDto=new TagRequestDto();
+        tagRequestDto.setId(id);
         List<String> tagNames=new ArrayList<>();
         tagNames.add("osivalidation");
         tagRequestDto.setTagNames(tagNames);
-		packetKeeper.deleteTags(tagRequestDto);
+        packetKeeper.deleteTags(tagRequestDto);
 
     }
 
