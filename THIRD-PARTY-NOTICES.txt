@@ -234,13 +234,6 @@ Homepage: https://github.com/mosip/kattu
 ================================================================================
 
 ================================================================================
-Package: Git Commit ID Plugin
-Version: 3.0.1
-License: Apache License 2.0
-Homepage: https://github.com/git-commit-id/git-commit-id-maven-plugin
-================================================================================
-
-================================================================================
 Package: Apache Maven WAR Plugin
 Version: 3.1.0
 License: Apache License 2.0
