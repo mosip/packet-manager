@@ -6,11 +6,9 @@
 ## Overview
 
 
-The **Packet Manager** is a MOSIP module that creates, reads, validates, and manages encrypted ZIP packets containing identity data across registration and identity lifecycle processes with support for multiple sources, processes, and object store adapters.
+The **Packet Manager** is a MOSIP module that creates, reads, validates, and manages packets across registration and identity lifecycle processes with support for multiple sources, processes and object store adapters.
 
 The registration packet structure is available here: [Packet structure](https://docs.mosip.io/1.2.0/id-lifecycle-management/supporting-components/packet-manager/registration-packet-structure)
-
-For a complete functional overview and capabilities, refer to the **[official documentation](https://docs.mosip.io/1.2.0/modules/packet-manager)**.
 
 ## Features
 
@@ -24,16 +22,13 @@ For a complete functional overview and capabilities, refer to the **[official do
 
 ## Services
 
-The Packet Manager module contains the following services:
+The Packet Manager module contains the following:
 
-1. **[Packet Manager Library](commons-packet/commons-packet-manager)** (`commons-packet-manager`) - Core library utilized by Registration Client, Resident Service, and Registration Processor for direct packet operations.
-2. **[Packet Service](commons-packet/commons-packet-service)** (`commons-packet-service`) - A RESTful service providing APIs for managing ID packets in the object store.
+1. **[Packet Manager Library](commons-packet/commons-packet-manager)** (`commons-packet-manager`) - Core library utilized by Registration Client and Resident Service for packet operations.
+2. **[Packet Service](commons-packet/commons-packet-service)** (`commons-packet-service`) - A RESTful service providing APIs for managing packets in the object store.
 
 ## Database
-
-Before starting the local setup, ensure the database is initialized.
-
-All database SQL scripts are available in the [db_scripts](db_scripts) directory (if applicable, otherwise refer to standard MOSIP DB setup).
+NA (Not applicable)
 
 ## Local Setup
 
@@ -49,7 +44,6 @@ Before you begin, ensure you have the following installed:
 - **JDK**: 21
 - **Maven**: 3.9.6
 - **Docker**: Latest stable version
-- **PostgreSQL**: 10.2 or higher
 - **Keycloak**: [Check here](https://github.com/mosip/keycloak)
 
 ### Runtime Dependencies
@@ -143,15 +137,6 @@ Access the services at `http://localhost:<port>` using the port mappings listed 
 ### Kubernetes
 
 To deploy Packet Manager on a Kubernetes cluster, refer to the [Sandbox Deployment Guide](https://docs.mosip.io/1.2.0/deploymentnew/v3-installation).
-
-## Usage
-
-### Packet Handling
-
-The service exposes APIs to:
-- **Upload Packets**: Store encrypted identity packets.
-- **Download Packets**: Retrieve packets for processing.
-- **Validate Packets**: Verify packet integrity and schema compliance.
 
 ## Documentation
 
