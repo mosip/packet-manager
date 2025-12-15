@@ -145,7 +145,7 @@ Homepage: https://maven.apache.org/plugins
 ================================================================================
 Package: H2 Database
 Version: Not specified
-License: MPL-2.0 OR EPL 1.0 (Inferred)
+License: MPL-2.0 
 Homepage: https://www.h2database.com
 ================================================================================
 
