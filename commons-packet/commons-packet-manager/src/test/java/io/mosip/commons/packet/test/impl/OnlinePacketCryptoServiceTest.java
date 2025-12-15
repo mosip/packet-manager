@@ -78,7 +78,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = SignatureException.class)
-    public void sign_whenResponseEmpty_throws() throws Exception {
+    public void signWhenResponseEmptyThrows() throws Exception {
         Map<String, Object> wrapper = new LinkedHashMap<>();
         // ensure inner response is a LinkedHashMap so casting in production code succeeds
         wrapper.put("response", new LinkedHashMap<>());
@@ -91,7 +91,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = SignatureException.class)
-    public void sign_whenMapperParsesInvalidJson_throwsSignatureException() throws Exception {
+    public void signWhenMapperParsesInvalidJsonThrowsSignatureException() throws Exception {
         // Return invalid JSON and swap real ObjectMapper to cause IOException in readValue
         ResponseEntity<String> resp = new ResponseEntity<>("{ invalid json", HttpStatus.OK);
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class))).thenReturn(resp);
@@ -107,7 +107,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test
-    public void encrypt_success_returnsMergedBytes() throws Exception {
+    public void encryptSuccessReturnsMergedBytes() throws Exception {
         byte[] packet = (ID + "_packet").getBytes();
         CryptomanagerResponseDto dto = new CryptomanagerResponseDto();
         dto.setErrors(null);
@@ -125,7 +125,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = PacketDecryptionFailureException.class)
-    public void encrypt_whenCryptomanagerReturnsError_throws() throws Exception {
+    public void encryptWhenCryptomanagerReturnsErrorThrows() throws Exception {
         byte[] packet = "p".getBytes();
         String ref = "ref";
         CryptomanagerResponseDto dto = new CryptomanagerResponseDto();
@@ -143,7 +143,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = PacketDecryptionFailureException.class)
-    public void encrypt_whenHttpClientError_throws() throws Exception {
+    public void encryptWhenHttpClientErrorThrows() throws Exception {
         byte[] packet = "p".getBytes();
         String ref = "ref";
         when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
@@ -153,7 +153,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test
-    public void decrypt_success_returnsBytes() throws Exception {
+    public void decryptSuccessReturnsBytes() throws Exception {
         // craft a packet long enough to have nonce/aad/encrypted
         byte[] packet = new byte[128];
         CryptomanagerResponseDto dto = new CryptomanagerResponseDto();
@@ -170,7 +170,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = PacketDecryptionFailureException.class)
-    public void decrypt_whenCryptomanagerReturnsError_throws() throws Exception {
+    public void decryptWhenCryptomanagerReturnsErrorThrows() throws Exception {
         byte[] packet = new byte[128];
         CryptomanagerResponseDto dto = new CryptomanagerResponseDto();
         List<ServiceError> errors = new ArrayList<>();
@@ -187,7 +187,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = PacketDecryptionFailureException.class)
-    public void decrypt_whenDateTimeParseFails_throws() throws Exception {
+    public void decryptWhenDateTimeParseFailsThrows() throws Exception {
         // cause DateTimeParseException by setting invalid pattern
         ReflectionTestUtils.setField(service, "DATETIME_PATTERN", "invalid-pattern");
         byte[] packet = new byte[128];
@@ -195,7 +195,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test
-    public void verify_success_and_falseHandled() throws Exception {
+    public void verifySuccessAndFalseHandled() throws Exception {
         // getPublicKey
         Map<String, Object> pkResp = new LinkedHashMap<>();
         Map<String, Object> pkBody = new LinkedHashMap<>();
@@ -230,7 +230,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = SignatureException.class)
-    public void verify_whenGetPublicKeyFails_throws() throws Exception {
+    public void verifyWhenGetPublicKeyFailsThrows() throws Exception {
         ResponseEntity<String> resp = new ResponseEntity<>("hello", HttpStatus.OK);
         when(restTemplate.exchange(contains("localhost"), eq(HttpMethod.GET), isNull(), eq(String.class))).thenReturn(resp);
         when(mapper.readValue(anyString(), eq(LinkedHashMap.class))).thenReturn(new LinkedHashMap<>());
@@ -239,7 +239,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = SignatureException.class)
-    public void verify_whenRestClientException_throws() throws Exception {
+    public void verifyWhenRestClientExceptionThrows() throws Exception {
         // Provide a valid refId with machineId to satisfy getPublicKey split()
         String refId = "10077_10077";
 
@@ -261,7 +261,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = ApiNotAccessibleException.class)
-    public void decrypt_whenRestThrowsWrappedHttpClient_throwsApiNotAccessible() throws Exception {
+    public void decryptWhenRestThrowsWrappedHttpClientThrowsApiNotAccessible() throws Exception {
         byte[] packet = new byte[128];
         RuntimeException wrapper = new RuntimeException(new HttpClientErrorException(HttpStatus.BAD_REQUEST));
         when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), eq(String.class))).thenThrow(wrapper);
@@ -269,7 +269,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test(expected = ApiNotAccessibleException.class)
-    public void decrypt_whenRestThrowsWrappedHttpServer_throwsApiNotAccessible() throws Exception {
+    public void decryptWhenRestThrowsWrappedHttpServerThrowsApiNotAccessible() throws Exception {
         byte[] packet = new byte[128];
         RuntimeException wrapper = new RuntimeException(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR));
         when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(HttpEntity.class), eq(String.class))).thenThrow(wrapper);

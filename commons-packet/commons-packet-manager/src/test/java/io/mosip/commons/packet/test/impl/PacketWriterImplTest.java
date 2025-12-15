@@ -145,7 +145,7 @@ public class PacketWriterImplTest {
      * Tests biometrics with null segments - should never call getXMLData
      */
     @Test
-    public void testBiometrics_WithNullSegments_NeverCallsGetXMLData() throws Exception {
+    public void testBiometricsWithNullSegmentsNeverCallsGetXMLData() throws Exception {
         BiometricRecord biometrics = new BiometricRecord();
         biometrics.setSegments(null);
 
@@ -156,7 +156,7 @@ public class PacketWriterImplTest {
      * Tests biometrics with empty segments - should never call getXMLData
      */
     @Test
-    public void testBiometrics_WithEmptySegments_NeverCallsGetXMLData() throws Exception {
+    public void testBiometricsWithEmptySegmentsNeverCallsGetXMLData() throws Exception {
         BiometricRecord biometrics = new BiometricRecord();
         biometrics.setSegments(new ArrayList<>());
 
@@ -167,7 +167,7 @@ public class PacketWriterImplTest {
      * Tests createPacket when not initialized - should throw PacketCreatorException
      */
     @Test(expected = PacketCreatorException.class)
-    public void testCreatePacket_WhenNotInitialized_ThrowsPacketCreatorException() {
+    public void testCreatePacketWhenNotInitializedThrowsPacketCreatorException() {
         packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
     }
 
@@ -175,7 +175,7 @@ public class PacketWriterImplTest {
      * Tests createPacket when XML data throws exception - should throw PacketCreatorException
      */
     @Test(expected = PacketCreatorException.class)
-    public void testCreatePacket_WhenXMLDataThrowsException_ThrowsPacketCreatorException() throws Exception {
+    public void testCreatePacketWhenXMLDataThrowsExceptionThrowsPacketCreatorException() throws Exception {
         when(packetManagerHelper.getXMLData(any(), anyBoolean())).thenThrow(new RuntimeException("XML error"));
 
         BiometricRecord biometricRecord = new BiometricRecord();
@@ -196,7 +196,7 @@ public class PacketWriterImplTest {
      * Tests createSubpacket when JSON processing exception occurs - should throw PacketCreatorException
      */
     @Test(expected = PacketCreatorException.class)
-    public void testCreateSubpacket_WhenJsonProcessingException_ThrowsPacketCreatorException() throws Exception {
+    public void testCreateSubpacketWhenJsonProcessingExceptionThrowsPacketCreatorException() throws Exception {
         PowerMockito.mockStatic(JsonUtils.class);
         when(JsonUtils.javaObjectToJsonString(any())).thenThrow(new io.mosip.kernel.core.util.exception.JsonProcessingException("JSON error"));
 
@@ -212,7 +212,7 @@ public class PacketWriterImplTest {
      * Tests addBiometricDetails when exception occurs - should throw PacketCreatorException
      */
     @Test(expected = PacketCreatorException.class)
-    public void testAddBiometricDetails_WhenExceptionOccurs_ThrowsPacketCreatorException() throws Exception {
+    public void testAddBiometricDetailsWhenExceptionOccursThrowsPacketCreatorException() throws Exception {
         when(packetManagerHelper.getXMLData(any(), anyBoolean())).thenThrow(new Exception("XML conversion error"));
 
         BiometricRecord biometricRecord = new BiometricRecord();
@@ -233,7 +233,7 @@ public class PacketWriterImplTest {
      * Tests packet creation when audits are required but missing - should throw PacketCreatorException
      */
     @Test(expected = PacketCreatorException.class)
-    public void testPacketCreation_WhenAuditsRequired_ThrowsPacketCreatorException() {
+    public void testPacketCreationWhenAuditsRequiredThrowsPacketCreatorException() {
         packetWriter.setField(id, "name", "test");
 
         packetWriter.persistPacket(id, "0.1", schemaJson, source, process, null, null, true);
@@ -243,7 +243,7 @@ public class PacketWriterImplTest {
      * Tests loadSchemaFields when JSON exception occurs - should throw PacketCreatorException
      */
     @Test(expected = PacketCreatorException.class)
-    public void testLoadSchemaFields_WhenJsonException_ThrowsPacketCreatorException() {
+    public void testLoadSchemaFieldsWhenJsonExceptionThrowsPacketCreatorException() {
         String invalidSchemaJson = "{ invalid json }";
 
         packetWriter.setField(id, "name", "test");
@@ -258,7 +258,7 @@ public class PacketWriterImplTest {
      * Tests persistPacket exception handling - should handle runtime exceptions
      */
     @Test
-    public void testPersistPacket_WhenExceptionHandling_HandlesRuntimeExceptions() throws PacketKeeperException {
+    public void testPersistPacketWhenExceptionHandlingHandlesRuntimeExceptions() throws PacketKeeperException {
         when(packetKeeper.putPacket(any())).thenThrow(new RuntimeException("Packet keeper error"));
 
         packetWriter.setField(id, "name", "test");
@@ -277,7 +277,7 @@ public class PacketWriterImplTest {
      * Tests removePacket with null check - should handle both existing and non-existing packets
      */
     @Test
-    public void testRemovePacket_WithNullCheck_HandlesExistingAndNonExistingPackets() {
+    public void testRemovePacketWithNullCheckHandlesExistingAndNonExistingPackets() {
         packetWriter.removePacket("nonexistent-id");
 
         packetWriter.setField(id, "name", "test");
@@ -290,7 +290,7 @@ public class PacketWriterImplTest {
      * Tests addEntryToZip with null data - should handle null data correctly
      */
     @Test
-    public void testAddEntryToZip_WithNullData_HandlesNullDataCorrectly() throws Exception {
+    public void testAddEntryToZipWithNullDataHandlesNullDataCorrectly() throws Exception {
         packetWriter.setField(id, "name", "test");
 
         Document validDocument = new Document();
@@ -313,7 +313,7 @@ public class PacketWriterImplTest {
      * Tests operationsBiometrics with null XML bytes - should handle null XML bytes
      */
     @Test
-    public void testOperationsBiometrics_WithNullXMLBytes_HandlesNullXMLBytes() throws Exception {
+    public void testOperationsBiometricsWithNullXMLBytesHandlesNullXMLBytes() throws Exception {
         when(packetManagerHelper.getXMLData(any(), anyBoolean())).thenReturn(null);
 
         BiometricRecord officerBiometrics = new BiometricRecord();
