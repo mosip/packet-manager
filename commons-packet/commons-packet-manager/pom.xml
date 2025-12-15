@@ -286,7 +286,7 @@
                          <exclude>**/masterdata/utils/**</exclude>
                          <exclude>**/spi/**</exclude>
                          <exclude>**/core/http/**</exclude>
-                         <exclude>**/LocationServiceImpl.java</exclude>
+                         <exclude>**/LocationServiceImpl.class</exclude>
                          <exclude>**/RegistrationCenterMachineServiceImpl.class</exclude>
                          <exclude>**/RegistrationCenterServiceImpl.class</exclude>
                          <exclude>**/pridgenerator/**</exclude>
