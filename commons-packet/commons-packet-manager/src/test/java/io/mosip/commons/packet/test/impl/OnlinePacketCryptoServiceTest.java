@@ -119,9 +119,8 @@ public class OnlinePacketCryptoServiceTest {
         when(mapper.readValue(anyString(), eq(CryptomanagerResponseDto.class))).thenReturn(dto);
 
         byte[] out = service.encrypt(ID, packet);
-        // result may be null if merge fails; assert no exception and allow null or non-null
-        // but prefer non-exception behavior
-        assertTrue(true);
+        // If merge succeeds, out should contain encrypted data; verify it's not null
+        assertNotNull("Encrypted output should not be null", out);
     }
 
     @Test(expected = PacketDecryptionFailureException.class)
@@ -166,7 +165,7 @@ public class OnlinePacketCryptoServiceTest {
         when(mapper.readValue(anyString(), eq(CryptomanagerResponseDto.class))).thenReturn(dto);
 
         byte[] out = service.decrypt("ref", packet);
-        assertTrue(true);
+        assertNotNull("Decrypted output should not be null", out);
     }
 
     @Test(expected = PacketDecryptionFailureException.class)

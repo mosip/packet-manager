@@ -82,6 +82,7 @@ public class OfflinePacketCryptoServiceTest {
         Mockito.when(clientCryptoManagerService.csSign(any())).thenReturn(signatureResponse);
         try {
             offlinePacketCryptoService.sign("packet".getBytes());
+            org.junit.Assert.fail("Expected NullPointerException or IllegalArgumentException");
         } catch (Exception e) {
             // Accept either NPE or IllegalArgumentException depending on CryptoUtil behaviour
             // (catch kept intentionally broad for test tolerance)
