@@ -59,8 +59,8 @@ Ensure the following artifacts are available in the classpath or loader path:
 - Packet Manager uses configuration files from the **[mosip-config repository](https://github.com/mosip/mosip-config/tree/master)**.
 - Refer to the tagged version corresponding to your release.
 - Key configuration files:
-  - [packet-manager-default.properties](https://github.com/mosip/mosip-config/blob/master/packet-manager-default.properties)
-  - [application-default.properties](https://github.com/mosip/mosip-config/blob/master/application-default.properties)
+    - [packet-manager-default.properties](https://github.com/mosip/mosip-config/blob/master/packet-manager-default.properties)
+    - [application-default.properties](https://github.com/mosip/mosip-config/blob/master/application-default.properties)
 
 ## Installation
 
@@ -140,7 +140,7 @@ To deploy Packet Manager on a Kubernetes cluster, refer to the [Sandbox Deployme
 
 ## Documentation
 
-For more detailed documents, check the [docs](docs) directory.
+For additional details, refer to the documents listed below:
 
 ### API Documentation
 
