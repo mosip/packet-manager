@@ -1000,4 +1000,46 @@ public class PacketReaderImplTest {
 
         iPacketReader.getAuditInfo("id", "source", "process");
     }
+    @Test
+    public void getAll_NumberValue_ShouldPutAsIs() throws Exception {
+        // GIVEN
+        String json = "{ \"identity\": { \"age\": 25 } }";
+        Map<String, Object> parsed = new LinkedHashMap<>();
+        Map<String, Object> idMap = new LinkedHashMap<>();
+        idMap.put("age", 25);           // Number => should hit: finalMap.putIfAbsent(key, value)
+        parsed.put("identity", idMap);
+
+        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(parsed);
+
+        // WHEN
+        Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
+
+        // THEN
+        assertEquals(25, result.get("age"));
+    }
+    @Test
+    public void getAll_ObjectValue_ShouldConvertToJsonString() throws Exception {
+        // GIVEN
+        JSONObject obj = new JSONObject();
+        obj.put("field", "value");
+
+        Map<String, Object> idMap = new LinkedHashMap<>();
+        idMap.put("complex", obj);    // Not Number, not String → triggers else block
+
+        Map<String, Object> parsed = new LinkedHashMap<>();
+        parsed.put("identity", idMap);
+
+        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(parsed);
+
+        PowerMockito.mockStatic(JsonUtils.class);
+        when(JsonUtils.javaObjectToJsonString(any())).thenReturn("{\"field\":\"value\"}");
+
+        // WHEN
+        Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
+
+        // THEN
+        assertEquals("{\"field\":\"value\"}", result.get("complex"));
+    }
+
+
 }
