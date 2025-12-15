@@ -140,7 +140,7 @@ To deploy Packet Manager on a Kubernetes cluster, refer to the [Sandbox Deployme
 
 ## Documentation
 
-For more detailed documents, check the [docs](docs) directory.
+For additional details, refer to the documents listed below:
 
 ### API Documentation
 
