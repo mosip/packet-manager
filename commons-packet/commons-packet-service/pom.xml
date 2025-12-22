@@ -25,7 +25,8 @@
 		<maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
         <central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
 		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
-
+        <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version>
+     
         <!-- spring -->
         <kernel.keygenerator.bouncycastle.version>1.2.1-SNAPSHOT</kernel.keygenerator.bouncycastle.version>
         <swagger.version>2.10.0</swagger.version>
@@ -257,27 +258,52 @@
 				<!-- <format>json</format> -->
 			</configuration>
 		</plugin>
-
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.plugin.version}</version>
+        <configuration>
+            <skipTests>false</skipTests>
+            <skip>false</skip>
+            <argLine>
+                ${jacocoArgLine}
+                --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED
+                --add-opens java.base/java.lang=ALL-UNNAMED
+                --add-opens java.base/java.util=ALL-UNNAMED
+                --add-opens java.base/java.io=ALL-UNNAMED
+                --enable-preview
+            </argLine>
+        </configuration>
+    </plugin>
     <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>${jacoco.maven.plugin.version}</version>
         <executions>
+
+            <!-- FIXED: attach jacoco to surefire -->
             <execution>
+                <id>prepare-agent</id>
                 <goals>
                     <goal>prepare-agent</goal>
                 </goals>
+                <configuration>
+                    <propertyName>jacocoArgLine</propertyName>
+                </configuration>
             </execution>
+
+            <!-- FIXED: generate report AFTER test phase -->
             <execution>
                 <id>report</id>
-                <phase>prepare-package</phase>
+                <phase>verify</phase>
                 <goals>
                     <goal>report</goal>
                 </goals>
             </execution>
+
         </executions>
     </plugin>
-          </plugins>
+</plugins>
         </build>
 		<scm>
                 <connection>scm:git:git://github.com/mosip/packet-manager.git</connection>
