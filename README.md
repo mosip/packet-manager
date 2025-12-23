@@ -1,7 +1,7 @@
 # Packet Manager
 
-[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml/badge.svg?branch=release-1.3.x)](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.3.x&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/summary/overall?id=mosip_packet-manager&branch=release-1.3.x)
+[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml/badge.svg?branch=master)](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=master)](https://sonarcloud.io/summary/overall?id=mosip_packet-manager&branch=master)
 
 ## Overview
 
