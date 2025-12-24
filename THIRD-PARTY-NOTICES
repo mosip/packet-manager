@@ -1,0 +1,307 @@
+THIRD-PARTY-NOTICES
+
+This project includes third-party packages that are distributed under various open-source licenses. Below is a list of packages and their associated licenses.
+
+================================================================================
+Package: MOSIP Kernel – CBEFF Util API
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred from project’s official repository)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel – BOM
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel – Core
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: Spring Boot Starter Security
+Version: Not specified
+License: Apache License 2.0 (Inferred)
+Homepage: https://spring.io/projects/spring-boot
+================================================================================
+
+================================================================================
+Package: Apache Commons Collections 4
+Version: Not specified
+License: Apache License 2.0 (Inferred)
+Homepage: https://commons.apache.org/proper/commons-collections/
+================================================================================
+
+================================================================================
+Package: Spring Boot Starter Cache
+Version: Not specified
+License: Apache License 2.0 (Inferred)
+Homepage: https://spring.io/projects/spring-boot
+================================================================================
+
+================================================================================
+Package: PowerMock – JUnit4 Module
+Version: Not specified
+License: Apache License 2.0 (Inferred)
+Homepage: https://github.com/powermock/powermock
+================================================================================
+
+================================================================================
+Package: Hazelcast Kubernetes
+Version: 1.3.1
+License: Apache License 2.0
+Homepage: https://github.com/hazelcast/hazelcast-kubernetes
+================================================================================
+
+================================================================================
+Package: Jakarta XML Bind API (JAXB)
+Version: Not specified
+License: Eclipse Distribution License 1.0 (BSD-3-Clause)
+Homepage: https://github.com/eclipse-ee4j/jaxb-api
+================================================================================
+
+================================================================================
+Package: JUnit Vintage Engine
+Version: Not specified
+License: Eclipse Public License 2.0
+Homepage: https://junit.org
+================================================================================
+
+================================================================================
+Package: JSON-Simple
+Version: Not specified
+License: Apache License 2.0 (Inferred)
+Homepage: https://github.com/fangyidong/json-simple
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel – Logback Logger
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: MOSIP Commons – Khazana
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel – Key Manager Service
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: MOSIP Biometrics API
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: JUnit
+Version: Not specified
+License: EPL 1.0 (Inferred)
+Homepage: https://junit.org
+================================================================================
+
+================================================================================
+Package: PowerMock – Mockito2 API
+Version: Not specified
+License: Apache License 2.0 (Inferred)
+Homepage: https://github.com/powermock/powermock
+================================================================================
+
+================================================================================
+Package: Mockito Core
+Version: 3.11.2
+License: MIT License
+Homepage: https://github.com/mockito/mockito
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel – ID Object Validator
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: Apache Maven Compiler Plugin
+Version: Not specified
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: H2 Database
+Version: Not specified
+License: MPL-2.0 
+Homepage: https://www.h2database.com
+================================================================================
+
+================================================================================
+Package: Spring Boot Starter WebFlux
+Version: Not specified
+License: Apache License 2.0
+Homepage: https://spring.io/projects/spring-boot
+================================================================================
+
+================================================================================
+Package: Springfox Swagger2
+Version: 2.9.2
+License: Apache License 2.0
+Homepage: https://github.com/springfox/springfox
+================================================================================
+
+================================================================================
+Package: SpringDoc OpenAPI Starter WebMVC UI
+Version: 2.5.0
+License: Apache License 2.0
+Homepage: https://springdoc.org
+================================================================================
+
+================================================================================
+Package: MOSIP Commons – Packet Manager
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: MOSIP Kernel – Auth Adapter
+Version: 1.3.0-SNAPSHOT
+License: MPL-2.0 (Inferred)
+Homepage: https://mosip.io
+================================================================================
+
+================================================================================
+Package: Spring Boot Maven Plugin
+Version: Not specified
+License: Apache License 2.0
+Homepage: https://spring.io/projects/spring-boot
+================================================================================
+
+================================================================================
+Package: Spring Boot Starter Data JPA
+Version: Not specified
+License: Apache License 2.0
+Homepage: https://spring.io/projects/spring-data-jpa
+================================================================================
+
+================================================================================
+Package: Spring Security Test
+Version: Not specified
+License: Apache License 2.0
+Homepage: https://spring.io/projects/spring-security
+================================================================================
+
+================================================================================
+Package: Springfox Swagger UI
+Version: 2.9.2
+License: Apache License 2.0
+Homepage: https://github.com/springfox/springfox
+================================================================================
+
+================================================================================
+Package: SpringDoc OpenAPI Maven Plugin
+Version: Not specified
+License: Apache License 2.0
+Homepage: https://springdoc.org
+================================================================================
+
+================================================================================
+Package: GitHub Actions Workflow – chart-lint-publish
+Version: master
+License: MIT License (Inferred)
+Homepage: https://github.com/mosip/kattu
+================================================================================
+
+================================================================================
+Package: GitHub Actions Workflow – clear-artifacts
+Version: master
+License: MIT License (Inferred)
+Homepage: https://github.com/mosip/kattu
+================================================================================
+
+================================================================================
+Package: Apache Maven WAR Plugin
+Version: 3.1.0
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: Apache Maven Javadoc Plugin
+Version: 3.2.0
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: Apache Maven Compiler Plugin
+Version: 3.8.0
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: Apache Maven GPG Plugin
+Version: 1.5
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: Apache Maven JAR Plugin
+Version: 3.0.2
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: Apache Maven Surefire Plugin
+Version: 2.22.0
+License: Apache License 2.0
+Homepage: https://maven.apache.org/plugins
+================================================================================
+
+================================================================================
+Package: GitHub Actions Workflow – maven-build
+Version: master-java21
+License: MIT License (Inferred)
+Homepage: https://github.com/mosip/kattu
+================================================================================
+
+================================================================================
+Package: GitHub Actions Workflow – maven-publish-to-nexus
+Version: master-java21
+License: MIT License (Inferred)
+Homepage: https://github.com/mosip/kattu
+================================================================================
+
+================================================================================
+Package: GitHub Actions Workflow – docker-build
+Version: master-java21
+License: MIT License (Inferred)
+Homepage: https://github.com/mosip/kattu
+================================================================================
+
+================================================================================
+Package: GitHub Actions Workflow – maven-sonar-analysis
+Version: master-java21
+License: MIT License (Inferred)
+Homepage: https://github.com/mosip/kattu
+================================================================================
+
+Full license texts and additional details for each of the above packages are available in the license/ directory of this repository. Please refer to those files or the original source of each package for complete legal terms and conditions.
+Footer
