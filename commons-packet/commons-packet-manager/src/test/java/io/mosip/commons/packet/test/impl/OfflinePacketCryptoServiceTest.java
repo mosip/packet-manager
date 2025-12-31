@@ -23,11 +23,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
@@ -76,18 +72,16 @@ public class OfflinePacketCryptoServiceTest {
     }
 
     @Test
-    public void signWhenCsSignReturnsNullDataThrowsException() {
+    public void signWhenCsSignReturnsNullDataReturnsNull() {
         TpmSignResponseDto signatureResponse = new TpmSignResponseDto();
         signatureResponse.setData(null);
-        Mockito.when(clientCryptoManagerService.csSign(any())).thenReturn(signatureResponse);
-        try {
-            offlinePacketCryptoService.sign("packet".getBytes());
-            org.junit.Assert.fail("Expected NullPointerException or IllegalArgumentException");
-        } catch (Exception e) {
-            // Accept either NPE or IllegalArgumentException depending on CryptoUtil behaviour
-            // (catch kept intentionally broad for test tolerance)
-            assertTrue(e instanceof NullPointerException || e instanceof IllegalArgumentException);
-        }
+
+        Mockito.when(clientCryptoManagerService.csSign(any()))
+                .thenReturn(signatureResponse);
+
+        byte[] result = offlinePacketCryptoService.sign("packet".getBytes());
+
+        assertNull(result);
     }
 
     @Test
