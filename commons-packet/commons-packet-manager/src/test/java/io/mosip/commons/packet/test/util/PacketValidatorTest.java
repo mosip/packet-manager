@@ -306,13 +306,14 @@ public class PacketValidatorTest {
         fva.setValue(Arrays.asList(file1));
         List<FieldValueArray> hashSeq = Arrays.asList(fva);
 
-        // checksumMap used to create the digest (separate map so streams are fresh)
-        Map<String, InputStream> checksumMapForHash = new HashMap<>();
-        checksumMapForHash.put(file1, new ByteArrayInputStream(content1));
-
-        // Compute dataHash and operationsHash using private generateHash
-        byte[] dataHash = (byte[]) ReflectionTestUtils.invokeMethod(packetValidator, "generateHash", hashSeq, checksumMapForHash);
-        byte[] opsHash = (byte[]) ReflectionTestUtils.invokeMethod(packetValidator, "generateHash", hashSeq, checksumMapForHash);
+        // Compute dataHash using fresh stream
+        Map<String, InputStream> checksumMapForDataHash = new HashMap<>();
+        checksumMapForDataHash.put(file1, new ByteArrayInputStream(content1));
+        byte[] dataHash = (byte[]) ReflectionTestUtils.invokeMethod(packetValidator, "generateHash", hashSeq, checksumMapForDataHash);
+        // Compute opsHash using fresh stream
+        Map<String, InputStream> checksumMapForOpsHash = new HashMap<>();
+        checksumMapForOpsHash.put(file1, new ByteArrayInputStream(content1));
+        byte[] opsHash = (byte[]) ReflectionTestUtils.invokeMethod(packetValidator, "generateHash", hashSeq, checksumMapForOpsHash);
 
         // Create zip with file and PACKET_DATA_HASH and PACKET_OPERATIONS_HASH
         Map<String, byte[]> entries = new HashMap<>();
@@ -332,8 +333,13 @@ public class PacketValidatorTest {
         List hashseq2List = Arrays.asList(new HashMap<String, Object>() {{ put("value", Arrays.asList(file1)); }});
 
         // Create a fresh checksumMap for validation (streams must be unread)
-        Map<String, InputStream> checksumMapForValidation = new HashMap<>();
-        checksumMapForValidation.put(file1, new ByteArrayInputStream(content1));
+        Map<String, byte[]> rawContent = Map.of(file1, content1);
+        Map<String, InputStream> checksumMapForValidation = new HashMap<>() {
+            @Override
+            public InputStream get(Object key) {
+                return new ByteArrayInputStream(rawContent.get(key));
+            }
+        };
 
         // Now call checksumValidation
         boolean result = (boolean) ReflectionTestUtils.invokeMethod(packetValidator, "checksumValidation", hashseq1List, hashseq2List, checksumMapForValidation, packet);

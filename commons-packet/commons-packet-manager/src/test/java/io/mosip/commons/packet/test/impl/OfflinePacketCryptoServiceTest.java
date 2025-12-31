@@ -43,13 +43,13 @@ public class OfflinePacketCryptoServiceTest {
     private ClientCryptoManagerService clientCryptoManagerService;
 
     @Mock
-    private SignatureServiceImpl signature_service;
+    private SignatureServiceImpl signatureService;
 
     @Before
     public void setup() {
         Mockito.when(applicationContext.getBean(CryptomanagerServiceImpl.class)).thenReturn(cryptomanagerService);
         Mockito.when(applicationContext.getBean(ClientCryptoManagerService.class)).thenReturn(clientCryptoManagerService);
-        Mockito.when(applicationContext.getBean(SignatureService.class)).thenReturn(signature_service);
+        Mockito.when(applicationContext.getBean(SignatureService.class)).thenReturn(signatureService);
         ReflectionTestUtils.setField(offlinePacketCryptoService, "DATETIME_PATTERN", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
     }
 
@@ -205,10 +205,10 @@ public class OfflinePacketCryptoServiceTest {
         ReflectionTestUtils.setField(offlinePacketCryptoService, "signatureService", null);
         SignatureService result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getSignatureService");
         assertNotNull(result);
-        assertEquals(signature_service, result);
+        assertEquals(signatureService, result);
 
         result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getSignatureService");
-        assertEquals(signature_service, result);
+        assertEquals(signatureService, result);
     }
 
     /**

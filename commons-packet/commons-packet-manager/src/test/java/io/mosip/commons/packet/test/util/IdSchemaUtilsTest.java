@@ -265,8 +265,6 @@ class IdSchemaUtilsTest {
         setPrivateField(utils, "defaultSource", "REGISTRATION_CLIENT");
         setPrivateField(utils, "defaultFieldCategory", "pvt,none");
         setPrivateField(utils, "idschemaUrl", "http://localhost:8080/idschema");
-
-        // 🔥 THIS WAS MISSING
         setPrivateField(utils, "objMapper", new ObjectMapper());
 
         return utils;
