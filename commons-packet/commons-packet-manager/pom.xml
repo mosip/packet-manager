@@ -149,6 +149,12 @@
 				<artifactId>mockito-core</artifactId>
 				 <version>${mockito.core.version}</version>
 			</dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockitgo-inline</artifactId>
+            <version>${mockito.core.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <distributionManagement>

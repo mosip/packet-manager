@@ -240,7 +240,7 @@ public class PacketKeeperTest {
      * Tests putPacket when store operation fails - should throw PacketKeeperException
      */
     @Test(expected = PacketKeeperException.class)
-    public void testPutPacket_WhenStoreOperationFails_ThrowsPacketKeeperException() throws PacketKeeperException {
+    public void testPutPacketWhenStoreOperationFailsThrowsPacketKeeperException() throws PacketKeeperException {
         Mockito.when(swiftAdapter.putObject(any(), any(), any(), any(), any(), any())).thenReturn(false);
 
         packetKeeper.putPacket(packet);
@@ -250,7 +250,7 @@ public class PacketKeeperTest {
      * Tests deletePacket when operation succeeds - should return true
      */
     @Test
-    public void testDeletePacket_WhenOperationSucceeds_ReturnsTrue() {
+    public void testDeletePacketWhenOperationSucceedsReturnsTrue() {
         String id = "test-id";
         String source = "test-source";
         String process = "test-process";
@@ -265,7 +265,7 @@ public class PacketKeeperTest {
      * Tests deletePacket when operation fails - should return false
      */
     @Test
-    public void testDeletePacket_WhenOperationFails_ReturnsFalse() {
+    public void testDeletePacketWhenOperationFailsReturnsFalse() {
         String id = "test-id";
         String source = "test-source";
         String process = "test-process";
@@ -280,7 +280,7 @@ public class PacketKeeperTest {
      * Tests pack when operation succeeds - should return true
      */
     @Test
-    public void testPack_WhenOperationSucceeds_ReturnsTrue() {
+    public void testPackWhenOperationSucceedsReturnsTrue() {
         String id = "test-id";
         String source = "test-source";
         String process = "test-process";
@@ -296,7 +296,7 @@ public class PacketKeeperTest {
      * Tests pack when operation fails - should return false
      */
     @Test
-    public void testPack_WhenOperationFails_ReturnsFalse() {
+    public void testPackWhenOperationFailsReturnsFalse() {
         String id = "test-id";
         String source = "test-source";
         String process = "test-process";
@@ -312,7 +312,7 @@ public class PacketKeeperTest {
      * Tests getPacket when input stream is null - should throw PacketKeeperException
      */
     @Test(expected = PacketKeeperException.class)
-    public void testGetPacket_WhenInputStreamIsNull_ThrowsPacketKeeperException() throws PacketKeeperException {
+    public void testGetPacketWhenInputStreamIsNullThrowsPacketKeeperException() throws PacketKeeperException {
         Mockito.when(swiftAdapter.getObject(any(), any(), any(), any(), any())).thenReturn(null);
 
         packetKeeper.getPacket(packetInfo);
@@ -322,7 +322,7 @@ public class PacketKeeperTest {
      * Tests getPacket when meta info not found - should return packet with basic info
      */
     @Test
-    public void testGetPacket_WhenMetaInfoNotFound_ReturnsPacketWithBasicInfo() throws PacketKeeperException {
+    public void testGetPacketWhenMetaInfoNotFoundReturnsPacketWithBasicInfo() throws PacketKeeperException {
         Mockito.when(swiftAdapter.getMetaData(any(), any(), any(), any(), any())).thenReturn(null);
 
         Packet result = packetKeeper.getPacket(packetInfo);
@@ -334,7 +334,7 @@ public class PacketKeeperTest {
      * Tests getPacket when signature check fails - should throw PacketKeeperException
      */
     @Test(expected = PacketKeeperException.class)
-    public void testGetPacket_WhenSignatureCheckFails_ThrowsPacketKeeperException() throws PacketKeeperException {
+    public void testGetPacketWhenSignatureCheckFailsThrowsPacketKeeperException() throws PacketKeeperException {
         Mockito.when(onlineCrypto.verify(any(), any(), any())).thenReturn(false);
         ReflectionTestUtils.setField(packetKeeper, "disablePacketSignatureVerification", false);
 
@@ -345,7 +345,7 @@ public class PacketKeeperTest {
      * Tests getPacket when read exception occurs - should throw PacketKeeperException
      */
     @Test(expected = PacketKeeperException.class)
-    public void testGetPacket_WhenReadExceptionOccurs_ThrowsPacketKeeperException() throws PacketKeeperException {
+    public void testGetPacketWhenReadExceptionOccursThrowsPacketKeeperException() throws PacketKeeperException {
         Mockito.when(swiftAdapter.getObject(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("Read error"));
 
@@ -356,7 +356,7 @@ public class PacketKeeperTest {
      * Tests adapter selection when PosixAdapter is configured - should use PosixAdapter
      */
     @Test
-    public void testAdapterSelection_WhenPosixAdapterConfigured_UsesPosixAdapter() {
+    public void testAdapterSelectionWhenPosixAdapterConfiguredUsesPosixAdapter() {
         ReflectionTestUtils.setField(packetKeeper, "adapterName", "PosixAdapter");
     }
 
@@ -364,7 +364,7 @@ public class PacketKeeperTest {
      * Tests adapter selection when S3Adapter is configured - should use S3Adapter
      */
     @Test
-    public void testAdapterSelection_WhenS3AdapterConfigured_UsesS3Adapter() {
+    public void testAdapterSelectionWhenS3AdapterConfiguredUsesS3Adapter() {
         ReflectionTestUtils.setField(packetKeeper, "adapterName", "S3Adapter");
     }
 

@@ -62,7 +62,7 @@ public class OnlinePacketCryptoServiceTest {
     }
 
     @Test
-    public void sign_success_returnsData() throws Exception {
+    public void signSuccessReturnsData() throws Exception {
         String expected = "my-sign";
         Map<String, Object> response = new LinkedHashMap<>();
         Map<String, Object> inner = new LinkedHashMap<>();

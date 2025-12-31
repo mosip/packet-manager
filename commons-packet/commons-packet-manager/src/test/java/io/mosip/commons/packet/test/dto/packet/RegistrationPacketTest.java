@@ -56,7 +56,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFields_withHashmap_thenPass()
+    public void setFieldsWithHashmapThenPass()
     {
         String mapAsString="{\n" +
                 "        \"format\": \"pdf\",\n" +
