@@ -1,0 +1,192 @@
+================================================================================
+COPYRIGHT NOTICES
+================================================================================
+
+This software incorporates components from the projects listed below. The
+original copyright notices have been preserved in accordance with the terms
+of their respective licenses:
+
+
+Spring Framework & Spring Boot
+  Copyright © 2012-2025 Pivotal Software, Inc.
+  Copyright © 2012-2025 VMware, Inc. or its affiliates.
+  Licensed under the Apache License, Version 2.0
+
+Spring Boot Starter Security
+  Copyright © 2012-2025 Pivotal Software, Inc.
+  Licensed under the Apache License, Version 2.0
+
+Spring Boot Starter Cache
+  Copyright © 2012-2025 Pivotal Software, Inc.
+  Licensed under the Apache License, Version 2.0
+
+Spring Boot Starter Data JPA
+  Copyright © 2012-2025 Pivotal Software, Inc.
+  Licensed under the Apache License, Version 2.0
+
+Spring Boot Starter WebFlux
+  Copyright © 2012-2025 Pivotal Software, Inc.
+  Licensed under the Apache License, Version 2.0
+
+Spring Security Test
+  Copyright © 2012-2025 Pivotal Software, Inc.
+  Licensed under the Apache License, Version 2.0
+
+Springfox Swagger UI
+  Copyright © 2015-2018 Marty Pitt, Dilip Krishnan, Adrian Kelly
+  Licensed under the Apache License, Version 2.0
+
+Springfox Swagger2
+  Copyright © 2015-2018 Marty Pitt, Dilip Krishnan, Adrian Kelly
+  Licensed under the Apache License, Version 2.0
+
+SpringDoc OpenAPI Starter WebMVC UI
+  Copyright © 2019-2024 the original author or authors
+  Licensed under the Apache License, Version 2.0
+
+SpringDoc OpenAPI Maven Plugin
+  Copyright © 2019-2024 the original author or authors
+  Licensed under the Apache License, Version 2.0
+
+Hazelcast Kubernetes
+  Copyright © Hazelcast, Inc.
+  Licensed under the Apache License, Version 2.0
+
+JSON Simple
+  Copyright © 2006 Yidong Fang, Chris Nokleberg, Dave Hughes
+  Licensed under the Apache License, Version 2.0
+
+Apache Commons Collections 4
+  Copyright © 2001-2025 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Mockito Core
+  Copyright © 2007 Mockito contributors
+  Licensed under the MIT License
+
+PowerMock – JUnit4 Module
+  Copyright © Johan Haleby, Jan Kronquist, Arthur Zagretdinov
+  Licensed under the Apache License, Version 2.0
+
+PowerMock – Mockito2 API
+  Copyright © Johan Haleby, Jan Kronquist, Arthur Zagretdinov
+  Licensed under the Apache License, Version 2.0
+
+JUnit
+  Copyright © JUnit Team / Eclipse Foundation
+  Licensed under the Eclipse Public License 1.0
+
+JUnit Vintage Engine
+  Copyright © 2015-2024 JUnit Team / Eclipse Foundation
+  Licensed under the Eclipse Public License 2.0
+
+Jakarta XML Bind API (JAXB)
+  Copyright © 2019-2024 Eclipse Foundation
+  Copyright © Oracle and contributors
+  Licensed under the Eclipse Distribution License 1.0 (BSD-3-Clause)
+
+H2 Database Engine
+  Copyright © 2004-2023 H2 Group
+  Licensed under the Mozilla Public License 2.0 OR Eclipse Public License 1.0
+
+MOSIP Kernel – Core
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – Logger Logback
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – ID Object Validator
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – Key Manager Service
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – Biometrics API
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – CBEFF Util API
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – Auth Adapter
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Kernel – BOM
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Commons – Packet Manager
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+MOSIP Commons – Khazana
+  Copyright © MOSIP
+  Licensed under the Mozilla Public License 2.0
+
+Apache Maven Compiler Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Apache Maven GPG Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Apache Maven JAR Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Apache Maven Javadoc Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Apache Maven Source Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Apache Maven Surefire Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Apache Maven WAR Plugin
+  Copyright © 2001-2024 The Apache Software Foundation
+  Licensed under the Apache License, Version 2.0
+
+Spring Boot Maven Plugin
+  Copyright © 2012-2024 Pivotal Software, Inc.
+  Licensed under the Apache License, Version 2.0
+
+JaCoCo Maven Plugin
+  Copyright © 2009-2024 Mountainminds GmbH & Co. KG and Contributors
+  Licensed under the Eclipse Public License 2.0
+
+git-commit-id-plugin
+  Copyright © 2010 Konrad Malawski
+  Licensed under the GNU Lesser General Public License v3.0
+
+Sonatype Central Publishing Maven Plugin
+  Copyright © 2022-2024 Sonatype, Inc.
+  Licensed under the Apache License, Version 2.0
+
+SonarSource Scanner Maven Plugin
+  Copyright © 2011-2025 SonarSource
+  Licensed under the GNU Lesser General Public License v3.0
+
+
+For complete license texts, please refer to the respective project homepages
+listed in the THIRD-PARTY-NOTICES.txt file, or visit:
+
+  Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+  MIT License: https://opensource.org/licenses/MIT
+  Mozilla Public License 2.0: https://www.mozilla.org/en-US/MPL/2.0/
+  Eclipse Public License 1.0: https://www.eclipse.org/legal/epl-v10.html
+  Eclipse Public License 2.0: https://www.eclipse.org/legal/epl-2.0/
+  Eclipse Distribution License 1.0: https://www.eclipse.org/org/documents/edl-v10.php
+  GNU Lesser General Public License v3.0: https://www.gnu.org/licenses/lgpl-3.0.html
+
+================================================================================
