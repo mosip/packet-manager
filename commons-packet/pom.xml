@@ -65,7 +65,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven.surefire.plugin.version}</version>
                     <configuration>
-                        <skipTests>false</skipTests>
+                        <skipTests>${skipTests}</skipTests>
                         <skip>false</skip>
                         <argLine>
                             ${jacocoArgLine}
