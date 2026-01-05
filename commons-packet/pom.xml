@@ -66,7 +66,6 @@
                     <version>${maven.surefire.plugin.version}</version>
                     <configuration>
                         <skipTests>${skipTests}</skipTests>
-                        <skip>false</skip>
                         <argLine>
                             ${jacocoArgLine}
                             --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED
