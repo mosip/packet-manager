@@ -34,7 +34,6 @@
 		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
-        <jacocoArgLine></jacocoArgLine>
     </properties>
 
     <modules>
@@ -52,103 +51,86 @@
             <url>https://central.sonatype.com/api/v1/publisher</url>
         </repository>
     </distributionManagement>
-        <build>
-          
-            <plugins>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>3.2.3</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${maven.surefire.plugin.version}</version>
-                    <configuration>
-                        <skipTests>${skipTests}</skipTests>
-                        <argLine>
-                            ${jacocoArgLine}
-                            --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED
-                            --add-opens java.base/java.lang=ALL-UNNAMED
-                            --add-opens java.base/java.util=ALL-UNNAMED
-                            --add-opens java.base/java.io=ALL-UNNAMED
-                            --enable-preview
-                        </argLine>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.jacoco</groupId>
-                    <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>${maven.jacoco.version}</version>
-                    <executions>
+    <build>
 
-                        <!-- FIXED: attach jacoco to surefire -->
-                        <execution>
-                            <id>prepare-agent</id>
-                            <goals>
-                                <goal>prepare-agent</goal>
-                            </goals>
-                            <configuration>
-                                <propertyName>jacocoArgLine</propertyName>
-                            </configuration>
-                        </execution>
-
-                        <!-- FIXED: generate report AFTER test phase -->
-                        <execution>
-                            <id>report</id>
-                            <phase>verify</phase>
-                            <goals>
-                                <goal>report</goal>
-                            </goals>
-                        </execution>
-
-                    </executions>
-                </plugin>
-                
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>${maven.jar.plugin.version}</version>
-                    <configuration>
-                        <archive>
-                            <manifest>
-                                <addClasspath>true</addClasspath>
-                                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            </manifest>
-                            <manifestEntries>
-                                <Project-Name>${project.name}</Project-Name>
-                                <Project-Version>${project.version}</Project-Version>
-                            </manifestEntries>
-                        </archive>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-war-plugin</artifactId>
-                    <version>${maven.war.plugin.version}</version>
-                    <configuration>
-                        <archive>
-                            <manifest>
-                                <addClasspath>true</addClasspath>
-                                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            </manifest>
-                            <manifestEntries>
-                                <Project-Name>${project.name}</Project-Name>
-                                <Project-Version>${project.version}</Project-Version>
-                            </manifestEntries>
-                        </archive>
-                    </configuration>
-                </plugin>
-           <plugin>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.2.3</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
+                <configuration>
+                    <skipTests>${skipTests}</skipTests>
+                    <skip>false</skip>
+                    <argLine>
+                        ${argLine} ${jacoco.agent.argLine} --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --illegal-access=permit
+                    </argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${maven.jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin.version}</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Project-Name>${project.name}</Project-Name>
+                            <Project-Version>${project.version}</Project-Version>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>${maven.war.plugin.version}</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <Project-Name>${project.name}</Project-Name>
+                            <Project-Version>${project.version}</Project-Version>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.version}</version>
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
-                    <compilerArgs>
-                        <arg>--enable-preview</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
