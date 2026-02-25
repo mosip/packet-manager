@@ -114,7 +114,7 @@ public class PacketKeeper {
      */
     public boolean checkIntegrity(PacketInfo packetInfo, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "checkIntegrity - started for packetId: " + packetInfo.getId());
+        LOGGER.info( "checkIntegrity - started for packetId: " + packetInfo.getId());
 
         String hash = CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket));
         boolean result = hash.equals(packetInfo.getEncryptedHash());
@@ -135,7 +135,7 @@ public class PacketKeeper {
      */
     public boolean checkSignature(Packet packet, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "checkSignature - started for packetId: " + packet.getPacketInfo().getId());
+        LOGGER.info( "checkSignature - started for packetId: " + packet.getPacketInfo().getId());
 
         boolean result = true;
         if(!disablePacketSignatureVerification) {
@@ -170,7 +170,7 @@ public class PacketKeeper {
         long startTime = System.currentTimeMillis();
         String packetName = getName(packetInfo.getId(), packetInfo.getPacketName());
 
-        LOGGER.info(SESSIONID, REGISTRATIONID, "getPacket - started for packetId: " + packetInfo.getId() +
+        LOGGER.info( "getPacket - started for packetId: " + packetInfo.getId() +
                 ", process: " + packetInfo.getProcess());
 
         try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
@@ -187,7 +187,7 @@ public class PacketKeeper {
             long readStartTime = System.currentTimeMillis();
             byte[] encryptedSubPacket = IOUtils.toByteArray(is);
             long readEndTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "getPacket - read " + encryptedSubPacket.length +
+            LOGGER.info( "getPacket - read " + encryptedSubPacket.length +
                     " bytes in " + (readEndTime - readStartTime) + "ms");
 
             Packet packet = new Packet();
@@ -209,7 +209,7 @@ public class PacketKeeper {
             byte[] subPacket = getCryptoService().decrypt(helper.getRefId(
                     packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), encryptedSubPacket);
             long decryptEndTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "getPacket - decryption completed in " +
+            LOGGER.info( "getPacket - decryption completed in " +
                     (decryptEndTime - decryptStartTime) + "ms, decrypted size: " + subPacket.length + " bytes");
 
             packet.setPacket(subPacket);
@@ -222,7 +222,7 @@ public class PacketKeeper {
             }
 
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "getPacket - completed successfully in " +
+            LOGGER.info( "getPacket - completed successfully in " +
                     (endTime - startTime) + "ms for packetId: " + packetInfo.getId());
 
             return packet;
@@ -257,7 +257,7 @@ public class PacketKeeper {
         long startTime = System.currentTimeMillis();
         String packetName = getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName());
 
-        LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - started for packetId: " +
+        LOGGER.info( "putPacket - started for packetId: " +
                 packet.getPacketInfo().getId() + ", process: " + packet.getPacketInfo().getProcess());
 
         try {
@@ -266,7 +266,7 @@ public class PacketKeeper {
             byte[] encryptedSubPacket = getCryptoService().encrypt(packet.getPacketInfo().getRefId(),
                     packet.getPacket());
             long encryptEndTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - encryption completed in " +
+            LOGGER.info( "putPacket - encryption completed in " +
                     (encryptEndTime - encryptStartTime) + "ms, encrypted size: " + encryptedSubPacket.length + " bytes");
 
             // Put packet in object store using try-with-resources
@@ -276,7 +276,7 @@ public class PacketKeeper {
                         packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
                         packet.getPacketInfo().getProcess(), packetName, encryptedStream);
                 long putEndTime = System.currentTimeMillis();
-                LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - putObject completed in " +
+                LOGGER.info( "putPacket - putObject completed in " +
                         (putEndTime - putStartTime) + "ms");
 
                 if (response) {
@@ -287,7 +287,7 @@ public class PacketKeeper {
                     packetInfo.setSignature(CryptoUtil.encodeToURLSafeBase64(
                             getCryptoService().sign(packet.getPacket())));
                     long signEndTime = System.currentTimeMillis();
-                    LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - signature generated in " +
+                    LOGGER.info( "putPacket - signature generated in " +
                             (signEndTime - signStartTime) + "ms");
 
                     // Generate encrypted packet hash
@@ -295,7 +295,7 @@ public class PacketKeeper {
                     packetInfo.setEncryptedHash(CryptoUtil.encodeToURLSafeBase64(
                             HMACUtils2.generateHash(encryptedSubPacket)));
                     long hashEndTime = System.currentTimeMillis();
-                    LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - hash generated in " +
+                    LOGGER.info( "putPacket - hash generated in " +
                             (hashEndTime - hashStartTime) + "ms");
 
                     // Add metadata
@@ -305,11 +305,11 @@ public class PacketKeeper {
                             packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
                             packet.getPacketInfo().getProcess(), packetName, metaMap);
                     long metaEndTime = System.currentTimeMillis();
-                    LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - metadata added in " +
+                    LOGGER.info( "putPacket - metadata added in " +
                             (metaEndTime - metaStartTime) + "ms");
 
                     long endTime = System.currentTimeMillis();
-                    LOGGER.info(SESSIONID, REGISTRATIONID, "putPacket - completed successfully in " +
+                    LOGGER.info( "putPacket - completed successfully in " +
                             (endTime - startTime) + "ms for packetId: " + packet.getPacketInfo().getId());
 
                     return PacketManagerHelper.getPacketInfo(metaMap);
@@ -341,7 +341,7 @@ public class PacketKeeper {
             return cachedAdapter;
         }
 
-        LOGGER.info(SESSIONID, REGISTRATIONID, "getAdapter - initializing adapter: " + adapterName);
+        LOGGER.info( "getAdapter - initializing adapter: " + adapterName);
 
         if (adapterName.equalsIgnoreCase(swiftAdapter.getClass().getSimpleName())) {
             cachedAdapter = swiftAdapter;
@@ -361,7 +361,7 @@ public class PacketKeeper {
             return cachedCryptoService;
         }
 
-        LOGGER.info(SESSIONID, REGISTRATIONID, "getCryptoService - initializing crypto service: " + cryptoName);
+        LOGGER.info( "getCryptoService - initializing crypto service: " + cryptoName);
 
         if (cryptoName.equalsIgnoreCase(onlineCrypto.getClass().getSimpleName())) {
             cachedCryptoService = onlineCrypto;
@@ -379,17 +379,17 @@ public class PacketKeeper {
 
     public boolean deletePacket(String id, String source, String process) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "deletePacket - started for packetId: " + id);
+        LOGGER.info( "deletePacket - started for packetId: " + id);
 
         try {
             boolean result = getAdapter().removeContainer(PACKET_MANAGER_ACCOUNT, id, source, process);
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "deletePacket - completed in " +
+            LOGGER.info( "deletePacket - completed in " +
                     (endTime - startTime) + "ms, result: " + result);
             return result;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "deletePacket - error after " +
+            LOGGER.error( "deletePacket - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
@@ -397,17 +397,17 @@ public class PacketKeeper {
 
     public boolean pack(String id, String source, String process, String refId) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "pack - started for packetId: " + id);
+        LOGGER.info( "pack - started for packetId: " + id);
 
         try {
             boolean result = getAdapter().pack(PACKET_MANAGER_ACCOUNT, id, source, process, refId);
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "pack - completed in " +
+            LOGGER.info( "pack - completed in " +
                     (endTime - startTime) + "ms, result: " + result);
             return result;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "pack - error after " +
+            LOGGER.error( "pack - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
@@ -415,17 +415,17 @@ public class PacketKeeper {
 
     public Map<String, String> addTags(TagDto tagDto) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "addTags - started for packetId: " + tagDto.getId());
+        LOGGER.info( "addTags - started for packetId: " + tagDto.getId());
 
         try {
             Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "addTags - completed in " +
+            LOGGER.info( "addTags - completed in " +
                     (endTime - startTime) + "ms");
             return tags;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "addTags - error after " +
+            LOGGER.error( "addTags - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
@@ -433,17 +433,17 @@ public class PacketKeeper {
 
     public Map<String, String> addorUpdate(TagDto tagDto) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "addorUpdate - started for packetId: " + tagDto.getId());
+        LOGGER.info( "addorUpdate - started for packetId: " + tagDto.getId());
 
         try {
             Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "addorUpdate - completed in " +
+            LOGGER.info( "addorUpdate - completed in " +
                     (endTime - startTime) + "ms");
             return tags;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "addorUpdate - error after " +
+            LOGGER.error( "addorUpdate - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
@@ -451,17 +451,17 @@ public class PacketKeeper {
 
     public Map<String, String> getTags(String id) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "getTags - started for packetId: " + id);
+        LOGGER.info( "getTags - started for packetId: " + id);
 
         try {
             Map<String, String> existingTags = getAdapter().getTags(PACKET_MANAGER_ACCOUNT, id);
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "getTags - completed in " +
+            LOGGER.info( "getTags - completed in " +
                     (endTime - startTime) + "ms");
             return existingTags;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "getTags - error after " +
+            LOGGER.error( "getTags - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
@@ -469,17 +469,17 @@ public class PacketKeeper {
 
     public List<ObjectDto> getAll(String id) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "getAll - started for packetId: " + id);
+        LOGGER.info( "getAll - started for packetId: " + id);
 
         try {
             List<ObjectDto> allObjects = getAdapter().getAllObjects(PACKET_MANAGER_ACCOUNT, id);
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "getAll - completed in " +
+            LOGGER.info( "getAll - completed in " +
                     (endTime - startTime) + "ms");
             return allObjects;
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "getAll - error after " +
+            LOGGER.error( "getAll - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
@@ -487,16 +487,16 @@ public class PacketKeeper {
 
     public void deleteTags(TagRequestDto tagRequestDto) {
         long startTime = System.currentTimeMillis();
-        LOGGER.info(SESSIONID, REGISTRATIONID, "deleteTags - started for packetId: " + tagRequestDto.getId());
+        LOGGER.info( "deleteTags - started for packetId: " + tagRequestDto.getId());
 
         try {
             getAdapter().deleteTags(PACKET_MANAGER_ACCOUNT, tagRequestDto.getId(), tagRequestDto.getTagNames());
             long endTime = System.currentTimeMillis();
-            LOGGER.info(SESSIONID, REGISTRATIONID, "deleteTags - completed in " +
+            LOGGER.info( "deleteTags - completed in " +
                     (endTime - startTime) + "ms");
         } catch (Exception e) {
             long endTime = System.currentTimeMillis();
-            LOGGER.error(SESSIONID, REGISTRATIONID, "deleteTags - error after " +
+            LOGGER.error( "deleteTags - error after " +
                     (endTime - startTime) + "ms", ExceptionUtils.getStackTrace(e));
             throw e;
         }
