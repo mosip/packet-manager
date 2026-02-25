@@ -120,8 +120,7 @@ public class PacketKeeper {
         boolean result = hash.equals(packetInfo.getEncryptedHash());
 
         long endTime = System.currentTimeMillis();
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                getName(packetInfo.getId(), packetInfo.getPacketName()),
+        LOGGER.info(getName(packetInfo.getId(), packetInfo.getPacketName()),
                 "Integrity check result: " + result + " completed in " + (endTime - startTime) + "ms");
         return result;
     }
@@ -154,8 +153,7 @@ public class PacketKeeper {
         }
 
         long endTime = System.currentTimeMillis();
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()),
+        LOGGER.info(getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()),
                 "Signature and integrity check result: " + result + " completed in " + (endTime - startTime) + "ms");
         return result;
     }
