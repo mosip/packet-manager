@@ -69,13 +69,13 @@ public class PacketKeeper {
 
     @Value("${objectstore.crypto.name}")
     private String cryptoName;
-    
+
     @Value("${mosip.kernel.registrationcenterid.length}")
 	private int centerIdLength;
 
 	@Value("${mosip.kernel.machineid.length}")
 	private int machineIdLength;
-	
+
 	@Value("${packetmanager.packet.signature.disable-verification:false}")
 	private boolean disablePacketSignatureVerification;
 
@@ -134,44 +134,54 @@ public class PacketKeeper {
     }
 
     /**
-     * Get packet
+     * Get packet with proper stream handling
      *
      * @param packetInfo : packet info
      * @return : Packet
      */
     public Packet getPacket(PacketInfo packetInfo) throws PacketKeeperException {
-        try {
-            InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(), packetInfo.getSource(),
-                    packetInfo.getProcess(), getName(packetInfo.getId(), packetInfo.getPacketName()));
+        String packetName = getName(packetInfo.getId(), packetInfo.getPacketName());
+        try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
+                packetInfo.getSource(), packetInfo.getProcess(), packetName)) {
+
             if (is == null) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        getName(packetInfo.getId(), packetInfo.getPacketName()), packetInfo.getProcess() + " Packet is not present in packet store.");
-                throw new PacketKeeperException(ErrorCode.PACKET_NOT_FOUND.getErrorCode(), ErrorCode.PACKET_NOT_FOUND.getErrorMessage());
+                        packetName, packetInfo.getProcess() + " Packet is not present in packet store.");
+                throw new PacketKeeperException(ErrorCode.PACKET_NOT_FOUND.getErrorCode(),
+                        ErrorCode.PACKET_NOT_FOUND.getErrorMessage());
             }
+
+            // Convert stream to byte array (necessary for encryption/decryption and signature verification)
             byte[] encryptedSubPacket = IOUtils.toByteArray(is);
 
             Packet packet = new Packet();
+
+            // Get metadata
             Map<String, Object> metaInfo = getAdapter().getMetaData(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
-                    packetInfo.getSource(), packetInfo.getProcess(), getName(packetInfo.getId(), packetInfo.getPacketName()));
-            if (metaInfo != null && !metaInfo.isEmpty())
+                    packetInfo.getSource(), packetInfo.getProcess(), packetName);
+
+            if (metaInfo != null && !metaInfo.isEmpty()) {
                 packet.setPacketInfo(PacketManagerHelper.getPacketInfo(metaInfo));
-            else {
+            } else {
                 LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        getName(packetInfo.getId(), packetInfo.getPacketName()), "metainfo not found for this packet");
+                        packetName, "metainfo not found, using provided packetInfo");
                 packet.setPacketInfo(packetInfo);
             }
+
+            // Decrypt packet
             byte[] subPacket = getCryptoService().decrypt(helper.getRefId(
                     packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), encryptedSubPacket);
             packet.setPacket(subPacket);
 
-
-			if (!checkSignature(packet, encryptedSubPacket)) {
+            // Verify signature and integrity
+            if (!checkSignature(packet, encryptedSubPacket)) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        getName(packet.getPacketInfo().getId(), packetInfo.getPacketName()), "Packet Integrity and Signature check failed");
+                        packetName, "Packet Integrity and Signature check failed");
                 throw new PacketIntegrityFailureException();
             }
 
             return packet;
+
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
             if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404))
@@ -190,35 +200,48 @@ public class PacketKeeper {
     }
 
     /**
-     * Put packet into storage/cache
+     * Put packet into storage with proper stream handling
      *
      * @param packet : the Packet
      * @return PacketInfo
      */
     public PacketInfo putPacket(Packet packet) throws PacketKeeperException {
+        String packetName = getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName());
+
+        LOGGER.info( "putPacket - started for packetId: " +
+                packet.getPacketInfo().getId() + ", process: " + packet.getPacketInfo().getProcess());
+
         try {
-            // encrypt packet
-            byte[] encryptedSubPacket = getCryptoService().encrypt(packet.getPacketInfo().getRefId(), packet.getPacket());
+            // Encrypt packet
+            byte[] encryptedSubPacket = getCryptoService().encrypt(packet.getPacketInfo().getRefId(),
+                    packet.getPacket());
+            // Put packet in object store using try-with-resources
+            try (ByteArrayInputStream encryptedStream = new ByteArrayInputStream(encryptedSubPacket)) {
+                boolean response = getAdapter().putObject(PACKET_MANAGER_ACCOUNT,
+                        packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
+                        packet.getPacketInfo().getProcess(), packetName, encryptedStream);
+                if (response) {
+                    PacketInfo packetInfo = packet.getPacketInfo();
 
-            // put packet in object store
-            boolean response = getAdapter().putObject(PACKET_MANAGER_ACCOUNT,
-                    packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
-                    packet.getPacketInfo().getProcess(), packet.getPacketInfo().getPacketName(), new ByteArrayInputStream(encryptedSubPacket));
+                    // Sign encrypted packet
+                    packetInfo.setSignature(CryptoUtil.encodeToURLSafeBase64(
+                            getCryptoService().sign(packet.getPacket())));
+                    // Generate encrypted packet hash
+                    packetInfo.setEncryptedHash(CryptoUtil.encodeToURLSafeBase64(
+                            HMACUtils2.generateHash(encryptedSubPacket)));
 
-            if (response) {
-                PacketInfo packetInfo = packet.getPacketInfo();
-                // sign encrypted packet
-                packetInfo.setSignature(CryptoUtil.encodeToURLSafeBase64(getCryptoService().sign(packet.getPacket())));
-                // generate encrypted packet hash
-                packetInfo.setEncryptedHash(CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket)));
-                Map<String, Object> metaMap = PacketManagerHelper.getMetaMap(packetInfo);
-                metaMap = getAdapter().addObjectMetaData(PACKET_MANAGER_ACCOUNT,
-                        packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(), packet.getPacketInfo().getProcess(), packet.getPacketInfo().getPacketName(), metaMap);
-                return PacketManagerHelper.getPacketInfo(metaMap);
-            } else
-                throw new PacketKeeperException(PacketUtilityErrorCodes
-                        .PACKET_KEEPER_PUT_ERROR.getErrorCode(), "Unable to store packet in object store");
 
+                    Map<String, Object> metaMap = PacketManagerHelper.getMetaMap(packetInfo);
+                    metaMap = getAdapter().addObjectMetaData(PACKET_MANAGER_ACCOUNT,
+                            packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
+                            packet.getPacketInfo().getProcess(), packetName, metaMap);
+
+                    return PacketManagerHelper.getPacketInfo(metaMap);
+                } else {
+                    throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_PUT_ERROR.getErrorCode(),
+                            "Unable to store packet in object store");
+                }
+            }
 
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packet.getPacketInfo().getId(), ExceptionUtils.getStackTrace(e));
