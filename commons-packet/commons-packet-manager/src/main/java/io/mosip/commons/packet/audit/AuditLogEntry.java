@@ -20,7 +20,7 @@ import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 
 @Component
 public class AuditLogEntry {
@@ -45,7 +45,7 @@ public class AuditLogEntry {
 
 	@SuppressWarnings("unchecked")
 	public String addAudit(String description, String eventId,
-			String eventName, String eventType, String moduleId, String moduleName, String id) {
+						   String eventName, String eventType, String moduleId, String moduleName, String id) {
 		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
 				id, "AuditLogEntry:: addAudit::entry");
 
@@ -57,15 +57,16 @@ public class AuditLogEntry {
 
 			auditRequestDto = new AuditRequestDto();
 			auditRequestDto.setDescription(description);
-			auditRequestDto.setActionTimeStamp(DateUtils.getUTCCurrentDateTimeString());
+			auditRequestDto.setActionTimeStamp(DateUtils2.getUTCCurrentDateTimeString());
 			auditRequestDto.setApplicationId(LoggerFileConstant.MOSIP_4.toString());
 			auditRequestDto.setApplicationName(LoggerFileConstant.PACKET_MANAGER.toString());
 			auditRequestDto.setCreatedBy(LoggerFileConstant.SYSTEM.toString());
 			auditRequestDto.setEventId(eventId);
 			auditRequestDto.setEventName(eventName);
 			auditRequestDto.setEventType(eventType);
-			auditRequestDto.setHostIp(ServerUtil.getServerUtilInstance().getServerIp());
-			auditRequestDto.setHostName(ServerUtil.getServerUtilInstance().getServerName());
+			ServerUtil serverUtil = ServerUtil.getServerUtilInstance();
+			auditRequestDto.setHostIp(serverUtil.getServerIp());
+			auditRequestDto.setHostName(serverUtil.getServerName());
 			auditRequestDto.setId(id);
 			auditRequestDto.setIdType(LoggerFileConstant.ID.toString());
 			auditRequestDto.setModuleId(moduleId);
@@ -77,7 +78,7 @@ public class AuditLogEntry {
 			requestWrapper.setRequest(auditRequestDto);
 			DateTimeFormatter format = DateTimeFormatter.ofPattern(env.getProperty(DATETIME_PATTERN));
 			LocalDateTime localdatetime = LocalDateTime
-					.parse(DateUtils.getUTCCurrentDateTimeString(env.getProperty(DATETIME_PATTERN)), format);
+					.parse(DateUtils2.getUTCCurrentDateTimeString(env.getProperty(DATETIME_PATTERN)), format);
 			requestWrapper.setRequesttime(localdatetime);
 			requestWrapper.setVersion(APPLICATION_VERSION);
 			HttpEntity<RequestWrapper<AuditRequestDto>> httpEntity = new HttpEntity<>(requestWrapper);
@@ -85,8 +86,8 @@ public class AuditLogEntry {
 					String.class);
 
 		} catch (Exception arae) {
-		    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-		    		null, ExceptionUtils.getStackTrace(arae));  
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+					null, ExceptionUtils.getStackTrace(arae));
 		}
 		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
 				id,
