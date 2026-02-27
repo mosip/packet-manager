@@ -35,11 +35,9 @@ import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.HMACUtils2;
 
-
 /**
  * The packet keeper is used to store & retrieve packet, creation of audit, encrypt and sign packet.
  * Packet keeper is used to get container information and list of sources from a packet.
- *
  */
 @Component
 public class PacketKeeper {
@@ -73,13 +71,13 @@ public class PacketKeeper {
     private String cryptoName;
 
     @Value("${mosip.kernel.registrationcenterid.length}")
-    private int centerIdLength;
+	private int centerIdLength;
 
-    @Value("${mosip.kernel.machineid.length}")
-    private int machineIdLength;
+	@Value("${mosip.kernel.machineid.length}")
+	private int machineIdLength;
 
-    @Value("${packetmanager.packet.signature.disable-verification:false}")
-    private boolean disablePacketSignatureVerification;
+	@Value("${packetmanager.packet.signature.disable-verification:false}")
+	private boolean disablePacketSignatureVerification;
 
     @Autowired
     @Qualifier("OnlinePacketCryptoServiceImpl")
@@ -94,7 +92,6 @@ public class PacketKeeper {
 
     private static final String UNDERSCORE = "_";
 
-
     /**
      * Check packet integrity.
      *
@@ -104,7 +101,8 @@ public class PacketKeeper {
     public boolean checkIntegrity(PacketInfo packetInfo, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
         String hash = CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket));
         boolean result = hash.equals(packetInfo.getEncryptedHash());
-        LOGGER.info(getName(packetInfo.getId(), packetInfo.getPacketName()), "Integrity check : " + result);
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                getName(packetInfo.getId(), packetInfo.getPacketName()), "Integrity check : " + result);
         return result;
     }
 
@@ -120,7 +118,8 @@ public class PacketKeeper {
         boolean result = true;
         if(!disablePacketSignatureVerification) {
             if(packet.getPacketInfo().getSignature() == null || packet.getPacketInfo().getSignature().isEmpty()) {
-                LOGGER.error(getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Packet signature not available");
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                        getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Packet signature not available");
                 return false;
             }
             result = getCryptoService().verify(helper.getRefId(
@@ -129,7 +128,8 @@ public class PacketKeeper {
         }
         if (result)
             result = checkIntegrity(packet.getPacketInfo(), encryptedSubPacket);
-        LOGGER.info(getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Integrity and signature check : " + result);
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Integrity and signature check : " + result);
         return result;
     }
 
@@ -179,25 +179,23 @@ public class PacketKeeper {
                         packetName, "Packet Integrity and Signature check failed");
                 throw new PacketIntegrityFailureException();
             }
+
             return packet;
 
         } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                    packetInfo.getId(), "getPacket failed: " + ExceptionUtils.getStackTrace(e));
-
-            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) &&
-                    e.getMessage().contains(STATUS_404)) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
+            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404))
                 throw new ObjectDoesnotExistsException();
-            } else if (e instanceof BaseCheckedException) {
+            else if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
-            } else if (e instanceof BaseUncheckedException) {
+            }
+            else if (e instanceof BaseUncheckedException) {
                 BaseUncheckedException ex = (BaseUncheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
-            } else {
+            } else
                 throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
-                        "Exception occured reading packet : " + e.getMessage(), e);
-            }
+                    "Exception occured reading packet : " + e.getMessage(), e);
         }
     }
 
@@ -246,9 +244,7 @@ public class PacketKeeper {
             }
 
         } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                    packet.getPacketInfo().getId(), "putPacket failed: " + ExceptionUtils.getStackTrace(e));
-
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packet.getPacketInfo().getId(), ExceptionUtils.getStackTrace(e));
             if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
@@ -272,7 +268,6 @@ public class PacketKeeper {
             throw new ObjectStoreAdapterException();
     }
 
-
     private IPacketCryptoService getCryptoService() {
         if (cryptoName.equalsIgnoreCase(onlineCrypto.getClass().getSimpleName()))
             return onlineCrypto;
@@ -281,7 +276,6 @@ public class PacketKeeper {
         else
             throw new CryptoException();
     }
-
 
     private static String getName(String id, String name) {
         return id + UNDERSCORE + name;
@@ -295,28 +289,28 @@ public class PacketKeeper {
         return getAdapter().pack(PACKET_MANAGER_ACCOUNT, id, source, process, refId);
     }
 
-    public Map<String, String> addTags(TagDto tagDto) {
-        Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
-        return tags;
-    }
+	public Map<String, String> addTags(TagDto tagDto) {
+			Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
+		return tags;
+	}
 
-    public Map<String, String> addorUpdate(TagDto tagDto) {
-        Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
-        return tags;
-    }
+	public Map<String, String> addorUpdate(TagDto tagDto) {
+			Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
+			return tags;
+	}
 
-    public Map<String, String> getTags(String id) {
-        Map<String, String> existingTags = getAdapter().getTags(PACKET_MANAGER_ACCOUNT, id);
-        return existingTags;
-    }
+	public Map<String, String> getTags(String id) {
+			Map<String, String> existingTags = getAdapter().getTags(PACKET_MANAGER_ACCOUNT, id);
+         return existingTags;
+	}
 
     public List<ObjectDto> getAll(String id) {
         List<ObjectDto> allObjects = getAdapter().getAllObjects(PACKET_MANAGER_ACCOUNT, id);
         return allObjects;
     }
 
-    public void deleteTags(TagRequestDto tagRequestDto) {
-        getAdapter().deleteTags(PACKET_MANAGER_ACCOUNT, tagRequestDto.getId(), tagRequestDto.getTagNames());
+	public void deleteTags(TagRequestDto tagRequestDto) {
+		getAdapter().deleteTags(PACKET_MANAGER_ACCOUNT, tagRequestDto.getId(), tagRequestDto.getTagNames());
 
-    }
+	}
 }
