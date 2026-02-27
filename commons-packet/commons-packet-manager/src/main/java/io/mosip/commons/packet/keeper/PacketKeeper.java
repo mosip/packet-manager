@@ -35,18 +35,11 @@ import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.HMACUtils2;
 
-import static io.mosip.commons.khazana.config.LoggerConfiguration.REGISTRATIONID;
-import static io.mosip.commons.khazana.config.LoggerConfiguration.SESSIONID;
 
 /**
  * The packet keeper is used to store & retrieve packet, creation of audit, encrypt and sign packet.
  * Packet keeper is used to get container information and list of sources from a packet.
  *
- * Performance Improvements:
- * - Proper stream handling to prevent connection leaks
- * - Try-with-resources for automatic resource cleanup
- * - SafeS3InputStream wrapper to ensure full consumption or proper closure
- * - Comprehensive logging for debugging and performance monitoring
  */
 @Component
 public class PacketKeeper {
@@ -101,45 +94,42 @@ public class PacketKeeper {
 
     private static final String UNDERSCORE = "_";
 
-    // Cache adapters and crypto services for performance
-    private ObjectStoreAdapter cachedAdapter;
-    private IPacketCryptoService cachedCryptoService;
 
     /**
      * Check packet integrity.
      *
      * @param packetInfo : the packet information
-     * @param encryptedSubPacket : encrypted packet bytes
      * @return : boolean
      */
     public boolean checkIntegrity(PacketInfo packetInfo, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
         String hash = CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket));
-        return  hash.equals(packetInfo.getEncryptedHash());
+        boolean result = hash.equals(packetInfo.getEncryptedHash());
+        LOGGER.info(getName(packetInfo.getId(), packetInfo.getPacketName()), "Integrity check : " + result);
+        return result;
     }
 
     /**
      * Check integrity and signature of the packet
      *
-     * @param packet : the packet
-     * @param encryptedSubPacket : encrypted packet bytes
-     * @return : boolean
+     *
+     * @param packet
+     * @param encryptedSubPacket
+     * @return
      */
     public boolean checkSignature(Packet packet, byte[] encryptedSubPacket) throws NoSuchAlgorithmException {
         boolean result = true;
         if(!disablePacketSignatureVerification) {
             if(packet.getPacketInfo().getSignature() == null || packet.getPacketInfo().getSignature().isEmpty()) {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()),
-                        "Packet signature not available");
+                LOGGER.error(getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Packet signature not available");
                 return false;
             }
             result = getCryptoService().verify(helper.getRefId(
                             packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), packet.getPacket()
                     , CryptoUtil.decodeURLSafeBase64(packet.getPacketInfo().getSignature()));
         }
-        if (result) {
+        if (result)
             result = checkIntegrity(packet.getPacketInfo(), encryptedSubPacket);
-        }
+        LOGGER.info(getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName()), "Integrity and signature check : " + result);
         return result;
     }
 
@@ -272,42 +262,26 @@ public class PacketKeeper {
     }
 
     private ObjectStoreAdapter getAdapter() {
-        // Return cached adapter for performance
-        if (cachedAdapter != null && adapterName.equals(cachedAdapter.getClass().getSimpleName())) {
-            return cachedAdapter;
-        }
-
-        LOGGER.info( "getAdapter - initializing adapter: " + adapterName);
-
-        if (adapterName.equalsIgnoreCase(swiftAdapter.getClass().getSimpleName())) {
-            cachedAdapter = swiftAdapter;
-        } else if (adapterName.equalsIgnoreCase(posixAdapter.getClass().getSimpleName())) {
-            cachedAdapter = posixAdapter;
-        } else if (adapterName.equalsIgnoreCase(s3Adapter.getClass().getSimpleName())) {
-            cachedAdapter = s3Adapter;
-        } else {
+        if (adapterName.equalsIgnoreCase(swiftAdapter.getClass().getSimpleName()))
+            return swiftAdapter;
+        else if (adapterName.equalsIgnoreCase(posixAdapter.getClass().getSimpleName()))
+            return posixAdapter;
+        else if (adapterName.equalsIgnoreCase(s3Adapter.getClass().getSimpleName()))
+            return s3Adapter;
+        else
             throw new ObjectStoreAdapterException();
-        }
-        return cachedAdapter;
     }
+
 
     private IPacketCryptoService getCryptoService() {
-        // Return cached crypto service for performance
-        if (cachedCryptoService != null && cryptoName.equals(cachedCryptoService.getClass().getSimpleName())) {
-            return cachedCryptoService;
-        }
-
-        LOGGER.info( "getCryptoService - initializing crypto service: " + cryptoName);
-
-        if (cryptoName.equalsIgnoreCase(onlineCrypto.getClass().getSimpleName())) {
-            cachedCryptoService = onlineCrypto;
-        } else if (cryptoName.equalsIgnoreCase(offlineCrypto.getClass().getSimpleName())) {
-            cachedCryptoService = offlineCrypto;
-        } else {
+        if (cryptoName.equalsIgnoreCase(onlineCrypto.getClass().getSimpleName()))
+            return onlineCrypto;
+        else if (cryptoName.equalsIgnoreCase(offlineCrypto.getClass().getSimpleName()))
+            return offlineCrypto;
+        else
             throw new CryptoException();
-        }
-        return cachedCryptoService;
     }
+
 
     private static String getName(String id, String name) {
         return id + UNDERSCORE + name;
@@ -319,23 +293,26 @@ public class PacketKeeper {
 
     public boolean pack(String id, String source, String process, String refId) {
         return getAdapter().pack(PACKET_MANAGER_ACCOUNT, id, source, process, refId);
-
     }
 
     public Map<String, String> addTags(TagDto tagDto) {
-        return getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
+        Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
+        return tags;
     }
 
     public Map<String, String> addorUpdate(TagDto tagDto) {
-       return getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
+        Map<String, String> tags = getAdapter().addTags(PACKET_MANAGER_ACCOUNT, tagDto.getId(), tagDto.getTags());
+        return tags;
     }
 
     public Map<String, String> getTags(String id) {
-           return getAdapter().getTags(PACKET_MANAGER_ACCOUNT, id);
+        Map<String, String> existingTags = getAdapter().getTags(PACKET_MANAGER_ACCOUNT, id);
+        return existingTags;
     }
 
     public List<ObjectDto> getAll(String id) {
-        return getAdapter().getAllObjects(PACKET_MANAGER_ACCOUNT, id);
+        List<ObjectDto> allObjects = getAdapter().getAllObjects(PACKET_MANAGER_ACCOUNT, id);
+        return allObjects;
     }
 
     public void deleteTags(TagRequestDto tagRequestDto) {
