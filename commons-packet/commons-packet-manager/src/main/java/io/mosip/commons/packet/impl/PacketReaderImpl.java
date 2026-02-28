@@ -12,6 +12,7 @@ import static io.mosip.commons.packet.constants.PacketManagerConstants.VALUE;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -430,34 +431,40 @@ public class PacketReaderImpl implements IPacketReader {
 
 	public List<BIR> filterByModalities(List<String> modalities,
 			List<BIR> birList) {
-		List<BIR> segments = new ArrayList<>();
 		if (CollectionUtils.isEmpty(modalities)) {
 			return birList;
-		} else {
-			// first search modalities in subtype and if not present search in type
-			for (BIR bir : birList) {
-				if (CollectionUtils.isNotEmpty(bir.getBdbInfo().getSubtype())
-						&& isModalityPresentInTypeSubtype(bir.getBdbInfo().getSubtype(), modalities)) {
+		}
+		// Pre-split modality strings once before the BIR loop to avoid
+		// repeated String.split() calls for every BIR entry.
+		List<List<String>> parsedModalities = new ArrayList<>(modalities.size());
+		for (String modality : modalities) {
+			parsedModalities.add(Arrays.asList(modality.split(" ")));
+		}
+
+		List<BIR> segments = new ArrayList<>();
+		// first search modalities in subtype and if not present search in type
+		for (BIR bir : birList) {
+			if (CollectionUtils.isNotEmpty(bir.getBdbInfo().getSubtype())
+					&& isModalityPresent(bir.getBdbInfo().getSubtype(), parsedModalities)) {
+				segments.add(bir);
+			} else {
+				for (BiometricType type : bir.getBdbInfo().getType()) {
+					if (isModalityPresent(Collections.singletonList(type.value()), parsedModalities)) {
 						segments.add(bir);
-				} else {
-					for (BiometricType type : bir.getBdbInfo().getType()) {
-						if (isModalityPresentInTypeSubtype(Lists.newArrayList(type.value()), modalities))
-							segments.add(bir);
+						break;
 					}
 				}
 			}
 		}
-			return segments;
+		return segments;
 	}
 
-	private boolean isModalityPresentInTypeSubtype(List<String> typeSubtype, List<String> modalities) {
-		boolean isPresent = false;
-		for (String modality : modalities) {
-			String[] modalityArray = modality.split(" ");
-			if (ArrayUtils.isNotEmpty(modalityArray) && ListUtils.isEqualList(typeSubtype, Arrays.asList(modalityArray)))
-				isPresent = true;
+	private boolean isModalityPresent(List<String> typeSubtype, List<List<String>> parsedModalities) {
+		for (List<String> modalityParts : parsedModalities) {
+			if (ListUtils.isEqualList(typeSubtype, modalityParts))
+				return true;
 		}
-		return isPresent;
+		return false;
 	}
 
 }
