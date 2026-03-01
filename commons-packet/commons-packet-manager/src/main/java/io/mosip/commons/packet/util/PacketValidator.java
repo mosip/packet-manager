@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
@@ -89,11 +88,12 @@ public class PacketValidator {
 
 
     public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
-        Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
-        boolean result = validateSchema(id, source, process, packetsMap);
+        boolean result = validateSchema(id, source, process);
         if(result) {
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
             auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
+            // Only fetch packets in parallel after schema passes — avoids unnecessary S3 calls on schema failures.
+            Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
             result = fileAndChecksumValidation(id, source, process, packetsMap);
         } else {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
@@ -128,18 +128,13 @@ public class PacketValidator {
         return packetsMap;
     }
 
-    private boolean validateSchema(String id, String source, String process, Map<String, Packet> packetsMap) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
+    private boolean validateSchema(String id, String source, String process) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
         Map<String, Object> objectMap = new HashMap<>();
         try {
-            Map<String, Object> mergedFields = getMergedFieldsFromPackets(packetsMap);
             String idschemaValueFromMappingJson = idSchemaUtils.getIdschemaVersionFromMappingJson();
-            Object idschemaVersionObj = mergedFields.get(idschemaValueFromMappingJson);
-            if (idschemaVersionObj == null) {
-                return false;
-            }
-            String idschemaVersion = idschemaVersionObj.toString();
+            String idschemaVersion = reader.getField(id, idschemaValueFromMappingJson, source, process, false);
             List<String> allFields = idSchemaUtils.getDefaultFields(Double.valueOf(idschemaVersion));
-            Map<String, String> fieldsMap = getFieldsFromMergedMap(mergedFields, allFields);
+            Map<String, String> fieldsMap = reader.getFields(id, allFields, source, process, false);
             objectMap.putAll(fieldsMap);
 
             if (convertIdschemaToDouble)
@@ -165,52 +160,6 @@ public class PacketValidator {
             return false;
         }
 
-    }
-
-    /**
-     * Extract merged identity fields from packets (same logic as PacketReaderImpl.getAll).
-     * Handles packets with same id but different source/process via packetsMap keyed by packetName.
-     */
-    private Map<String, Object> getMergedFieldsFromPackets(Map<String, Packet> packetsMap) throws IOException {
-        Map<String, Object> finalMap = new LinkedHashMap<>();
-        for (String packetName : packetNames.split(",")) {
-            Packet packet = packetsMap.get(packetName.trim());
-            if (packet == null) continue;
-            Map<String, byte[]> zipEntries = ZipUtils.unzipAll(packet.getPacket());
-            byte[] idBytes = zipEntries.get("ID");
-            if (idBytes != null) {
-                String jsonString = new String(idBytes);
-                LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-                        .readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
-                if (currentIdMap != null) {
-                    currentIdMap.keySet().forEach(key -> {
-                        Object value = currentIdMap.get(key);
-                        if (value != null && (value instanceof Number))
-                            finalMap.putIfAbsent(key, value);
-                        else if (value != null && (value instanceof String))
-                            finalMap.putIfAbsent(key, value.toString().replaceAll("(^\")|(\"$)", ""));
-                        else {
-                            try {
-                                finalMap.putIfAbsent(key,
-                                        value != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
-                            } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-                                throw new GetAllMetaInfoException(e.getMessage());
-                            }
-                        }
-                    });
-                }
-            }
-        }
-        return finalMap;
-    }
-
-    private Map<String, String> getFieldsFromMergedMap(Map<String, Object> mergedMap, List<String> fields) {
-        Map<String, String> result = new HashMap<>();
-        for (String field : fields) {
-            Object value = mergedMap.get(field);
-            result.put(field, value != null ? value.toString() : null);
-        }
-        return result;
     }
 
     /**
