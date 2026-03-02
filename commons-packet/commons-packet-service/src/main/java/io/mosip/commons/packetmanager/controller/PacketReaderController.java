@@ -67,8 +67,7 @@ public class PacketReaderController {
     public ResponseWrapper<FieldResponseDto> searchField(@RequestBody(required = true) RequestWrapper<FieldDto> fieldDto) {
         long startMs = System.currentTimeMillis();
         String rid = fieldDto.getRequest() != null ? fieldDto.getRequest().getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "searchField entered | RID=" + rid);
+        LOGGER.info(   "searchField entered | RID=" + rid);
         try {
             SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(fieldDto.getRequest().getId(),
                     fieldDto.getRequest().getField(), fieldDto.getRequest().getSource(), fieldDto.getRequest().getProcess());
@@ -84,8 +83,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "searchField completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info( "searchField completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -102,8 +100,7 @@ public class PacketReaderController {
         long startMs = System.currentTimeMillis();
         FieldDtos fieldDtos = request.getRequest();
         String rid = fieldDtos != null ? fieldDtos.getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "searchFields entered | RID=" + rid);
+        LOGGER.info(  "searchFields entered | RID=" + rid);
         try {
             Map<String, String> resultFields = new HashMap<>();
             if ((fieldDtos.getSource()) == null) {
@@ -123,8 +120,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "searchFields completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info("searchFields completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -141,8 +137,7 @@ public class PacketReaderController {
         long startMs = System.currentTimeMillis();
         DocumentDto documentDto = request.getRequest();
         String rid = documentDto != null ? documentDto.getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "getDocument entered | RID=" + rid);
+        LOGGER.info("getDocument entered | RID=" + rid);
         try {
             SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(documentDto.getId(),
                     documentDto.getDocumentName(), documentDto.getSource(), documentDto.getProcess());
@@ -154,8 +149,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "getDocument completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info(    "getDocument completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -172,8 +166,7 @@ public class PacketReaderController {
         long startMs = System.currentTimeMillis();
         BiometricRequestDto bioRequest = request.getRequest();
         String rid = bioRequest != null ? bioRequest.getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "getBiometrics entered | RID=" + rid);
+        LOGGER.info(   "getBiometrics entered | RID=" + rid);
         try {
             SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(bioRequest.getId(),
                     bioRequest.getPerson(), bioRequest.getSource(), bioRequest.getProcess());
@@ -186,8 +179,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "getBiometrics completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info(  "getBiometrics completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -204,8 +196,7 @@ public class PacketReaderController {
         long startMs = System.currentTimeMillis();
         InfoDto metaDto = request.getRequest();
         String rid = metaDto != null ? metaDto.getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "getMetaInfo entered | RID=" + rid);
+        LOGGER.info("getMetaInfo entered | RID=" + rid);
         try {
             SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
             Map<String, String> resultFields = packetReader.getMetaInfo(metaDto.getId(),
@@ -216,8 +207,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "getMetaInfo completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info("getMetaInfo completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -234,8 +224,7 @@ public class PacketReaderController {
         long startMs = System.currentTimeMillis();
         InfoDto metaDto = request.getRequest();
         String rid = metaDto != null ? metaDto.getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "getAudits entered | RID=" + rid);
+        LOGGER.info("getAudits entered | RID=" + rid);
         try {
             SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
             List<Map<String, String>> resultFields = packetReader.getAudits(metaDto.getId(),
@@ -252,8 +241,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "getAudits completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info("getAudits completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -270,8 +258,7 @@ public class PacketReaderController {
         long startMs = System.currentTimeMillis();
         InfoDto metaDto = request.getRequest();
         String rid = metaDto != null ? metaDto.getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "validatePacket entered | RID=" + rid);
+        LOGGER.info("validatePacket entered | RID=" + rid);
         try {
             SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
             boolean resultFields = packetReader.validatePacket(metaDto.getId(), sourceProcessDto.getSource(), sourceProcessDto.getProcess());
@@ -280,8 +267,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "validatePacket completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info("validatePacket completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -298,8 +284,7 @@ public class PacketReaderController {
             @RequestBody(required = true) RequestWrapper<TagRequestDto> request) {
         long startMs = System.currentTimeMillis();
         String rid = request.getRequest() != null ? request.getRequest().getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "getTags entered | RID=" + rid);
+        LOGGER.info( "getTags entered | RID=" + rid);
         try {
             TagResponseDto tagResponseDto = packetReaderService.getTags(request.getRequest());
             ResponseWrapper<TagResponseDto> response = getResponseWrapper();
@@ -307,8 +292,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "getTags completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info("getTags completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
@@ -324,8 +308,7 @@ public class PacketReaderController {
     public ResponseWrapper<InfoResponseDto> info(@RequestBody(required = true) RequestWrapper<InfoRequestDto> request) {
         long startMs = System.currentTimeMillis();
         String rid = request.getRequest() != null ? request.getRequest().getId() : null;
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                "info entered | RID=" + rid);
+        LOGGER.info("info entered | RID=" + rid);
         try {
             InfoResponseDto resultFields = null;
             if (rid != null && !rid.isEmpty())
@@ -335,8 +318,7 @@ public class PacketReaderController {
             return response;
         } finally {
             long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, rid,
-                    "info completed | RID=" + rid + " timeMs=" + timeMs);
+            LOGGER.info("info completed | RID=" + rid + " timeMs=" + timeMs);
         }
     }
 
