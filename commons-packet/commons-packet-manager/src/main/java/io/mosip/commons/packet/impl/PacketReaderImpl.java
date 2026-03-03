@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -130,8 +132,21 @@ public class PacketReaderImpl implements IPacketReader {
 		String[] sourcePacketNames = packetNames.split(",");
 
 		try {
+			// Launch all sub-packet fetches in parallel (each is an independent S3 + decrypt + verify)
+			List<CompletableFuture<Packet>> futures = new ArrayList<>();
 			for (String srcPacket : sourcePacketNames) {
-				Packet packet = packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+				futures.add(CompletableFuture.supplyAsync(() -> {
+					try {
+						return packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+					} catch (Exception e) {
+						throw new CompletionException(e);
+					}
+				}));
+			}
+
+			// Merge results in original order so putIfAbsent priority is preserved
+			for (CompletableFuture<Packet> future : futures) {
+				Packet packet = future.join();
 				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
 				if (idJsonStream != null) {
 					byte[] bytearray = IOUtils.toByteArray(idJsonStream);
@@ -157,6 +172,18 @@ public class PacketReaderImpl implements IPacketReader {
 					});
 				}
 			}
+		} catch (CompletionException ce) {
+			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					cause instanceof Exception ? ExceptionUtils.getStackTrace((Exception) cause) : cause.toString());
+			if (cause instanceof BaseCheckedException) {
+				BaseCheckedException ex = (BaseCheckedException) cause;
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			} else if (cause instanceof BaseUncheckedException) {
+				BaseUncheckedException ex = (BaseUncheckedException) cause;
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+			throw new GetAllIdentityException(cause.getMessage());
 		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
