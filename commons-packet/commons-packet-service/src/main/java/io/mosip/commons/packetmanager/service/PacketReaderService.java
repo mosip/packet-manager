@@ -5,11 +5,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Maps;
@@ -97,57 +99,86 @@ public class PacketReaderService {
         try {
             List<ObjectDto> allObjects = packetReader.info(id);
             List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
+            // O(1) dedup instead of O(n) stream scan per iteration
+            Set<String> seen = new HashSet<>();
+
+            // resolve biometric field key once outside the loop
+            String bioKey = getKey();
+
+            // start tags fetch concurrently — independent of container processing
+            CompletableFuture<Map<String, String>> tagsFuture =
+                    CompletableFuture.supplyAsync(() -> packetReader.getTags(id));
+
             for (ObjectDto o : allObjects) {
-                if (!containerInfoDtos.stream().anyMatch(info -> info.getSource().equalsIgnoreCase(o.getSource()) && info.getProcess().equalsIgnoreCase(o.getProcess()))) {
-                    ContainerInfoDto containerInfo = new ContainerInfoDto();
-                    containerInfo.setSource(o.getSource());
-                    containerInfo.setProcess(o.getProcess());
-                    containerInfo.setLastModified(o.getLastModified());
+                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
+                if (!seen.add(containerKey))
+                    continue;
 
-                    //get demographic fields
-                    Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
-                    // get biometrics
-                    List<BiometricsDto> biometrics = null;
-                    BiometricRecord br = packetReader.getBiometric(id, getKey(), Lists.newArrayList(), o.getSource(), o.getProcess(), false);
-                    if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
-                        Map<String, List<String>> biomap = new HashMap<>();
-                        for (BIR b : br.getSegments()) {
-                            String key = b.getBdbInfo().getType().iterator().next().value();
-							String subtype = null;
-							if (b.getBdbInfo().getSubtype() != null) {
-								subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
-							}
+                ContainerInfoDto containerInfo = new ContainerInfoDto();
+                containerInfo.setSource(o.getSource());
+                containerInfo.setProcess(o.getProcess());
+                containerInfo.setLastModified(o.getLastModified());
 
-                            if (biomap.get(key) == null)
-                                biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
-                            else {
-                                List<String> finalVal =  biomap.get(key);
-                                finalVal.add(subtype);
-                                biomap.put(key, finalVal);
+                final String src = o.getSource();
+                final String proc = o.getProcess();
+
+                // run demographic key fetch and biometric fetch concurrently per container
+                CompletableFuture<Set<String>> demoFuture = CompletableFuture.supplyAsync(
+                        () -> packetReader.getAllKeys(id, src, proc));
+                CompletableFuture<BiometricRecord> bioFuture = CompletableFuture.supplyAsync(
+                        () -> {
+                            try {
+                                return packetReader.getBiometric(id, bioKey, Lists.newArrayList(), src, proc, false);
+                            } catch (Exception ex) {
+                                LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                                        "getBiometric skipped for " + src + "/" + proc + ": " + ex.getMessage());
+                                return null;
                             }
+                        });
+
+                Set<String> demographics = demoFuture.join();
+                BiometricRecord br = bioFuture.join();
+
+                // build biometrics list from BiometricRecord
+                List<BiometricsDto> biometrics = null;
+                if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
+                    Map<String, List<String>> biomap = new HashMap<>();
+                    for (BIR b : br.getSegments()) {
+                        String key = b.getBdbInfo().getType().iterator().next().value();
+                        String subtype = null;
+                        if (b.getBdbInfo().getSubtype() != null) {
+                            subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
                         }
-                        biometrics = new ArrayList<>();
-                        for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
-                            BiometricsDto bioDto = new BiometricsDto();
-                            bioDto.setType(b.getKey());
-                            bioDto.setSubtypes(b.getValue());
-                            biometrics.add(bioDto);
+                        if (biomap.get(key) == null)
+                            biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
+                        else {
+                            List<String> finalVal = biomap.get(key);
+                            finalVal.add(subtype);
+                            biomap.put(key, finalVal);
                         }
                     }
-
-                    containerInfo.setDemographics(demographics);
-                    containerInfo.setBiometrics(biometrics);
-                    containerInfoDtos.add(containerInfo);
+                    biometrics = new ArrayList<>();
+                    for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
+                        BiometricsDto bioDto = new BiometricsDto();
+                        bioDto.setType(b.getKey());
+                        bioDto.setSubtypes(b.getValue());
+                        biometrics.add(bioDto);
+                    }
                 }
+
+                containerInfo.setDemographics(demographics);
+                containerInfo.setBiometrics(biometrics);
+                containerInfoDtos.add(containerInfo);
             }
-            // get tags
-            Map<String, String> tags = packetReader.getTags(id);
+
+            // collect tags result (was running concurrently with the loop above)
+            Map<String, String> tags = tagsFuture.join();
 
             InfoResponseDto infoResponseDto = new InfoResponseDto();
             infoResponseDto.setApplicationId(id);
             infoResponseDto.setPacketId(id);
             infoResponseDto.setInfo(containerInfoDtos);
-			infoResponseDto.setTags(tags);
+            infoResponseDto.setTags(tags);
             return infoResponseDto;
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
@@ -155,12 +186,10 @@ public class PacketReaderService {
             if (e instanceof BaseUncheckedException) {
                 BaseUncheckedException ex = (BaseUncheckedException) e;
                 throw ex;
-            }
-            else if (e instanceof BaseCheckedException) {
+            } else if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
-            }
-            else
+            } else
                 throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
         }
     }
@@ -179,18 +208,19 @@ public class PacketReaderService {
         try {
             List<ObjectDto> allObjects = packetReader.info(id);
             List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
             for (ObjectDto o : allObjects) {
-                if (!containerInfoDtos.stream().anyMatch(info ->
-                        info.getSource().equalsIgnoreCase(o.getSource()) &&
-                        info.getProcess().equalsIgnoreCase(o.getProcess()))) {
-                    ContainerInfoDto containerInfo = new ContainerInfoDto();
-                    containerInfo.setSource(o.getSource());
-                    containerInfo.setProcess(o.getProcess());
-                    containerInfo.setLastModified(o.getLastModified());
-                    Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
-                    containerInfo.setDemographics(demographics);
-                    containerInfoDtos.add(containerInfo);
-                }
+                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
+                if (!seen.add(containerKey))
+                    continue;
+
+                ContainerInfoDto containerInfo = new ContainerInfoDto();
+                containerInfo.setSource(o.getSource());
+                containerInfo.setProcess(o.getProcess());
+                containerInfo.setLastModified(o.getLastModified());
+                Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+                containerInfo.setDemographics(demographics);
+                containerInfoDtos.add(containerInfo);
             }
             InfoResponseDto infoResponseDto = new InfoResponseDto();
             infoResponseDto.setApplicationId(id);
