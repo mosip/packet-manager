@@ -280,32 +280,34 @@ public class PacketReaderImpl implements IPacketReader {
 		String cacheKey = generateKey(id, biometricFieldName, source, process);
 		Cache cache = cacheManager.getCache("packets");
 
-		if(byPassCache || cache == null) {
+		if (byPassCache || cache == null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
-			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+			byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+			return cbeffBytes != null ? CbeffValidator.getBIRFromXML(cbeffBytes) : null;
 		}
 
-		BIR cachedValue = cache.get(cacheKey, BIR.class);
-		if(cachedValue != null) {
+		byte[] cachedBytes = cache.get(cacheKey, byte[].class);
+		if (cachedBytes != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Cache Found for the Key : " + cacheKey);
-			return cachedValue;
+			return CbeffValidator.getBIRFromXML(cachedBytes);
 		}
 
 		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
-		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
-		if(bir != null) {
+		byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+		if (cbeffBytes != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Adding cache the Key : " + cacheKey);
-			cache.put(cacheKey, bir);
+			cache.put(cacheKey, cbeffBytes);
+			return CbeffValidator.getBIRFromXML(cbeffBytes);
 		}
 
-		return bir;
+		return null;
 	}
 
-	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+	private byte[] loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
@@ -345,7 +347,7 @@ public class PacketReaderImpl implements IPacketReader {
 		if (biometrics == null)
 			return null;
 
-		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+		return IOUtils.toByteArray(biometrics);
 	}
 
 	@Override
