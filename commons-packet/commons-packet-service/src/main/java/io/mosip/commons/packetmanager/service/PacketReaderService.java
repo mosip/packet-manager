@@ -1,9 +1,19 @@
 package io.mosip.commons.packetmanager.service;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Maps;
 import io.mosip.commons.packet.util.PacketHelper;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,12 +47,11 @@ import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.StringUtils;
 
-import jakarta.annotation.PostConstruct;
-
 @Component
 public class PacketReaderService {
 
-    private static final Logger LOGGER = PacketManagerLogger.getLogger(PacketReaderService.class);
+    private static Logger LOGGER = PacketManagerLogger.getLogger(PacketReaderService.class);
+
     private static final String VALUE = "value";
     private static final String INDIVIDUAL_BIOMETRICS = "individualBiometrics";
     private static final String IDENTITY = "identity";
@@ -52,24 +61,10 @@ public class PacketReaderService {
     private static final String SOURCE = "source";
     private static final String PROCESS = "process";
     private static final String PROVIDER = "provider";
+    private String key = null;
     private static final String sourceInitial = "source:";
     private static final String processInitial = "process:";
-
-    // Parsed once at startup from defaultPriority string.
-    // Each entry: [sourceStr, processStr[]] — avoids re-parsing on every request.
-    private List<String[]> parsedPriority = Collections.emptyList();
-
-    // True after @PostConstruct runs. False in unit tests that use @InjectMocks
-    // (PostConstruct is not called). Methods use getEffectiveParsedPriority() so
-    // they fall back to parsing defaultPriority at call time in tests.
-    private volatile boolean initCalled = false;
-
-    // Thread-safe lazy cache for the mapping JSON fetched from config server.
-    private volatile JSONObject mappingJson = null;
-    private final Object mappingJsonLock = new Object();
-
-    // Cached biometric key derived from mapping JSON (same lifecycle as mappingJson).
-    private volatile String cachedBiometricKey = null;
+    private JSONObject mappingJson = null;
 
     @Value("${config.server.file.storage.uri}")
     private String configServerUrl;
@@ -93,53 +88,61 @@ public class PacketReaderService {
     @Value("#{T(java.util.Arrays).asList('${packetmanager.additional.fields.search.from.metainfo:officerBiometricFileName,supervisorBiometricFileName}')}")
     private List<String> additionalFieldsSearch;
 
-    // Convert to a Set for O(1) lookups instead of O(n) List.contains().
-    private Set<String> additionalFieldsSearchSet;
-
     @Autowired
     private ObjectMapper objectMapper;
 
-    /**
-     * Parse defaultPriority and additionalFieldsSearch once at startup.
-     * Eliminates repeated string splitting on every getSourceAndProcess call.
-     */
-    @PostConstruct
-    private void init() {
-        initCalled = true;
-        additionalFieldsSearchSet = new HashSet<>(additionalFieldsSearch);
-
-        if (StringUtils.isNotEmpty(defaultPriority)) {
-            parsedPriority = new ArrayList<>();
-            for (String entry : defaultPriority.split(",")) {
-                String[] parts = entry.split("/");
-                if (parts.length >= 2 && parts[0].startsWith(sourceInitial)) {
-                    // [0] = source value, [1] = pipe-separated process values
-                    parsedPriority.add(new String[]{
-                            parts[0].substring(sourceInitial.length()),
-                            parts[1].substring(processInitial.length())
-                    });
-                }
-            }
-        }
-    }
-
- public InfoResponseDto info(String id) {
+    public InfoResponseDto info(String id) {
         return mergeProcessWithMultipleIteration(infoInternal(id));
     }
 
     private InfoResponseDto infoInternal(String id) {
         try {
             List<ObjectDto> allObjects = packetReader.info(id);
-            // Use a Set keyed by "source|process" for O(1) duplicate detection
-            // instead of O(n) anyMatch scan inside a loop.
-            Set<String> seen = new HashSet<>();
             List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            String bioKey = getKey();
 
             for (ObjectDto o : allObjects) {
-                String key = o.getSource().toLowerCase() + "|" + o.getProcess().toLowerCase();
-                if (!seen.add(key)) continue;
+                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
+                if (!seen.add(containerKey))
+                    continue;
 
-                ContainerInfoDto containerInfo = buildContainerInfo(id, o, true);
+                ContainerInfoDto containerInfo = new ContainerInfoDto();
+                containerInfo.setSource(o.getSource());
+                containerInfo.setProcess(o.getProcess());
+                containerInfo.setLastModified(o.getLastModified());
+
+                Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+
+                List<BiometricsDto> biometrics = null;
+                BiometricRecord br = packetReader.getBiometric(id, bioKey, Lists.newArrayList(), o.getSource(), o.getProcess(), false);
+                if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
+                    Map<String, List<String>> biomap = new HashMap<>();
+                    for (BIR b : br.getSegments()) {
+                        String key = b.getBdbInfo().getType().iterator().next().value();
+                        String subtype = null;
+                        if (b.getBdbInfo().getSubtype() != null) {
+                            subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
+                        }
+                        if (biomap.get(key) == null)
+                            biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
+                        else {
+                            List<String> finalVal = biomap.get(key);
+                            finalVal.add(subtype);
+                            biomap.put(key, finalVal);
+                        }
+                    }
+                    biometrics = new ArrayList<>();
+                    for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
+                        BiometricsDto bioDto = new BiometricsDto();
+                        bioDto.setType(b.getKey());
+                        bioDto.setSubtypes(b.getValue());
+                        biometrics.add(bioDto);
+                    }
+                }
+
+                containerInfo.setDemographics(demographics);
+                containerInfo.setBiometrics(biometrics);
                 containerInfoDtos.add(containerInfo);
             }
 
@@ -151,117 +154,82 @@ public class PacketReaderService {
             infoResponseDto.setInfo(containerInfoDtos);
             infoResponseDto.setTags(tags);
             return infoResponseDto;
-
         } catch (Exception e) {
-            throw wrapException(id, e);
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
+
+            if (e instanceof BaseUncheckedException) {
+                BaseUncheckedException ex = (BaseUncheckedException) e;
+                throw ex;
+            } else if (e instanceof BaseCheckedException) {
+                BaseCheckedException ex = (BaseCheckedException) e;
+                throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
+            } else
+                throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
         }
     }
 
     /**
-     * Lightweight variant — skips biometric reads and tag fetches.
-     * Used only for source/process resolution.
+     * Lightweight version of infoInternal used exclusively for source/process
+     * resolution. Only fetches demographic keys per container — skips biometric
+     * reads and tag fetches, which are not needed to decide which source/process
+     * owns a given field.
+     *
+     * This avoids N full biometric reads (object-store fetch + decrypt + ZIP
+     * extraction + CBEFF XML parse) that infoInternal would otherwise perform,
+     * one per source/process combination in the packet.
      */
     private InfoResponseDto infoInternalForSourceResolution(String id) {
         try {
             List<ObjectDto> allObjects = packetReader.info(id);
-            Set<String> seen = new HashSet<>();
             List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
-
+            Set<String> seen = new HashSet<>();
             for (ObjectDto o : allObjects) {
-                String key = o.getSource().toLowerCase() + "|" + o.getProcess().toLowerCase();
-                if (!seen.add(key)) continue;
-
-                ContainerInfoDto containerInfo = buildContainerInfo(id, o, false);
+                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
+                if (!seen.add(containerKey))
+                    continue;
+                ContainerInfoDto containerInfo = new ContainerInfoDto();
+                containerInfo.setSource(o.getSource());
+                containerInfo.setProcess(o.getProcess());
+                containerInfo.setLastModified(o.getLastModified());
+                Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+                containerInfo.setDemographics(demographics);
                 containerInfoDtos.add(containerInfo);
             }
-
             InfoResponseDto infoResponseDto = new InfoResponseDto();
             infoResponseDto.setApplicationId(id);
             infoResponseDto.setPacketId(id);
             infoResponseDto.setInfo(containerInfoDtos);
             return infoResponseDto;
-
         } catch (Exception e) {
-            throw wrapException(id, e);
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
+            if (e instanceof BaseUncheckedException)
+                throw (BaseUncheckedException) e;
+            else if (e instanceof BaseCheckedException) {
+                BaseCheckedException ex = (BaseCheckedException) e;
+                throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
+            } else
+                throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
         }
     }
 
-    /**
-     * Shared builder for ContainerInfoDto — consolidates duplicated logic
-     * between infoInternal and infoInternalForSourceResolution.
-     *
-     * @param includeBiometrics when true, performs the biometric fetch/parse (full info path).
-     */
-    private ContainerInfoDto buildContainerInfo(String id, ObjectDto o, boolean includeBiometrics) throws IOException {
-        ContainerInfoDto containerInfo = new ContainerInfoDto();
-        containerInfo.setSource(o.getSource());
-        containerInfo.setProcess(o.getProcess());
-        containerInfo.setLastModified(o.getLastModified());
+    private String getKey() throws IOException {
 
-        Set<String> demographics = packetReader.getAllKeys(id, o.getSource(), o.getProcess());
-        containerInfo.setDemographics(demographics);
-
-        if (includeBiometrics) {
-            List<BiometricsDto> biometrics = fetchBiometrics(id, o);
-            containerInfo.setBiometrics(biometrics);
-        }
-        return containerInfo;
-    }
-
-    /**
-     * Extracts and aggregates biometric segments into BiometricsDtos.
-     * Extracted from infoInternal to keep methods focused.
-     */
-    private List<BiometricsDto> fetchBiometrics(String id, ObjectDto o) throws IOException {
-        BiometricRecord br = packetReader.getBiometric(
-                id, getBiometricKey(), Lists.newArrayList(), o.getSource(), o.getProcess(), false);
-
-        if (br == null || CollectionUtils.isEmpty(br.getSegments())) return null;
-
-        // LinkedHashMap preserves insertion order for predictable output.
-        Map<String, List<String>> biomap = new LinkedHashMap<>();
-        for (BIR b : br.getSegments()) {
-            String type = b.getBdbInfo().getType().iterator().next().value();
-            String subtype = b.getBdbInfo().getSubtype() != null
-                    ? b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip()
-                    : null;
-
-            biomap.computeIfAbsent(type, k -> StringUtils.isNotEmpty(subtype) ? new ArrayList<>() : null);
-            if (StringUtils.isNotEmpty(subtype) && biomap.get(type) != null) {
-                biomap.get(type).add(subtype);
-            }
-        }
-
-        List<BiometricsDto> biometrics = new ArrayList<>();
-        for (Map.Entry<String, List<String>> entry : biomap.entrySet()) {
-            BiometricsDto bioDto = new BiometricsDto();
-            bioDto.setType(entry.getKey());
-            bioDto.setSubtypes(entry.getValue());
-            biometrics.add(bioDto);
-        }
-        return biometrics;
-    }
-
-    /**
-     * Returns cached biometric key, loading mapping JSON once if needed.
-     * Thread-safe via double-checked locking on mappingJsonLock.
-     */
-    private String getBiometricKey() throws IOException {
-        if (cachedBiometricKey != null) return cachedBiometricKey;
         JSONObject jsonObject = getMappingJsonFile();
-        if (jsonObject != null) {
-            LinkedHashMap<String, String> individualBio = (LinkedHashMap<String, String>) jsonObject.get(INDIVIDUAL_BIOMETRICS);
-            cachedBiometricKey = individualBio.get(VALUE);
+        if(jsonObject != null) {
+            LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
+            key = individualBio.get(VALUE);
+            return key;
         }
-        return cachedBiometricKey;
+        return null;
+
     }
+
 
     public SourceProcessDto getSourceAndProcess(String id, String source, String process) {
         if (StringUtils.isEmpty(source)) {
             try {
                 if (defaultStrategy.equalsIgnoreCase(DefaultStrategy.DEFAULT_PRIORITY.getValue())) {
                     source = getDefaultSource(process);
-                    if (source == null) throw new SourceNotPresentException();
                 } else {
                     throw new SourceNotPresentException();
                 }
@@ -275,179 +243,115 @@ public class PacketReaderService {
     }
 
     public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process) {
+        SourceProcessDto sourceProcessDto = null;
         InfoResponseDto infoResponseDto = infoInternalForSourceResolution(id);
         List<ContainerInfoDto> info = infoResponseDto.getInfo();
-
-        // Pre-compute sort keys to avoid calling extractInt O(n log n) times
-        // with redundant string operations on each comparator invocation.
-        info.sort(Comparator.comparingInt((ContainerInfoDto i) ->
-                extractInt(i.getProcess())).reversed());
-
+        // sorting in reverse order by process name to search from latest iteration first.
+        Collections.sort(info, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
         if (StringUtils.isEmpty(source)) {
             try {
                 if (defaultStrategy.equalsIgnoreCase(DefaultStrategy.DEFAULT_PRIORITY.getValue())) {
                     ContainerInfoDto containerInfoDto = findPriority(field, info);
-                    if (containerInfoDto == null) return null;
-                    return new SourceProcessDto(containerInfoDto.getSource(), containerInfoDto.getProcess());
+                    if (containerInfoDto == null)
+                        return null;
+                    sourceProcessDto = new SourceProcessDto(containerInfoDto.getSource(), containerInfoDto.getProcess());
                 }
             } catch (Exception e) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
                 throw new SourceNotPresentException(e);
             }
+
         } else {
             ContainerInfoDto containerInfoDto = getContainerInfoBySourceAndProcess(field, source, process, info);
-            return containerInfoDto != null
-                    ? new SourceProcessDto(containerInfoDto.getSource(), containerInfoDto.getProcess())
-                    : null;
+            sourceProcessDto = containerInfoDto != null ?
+                    new SourceProcessDto(containerInfoDto.getSource(), containerInfoDto.getProcess()) : null;
         }
-        return null;
+        return sourceProcessDto;
     }
 
     public ContainerInfoDto findPriority(String field, List<ContainerInfoDto> info) {
-        if (info.size() == 1) {
-            return info.get(0);
-        }
-        return getContainerInfoByDefaultPriority(field, info);
+        if (info.size() == 1)
+            return info.iterator().next();
+        else
+            return getContainerInfoByDefaultPriority(field, info);
     }
 
-    /**
-     * Uses pre-parsed priority list (built at @PostConstruct) rather than
-     * re-splitting the defaultPriority string on every invocation.
-     */
     private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info) {
-        for (String[] entry : getEffectiveParsedPriority()) {
-            String sourceStr = entry[0];
-            String[] processes = entry[1].split("\\|");
-            for (String proc : processes) {
-                final String procFinal = proc;
-                Optional<ContainerInfoDto> match = info.stream()
-                        .filter(infoDto -> isFieldPresent(field, infoDto)
-                                && infoDto.getSource().equalsIgnoreCase(sourceStr)
-                                && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(procFinal))
-                        .findFirst();
-                if (match.isPresent()) return match.get();
-            }
-        }
-        return null;
-    }
-
-    /**
-     * O(1) lookup via Set instead of O(n) List.contains().
-     * Falls back to the raw List when additionalFieldsSearchSet is null
-     * (i.e. @PostConstruct was not called — test scenario with @InjectMocks).
-     */
-    private boolean isFieldPresent(String field, ContainerInfoDto infoDto) {
-        boolean inAdditional = additionalFieldsSearchSet != null
-                ? additionalFieldsSearchSet.contains(field)
-                : (additionalFieldsSearch != null && additionalFieldsSearch.contains(field));
-        if (inAdditional) return true;
-        return infoDto.getDemographics() != null && infoDto.getDemographics().contains(field);
-    }
-
-    private ContainerInfoDto getContainerInfoBySourceAndProcess(
-            String field, String source, String process, List<ContainerInfoDto> info) {
-        return info.stream()
-                .filter(infoDto -> infoDto.getDemographics() != null
-                        && infoDto.getDemographics().contains(field)
-                        && infoDto.getSource().equalsIgnoreCase(source)
-                        && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Uses pre-parsed priority list — no string splitting at request time.
-     * Returns null when the process is not found in the priority list so the
-     * caller can decide how to handle it (throw SourceNotPresentException).
-     * Throws SourceNotPresentException directly only when no priority is configured at all.
-     */
-    private String getDefaultSource(String process) {
-        List<String[]> effective = getEffectiveParsedPriority();
-        if (effective.isEmpty() && StringUtils.isEmpty(defaultPriority)) {
-            throw new SourceNotPresentException();
-        }
-        for (String[] entry : effective) {
-            String sourceStr = entry[0];
-            String[] processes = entry[1].split("\\|");
-            if (Arrays.stream(processes).anyMatch(p -> p.equalsIgnoreCase(process))) {
-                return sourceStr;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Returns parsedPriority when @PostConstruct has run (production path).
-     * Falls back to parsing defaultPriority at call time when @PostConstruct was
-     * not invoked — i.e. unit tests that use @InjectMocks without Spring context.
-     */
-    private List<String[]> getEffectiveParsedPriority() {
-        return initCalled ? parsedPriority : parsePriorityString(defaultPriority);
-    }
-
-    private List<String[]> parsePriorityString(String priority) {
-        if (StringUtils.isEmpty(priority)) return Collections.emptyList();
-        List<String[]> result = new ArrayList<>();
-        for (String entry : priority.split(",")) {
-            String[] parts = entry.split("/");
-            if (parts.length >= 2 && parts[0].startsWith(sourceInitial)) {
-                result.add(new String[]{
-                        parts[0].substring(sourceInitial.length()),
-                        parts[1].substring(processInitial.length())
-                });
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Finds an existing container in finalInfos by source+processKey and merges
-     * the incoming data into it. Returns the updated container, or null if not found.
-     * Kept for backward-compatibility with existing test coverage.
-     */
-    private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos, ContainerInfoDto newInfo, String processKey) {
-        for (ContainerInfoDto existing : finalInfos) {
-            if (existing.getSource() != null && existing.getSource().equals(newInfo.getSource())
-                    && PacketHelper.getProcessWithoutIteration(existing.getProcess()).equalsIgnoreCase(processKey)) {
-                existing.setDemographics(mergeDemographics(existing, newInfo));
-                existing.setBiometrics(mergeBiometrics(existing, newInfo));
-                existing.setDocuments(mergeDocuments(existing, newInfo));
-                if (existing.getLastModified() != null && newInfo.getLastModified() != null
-                        && existing.getLastModified().before(newInfo.getLastModified())) {
-                    existing.setLastModified(newInfo.getLastModified());
+        if (StringUtils.isNotEmpty(defaultPriority)) {
+            String[] val = defaultPriority.split(",");
+            if (val != null && val.length > 0) {
+                for (String value : val) {
+                    String[] str = value.split("/");
+                    if (str != null && str.length > 0 && str[0].startsWith(sourceInitial)) {
+                        String sourceStr = str[0].substring(sourceInitial.length());
+                        String processStr = str[1].substring(processInitial.length());
+                        for (String process : processStr.split("\\|")) {
+                            Optional<ContainerInfoDto> containerDto = info.stream().filter(infoDto ->
+                                    isFieldPresent(field, infoDto) && infoDto.getSource().equalsIgnoreCase(sourceStr)
+                                            && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
+                            // if container is not present then continue searching
+                            if (containerDto.isPresent()) {
+                                return containerDto.get();
+                            } else
+                                continue;
+                        }
+                    }
                 }
-                return existing;
             }
         }
         return null;
     }
 
-    /**
-     * Utility previously used for mapping JSON navigation.
-     * Kept as a private static so tests that invoke it via reflection still pass.
-     */
-    private static JSONObject getJSONObject(JSONObject jsonObject, Object key) {
-        if (jsonObject == null) return null;
-        Object value = jsonObject.get(key);
-        return (value instanceof JSONObject) ? (JSONObject) value : null;
+    private boolean isFieldPresent(String field, ContainerInfoDto infoDto) {
+        if (additionalFieldsSearch.contains(field))
+            return true;
+        else
+            return infoDto.getDemographics() != null && infoDto.getDemographics().contains(field);
+    }
+
+    private ContainerInfoDto getContainerInfoBySourceAndProcess(String field, String source, String process, List<ContainerInfoDto> info) {
+        Optional<ContainerInfoDto> containerDto = info.stream().filter(infoDto ->
+                infoDto.getDemographics() != null && infoDto.getDemographics().contains(field) && infoDto.getSource().equalsIgnoreCase(source)
+                        && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
+
+        return containerDto.isPresent() ? containerDto.get() : null;
+    }
+
+    private String getDefaultSource(String process) {
+        if (StringUtils.isNotEmpty(defaultPriority)) {
+            String[] val = defaultPriority.split(",");
+            if (val != null && val.length > 0) {
+                for (String value : val) {
+                    String[] str = value.split("/");
+                    if (str != null && str.length > 0 && str[0].startsWith(sourceInitial)) {
+                        String sourceStr = str[0].substring(sourceInitial.length());
+                        String processStr = str[1].substring(processInitial.length());
+                        String[] processes = processStr.split("\\|");
+                        if (Arrays.stream(processes).filter(p -> p.equalsIgnoreCase(process)).findAny().isPresent())
+                            return sourceStr;
+                    }
+                }
+            }
+        } else
+            throw new SourceNotPresentException();
+        return null;
     }
 
     private ObjectDto searchProcessWithLatestIteration(String id, String source, String process) {
         List<ObjectDto> allObjects = packetReader.info(id);
-        // Sort descending by iteration number using pre-computed keys.
-        allObjects.sort(Comparator.comparingInt((ObjectDto o) -> extractInt(o.getProcess())).reversed());
+        Collections.sort(allObjects, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
 
-        return allObjects.stream()
-                .filter(obj -> obj.getSource().equals(source)
-                        && PacketHelper.getProcessWithoutIteration(obj.getProcess()).equalsIgnoreCase(process))
-                .findFirst()
-                .orElseGet(() -> getObjectDto(source, process));
+        Optional<ObjectDto> objectDto = allObjects.stream().filter(obj ->
+                obj.getSource().equals(source)
+                        && PacketHelper.getProcessWithoutIteration(obj.getProcess()).equalsIgnoreCase(process)).findAny();
+
+        return objectDto.isPresent() ? objectDto.get() : getObjectDto(source, process);
     }
 
     public String getSourceFromIdField(String process, String idField) throws IOException {
         JSONObject jsonObject = getMappingJsonFile();
         for (Object key : jsonObject.keySet()) {
-            LinkedHashMap<?, ?> hMap = (LinkedHashMap<?, ?>) jsonObject.get(key);
+            LinkedHashMap hMap = (LinkedHashMap) jsonObject.get(key);
             String value = (String) hMap.get(VALUE);
             if (value != null && value.contains(idField)) {
                 return getSource(jsonObject, process, key.toString());
@@ -457,84 +361,87 @@ public class PacketReaderService {
     }
 
     private ObjectDto getObjectDto(String source, String process) {
-        ObjectDto objectDto = new ObjectDto();
-        objectDto.setSource(source);
-        objectDto.setProcess(process);
-        return objectDto;
+        ObjectDto objectDto1 = new ObjectDto();
+        objectDto1.setSource(source);
+        objectDto1.setProcess(process);
+        return objectDto1;
     }
 
     public String searchInMappingJson(String idField, String process) throws IOException {
-        if (idField == null) return null;
-        JSONObject jsonObject = getMappingJsonFile();
-        for (Object key : jsonObject.keySet()) {
-            LinkedHashMap<?, ?> hMap = (LinkedHashMap<?, ?>) jsonObject.get(key);
-            String value = (String) hMap.get(VALUE);
-            if (value != null && value.contains(idField)) {
-                return getSource(jsonObject, process, key.toString());
-            }
-        }
-        return null;
-    }
-
-    private String getSource(JSONObject jsonObject, String process, String field) {
-        Object obj = field == null ? jsonObject.get(PROVIDER) : getField(jsonObject, field);
-        if (obj instanceof ArrayList) {
-            List<String> providerList = (List<String>) obj;
-            for (String value : providerList) {
-                String[] values = value.split(",");
-                for (String provider : values) {
-                    if (provider != null && provider.startsWith(PROCESS) && provider.contains(process)) {
-                        for (String val : values) {
-                            if (val.startsWith(SOURCE)) {
-                                return val.replace(SOURCE + ":", "").trim();
-                            }
-                        }
-                    }
+        if (idField != null) {
+            JSONObject jsonObject = getMappingJsonFile();
+            for (Object key : jsonObject.keySet()) {
+                LinkedHashMap hMap = (LinkedHashMap) jsonObject.get(key);
+                String value = (String) hMap.get(VALUE);
+                if (value != null && value.contains(idField)) {
+                    return getSource(jsonObject, process, key.toString());
                 }
             }
         }
         return null;
     }
 
+    private String getSource(JSONObject jsonObject, String process, String field) {
+        String source = null;
+        Object obj = field == null ? jsonObject.get(PROVIDER) : getField(jsonObject, field);
+        if (obj != null && obj instanceof ArrayList) {
+            List<String> providerList = (List) obj;
+            for (String value : providerList) {
+                String[] values = value.split(",");
+                for (String provider : values) {
+                    if (provider != null) {
+                        if (provider.startsWith(PROCESS) && provider.contains(process)) {
+                            for (String val : values) {
+                                if (val.startsWith(SOURCE)) {
+                                    return val.replace(SOURCE + ":", "").trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return source;
+    }
+
     private Object getField(JSONObject jsonObject, String field) {
-        LinkedHashMap<?, ?> lm = (LinkedHashMap<?, ?>) jsonObject.get(field);
+        LinkedHashMap lm = (LinkedHashMap) jsonObject.get(field);
         return lm.get(PROVIDER);
     }
 
-    /**
-     * Thread-safe double-checked locking for the mapping JSON cache.
-     * Prevents multiple concurrent HTTP fetches to the config server
-     * that the original unsynchronized lazy init allowed.
-     */
+    private static JSONObject getJSONObject(JSONObject jsonObject, Object key) {
+        if(jsonObject == null)
+            return null;
+        LinkedHashMap identity = (LinkedHashMap) jsonObject.get(key);
+        return identity != null ? new JSONObject(identity) : null;
+    }
+
     private JSONObject getMappingJsonFile() throws IOException {
-        if (mappingJson != null) return mappingJson;
-        synchronized (mappingJsonLock) {
-            if (mappingJson != null) return mappingJson;
-            String mappingJsonString = restTemplate.getForObject(
-                    configServerUrl + "/" + mappingjsonFileName, String.class);
-            JSONObject jsonObject = objectMapper.readValue(mappingJsonString, JSONObject.class);
-            LinkedHashMap<Object, Object> combinedMap = new LinkedHashMap<>();
-            combinedMap.putAll((Map<?, ?>) jsonObject.get(IDENTITY));
-            combinedMap.putAll((Map<?, ?>) jsonObject.get(DOCUMENTS));
-            combinedMap.put(META_INFO, jsonObject.get(META_INFO));
-            combinedMap.put(AUDITS, jsonObject.get(AUDITS));
-            mappingJson = new JSONObject(combinedMap);
-        }
+        if (mappingJson != null)
+            return mappingJson;
+
+        String mappingJsonString = restTemplate.getForObject(configServerUrl + "/" + mappingjsonFileName, String.class);
+        JSONObject jsonObject = objectMapper.readValue(mappingJsonString, JSONObject.class);
+        LinkedHashMap combinedMap = new LinkedHashMap();
+        combinedMap.putAll((Map) jsonObject.get(IDENTITY));
+        combinedMap.putAll((Map) jsonObject.get(DOCUMENTS));
+        combinedMap.put(META_INFO, jsonObject.get(META_INFO));
+        combinedMap.put(AUDITS, jsonObject.get(AUDITS));
+        mappingJson = new JSONObject(combinedMap);
         return mappingJson;
     }
 
     public TagResponseDto getTags(TagRequestDto tagRequestDto) {
         try {
+            Map<String, String> tags = new HashMap<String, String>();
             Map<String, String> existingTags = packetReader.getTags(tagRequestDto.getId());
-            List<String> tagNames = tagRequestDto.getTagNames();
+            List<String> tagNames=tagRequestDto.getTagNames();
             TagResponseDto tagResponseDto = new TagResponseDto();
-
             if (tagNames != null && !tagNames.isEmpty()) {
-                Map<String, String> tags = new HashMap<>(tagNames.size());
                 for (String tag : tagNames) {
-                    String val = existingTags.get(tag);
-                    if (val != null || existingTags.containsKey(tag)) {
-                        tags.put(tag, val);
+                    if (existingTags.containsKey(tag)) {
+                        tags.put(tag, existingTags.get(tag));
                     } else {
                         throw new GetTagException(PacketUtilityErrorCodes.TAG_NOT_FOUND.getErrorCode(),
                                 PacketUtilityErrorCodes.TAG_NOT_FOUND.getErrorMessage() + tag);
@@ -545,10 +452,9 @@ public class PacketReaderService {
                 tagResponseDto.setTags(existingTags);
             }
             return tagResponseDto;
-
         } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                    tagRequestDto.getId(), ExceptionUtils.getStackTrace(e));
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, tagRequestDto.getId(),
+                    ExceptionUtils.getStackTrace(e));
             if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new GetTagException(ex.getErrorCode(), ex.getMessage());
@@ -557,100 +463,125 @@ public class PacketReaderService {
                 throw new GetTagException(ex.getErrorCode(), ex.getMessage());
             }
             throw new GetTagException(e.getMessage());
+
         }
+
     }
 
     /**
-     * Merges containers sharing the same source/process (ignoring iteration suffix)
-     * into a single ContainerInfoDto.
+     * If there are processes with multiple iteration then this method will merge these processes into one.
+     * (Ex - if there are containers with processes - CORRECTION-1,CORRECTION-2,CORRECTION-3
+     * then this method will merge 3 container into 1 container with process name - 'CORRECTION')
      *
-     * Rewritten from O(n²) to O(n) using a LinkedHashMap keyed by "source|process"
-     * for O(1) lookup and insertion order preservation (original code did a
-     * linear scan + remove on every iteration).
+     * @param infoResponseDto
+     * @return InfoResponseDto
      */
     private InfoResponseDto mergeProcessWithMultipleIteration(InfoResponseDto infoResponseDto) {
-        // LinkedHashMap preserves the original encounter order of source/process pairs.
-        Map<String, ContainerInfoDto> mergedMap = new LinkedHashMap<>();
+        List<ContainerInfoDto> finalInfos = new ArrayList<>();
+        // map contains unique source process without iteration.
+        Map<String, List<String>> sourceProcessMap = new HashMap<>();
 
         for (ContainerInfoDto info : infoResponseDto.getInfo()) {
-            String processKey = PacketHelper.getProcessWithoutIteration(info.getProcess());
-            String mapKey = info.getSource() + "|" + processKey;
+            String process = PacketHelper.getProcessWithoutIteration(info.getProcess());
+            if (sourceProcessMap.containsKey(info.getSource()) && sourceProcessMap.get(info.getSource()).contains(process)) {
+                // merge container info for same source process with multiple iteration
+                ContainerInfoDto finalInfo = setContainerInfo(finalInfos, info, process);
 
-            ContainerInfoDto existing = mergedMap.get(mapKey);
-            if (existing == null) {
-                // First time we see this source/process — add a copy with the normalised process name.
-                info.setProcess(processKey);
-                mergedMap.put(mapKey, info);
+                finalInfo.setDemographics(mergeDemographics(finalInfo, info));
+                finalInfo.setBiometrics(mergeBiometrics(finalInfo, info));
+                finalInfo.setDocuments(mergeDocuments(finalInfo, info));
+
+                finalInfos.add(finalInfo);
+
             } else {
-                // Merge subsequent iterations into the existing entry.
-                existing.setDemographics(mergeDemographics(existing, info));
-                existing.setBiometrics(mergeBiometrics(existing, info));
-                existing.setDocuments(mergeDocuments(existing, info));
-                if (existing.getLastModified().before(info.getLastModified())) {
-                    existing.setLastModified(info.getLastModified());
-                }
+                // add unique source process in the sourceProcessMap
+                List<String> processes = sourceProcessMap.get(info.getSource()) == null ?
+                        Lists.newArrayList() : sourceProcessMap.get(info.getSource());
+                processes.add(process);
+                sourceProcessMap.put(info.getSource(), processes);
+                // add container to info response for unique source process
+                info.setProcess(process);
+                finalInfos.add(info);
             }
         }
-
-        infoResponseDto.setInfo(new ArrayList<>(mergedMap.values()));
+        infoResponseDto.setInfo(finalInfos);
         return infoResponseDto;
     }
 
-    /**
-     * Returns a new Set rather than mutating the existing one to avoid
-     * unintended side effects on the ContainerInfoDto held in the caller.
-     */
+    private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos, ContainerInfoDto info, String process) {
+
+        Optional<ContainerInfoDto> optionalInfo = finalInfos.stream()
+                .filter(i -> i.getSource().equals(info.getSource()) && i.getProcess().equals(process)).findAny();
+
+        if (optionalInfo.isPresent()) {
+
+            ContainerInfoDto optionalInfovalue = optionalInfo.get();
+            finalInfos.remove(optionalInfovalue);
+            optionalInfovalue.setDemographics(mergeDemographics(optionalInfovalue, info));
+            optionalInfovalue.setBiometrics(mergeBiometrics(optionalInfovalue, info));
+            optionalInfovalue.setDocuments(mergeDocuments(optionalInfovalue, info));
+            optionalInfovalue.setLastModified(
+                    optionalInfovalue.getLastModified().before(info.getLastModified()) ? info.getLastModified()
+                            : optionalInfovalue.getLastModified());
+            return optionalInfovalue;
+        }
+        return null;
+
+    }
+
+
     private Set<String> mergeDemographics(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
-        if (newInfo.getDemographics() == null) return existingInfo.getDemographics();
-        Set<String> merged = new HashSet<>(existingInfo.getDemographics());
-        merged.addAll(newInfo.getDemographics());
-        return merged;
+        if (newInfo.getDemographics() == null)
+            return existingInfo.getDemographics();
+
+        Set<String> existingDemographics = existingInfo.getDemographics();
+        for (String demoKey : newInfo.getDemographics())
+            if (!existingDemographics.contains(demoKey))
+                existingDemographics.add(demoKey);
+
+        return existingDemographics;
     }
 
     private List<BiometricsDto> mergeBiometrics(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
-        if (newInfo.getBiometrics() == null) return existingInfo.getBiometrics();
-        if (existingInfo.getBiometrics() == null) return newInfo.getBiometrics();
+        if (newInfo.getBiometrics() == null)
+            return existingInfo.getBiometrics();
 
-        // Index existing biometrics by type for O(1) lookup.
-        Map<String, BiometricsDto> existingByType = new LinkedHashMap<>();
-        for (BiometricsDto b : existingInfo.getBiometrics()) {
-            existingByType.put(b.getType(), b);
+        List<BiometricsDto> mergedBiometrics = new ArrayList<>();
+        List<BiometricsDto> newInfoBiometrics = newInfo.getBiometrics();
+        List<BiometricsDto> existingBiometrics = existingInfo.getBiometrics();
+        for (BiometricsDto biometric : newInfoBiometrics) {
+            Optional<BiometricsDto> existingBio = existingBiometrics.stream().filter(b -> b.getType().equals(biometric.getType())).findAny();
+            // if type is already present in existing biometrics then merge all new subtypes
+            if (existingBio.isPresent() && biometric.getSubtypes() != null && existingBio.get().getSubtypes() != null
+                    && !existingBio.get().getSubtypes().containsAll(biometric.getSubtypes())) {
+                BiometricsDto mergedBio = existingBio.get();
+                mergedBio.getSubtypes().addAll(biometric.getSubtypes());
+                mergedBiometrics.add(mergedBio);
+            } else
+                // else just add new biometrics
+                mergedBiometrics.add(biometric);
         }
-
-        for (BiometricsDto newBio : newInfo.getBiometrics()) {
-            BiometricsDto existing = existingByType.get(newBio.getType());
-            if (existing != null && newBio.getSubtypes() != null && existing.getSubtypes() != null) {
-                Set<String> merged = new LinkedHashSet<>(existing.getSubtypes());
-                merged.addAll(newBio.getSubtypes());
-                existing.setSubtypes(new ArrayList<>(merged));
-            } else if (existing == null) {
-                existingByType.put(newBio.getType(), newBio);
-            }
-        }
-        return new ArrayList<>(existingByType.values());
+        return mergedBiometrics;
     }
 
     private Map<String, String> mergeDocuments(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
-        if (newInfo.getDocuments() == null) return existingInfo.getDocuments();
-        Map<String, String> merged = existingInfo.getDocuments() != null
-                ? new HashMap<>(existingInfo.getDocuments())
-                : new HashMap<>();
-        newInfo.getDocuments().forEach(merged::putIfAbsent);
-        return merged;
+        if (newInfo.getDocuments() == null)
+            return existingInfo.getDocuments();
+
+        // merged documents is initialized with existing documents
+        Map<String, String> mergedDocuments = existingInfo.getDocuments() != null ? existingInfo.getDocuments() : Maps.newHashMap();
+
+        for (String key : newInfo.getDocuments().keySet()) {
+            if (!existingInfo.getDocuments().containsKey(key))
+                mergedDocuments.put(key, newInfo.getDocuments().get(key));
+        }
+
+        return mergedDocuments;
     }
 
     private int extractInt(String s) {
         String num = s.replaceAll("\\D", "");
+        // return 0 if no digits found
         return num.isEmpty() ? 0 : Integer.parseInt(num);
-    }
-
-    private BaseUncheckedException wrapException(String id, Exception e) {
-        LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
-        if (e instanceof BaseUncheckedException) return (BaseUncheckedException) e;
-        if (e instanceof BaseCheckedException) {
-            BaseCheckedException ex = (BaseCheckedException) e;
-            return new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
-        }
-        return new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
     }
 }
