@@ -4,13 +4,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.Maps;
 import io.mosip.commons.packet.util.PacketHelper;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
@@ -125,11 +123,7 @@ public class PacketReaderService {
         }
     }
 
-    // Cache the computed summary (field names, biometric types/subtypes, tags) — NOT packet content.
-    // InfoResponseDto has no field values or raw biometric data, so it is safe to cache.
-    // On cache hit the entire infoInternal() call tree (S3 + keymanager per container) is skipped.
-    @Cacheable(value = "info", key = "'infoDto-'.concat(#p0)", unless = "#result == null")
-    public InfoResponseDto info(String id) {
+ public InfoResponseDto info(String id) {
         return mergeProcessWithMultipleIteration(infoInternal(id));
     }
 
