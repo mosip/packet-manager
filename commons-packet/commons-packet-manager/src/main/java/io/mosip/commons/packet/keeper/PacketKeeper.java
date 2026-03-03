@@ -11,7 +11,6 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import io.mosip.commons.khazana.dto.ObjectDto;
@@ -140,7 +139,6 @@ public class PacketKeeper {
      * @param packetInfo : packet info
      * @return : Packet
      */
-    @Cacheable(value = "packets", key = "'zip-'.concat(#packetInfo.id).concat('-').concat(#packetInfo.packetName).concat('-').concat(#packetInfo.source).concat('-').concat(#packetInfo.process)", unless = "#result == null")
     public Packet getPacket(PacketInfo packetInfo) throws PacketKeeperException {
         String packetName = getName(packetInfo.getId(), packetInfo.getPacketName());
         try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
