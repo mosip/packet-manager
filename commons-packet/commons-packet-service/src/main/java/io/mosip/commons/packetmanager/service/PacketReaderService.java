@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Maps;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import io.mosip.commons.packet.util.PacketHelper;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,9 +107,19 @@ public class PacketReaderService {
             // resolve biometric field key once outside the loop
             String bioKey = getKey();
 
+            // capture security context from request thread — CompletableFuture runs on
+            // ForkJoinPool threads which do not inherit ThreadLocal security context
+            final SecurityContext securityContext = SecurityContextHolder.getContext();
+
             // start tags fetch concurrently — independent of container processing
-            CompletableFuture<Map<String, String>> tagsFuture =
-                    CompletableFuture.supplyAsync(() -> packetReader.getTags(id));
+            CompletableFuture<Map<String, String>> tagsFuture = CompletableFuture.supplyAsync(() -> {
+                SecurityContextHolder.setContext(securityContext);
+                try {
+                    return packetReader.getTags(id);
+                } finally {
+                    SecurityContextHolder.clearContext();
+                }
+            });
 
             for (ObjectDto o : allObjects) {
                 String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
@@ -123,16 +135,25 @@ public class PacketReaderService {
                 final String proc = o.getProcess();
 
                 // run demographic key fetch and biometric fetch concurrently per container
-                CompletableFuture<Set<String>> demoFuture = CompletableFuture.supplyAsync(
-                        () -> packetReader.getAllKeys(id, src, proc));
+                CompletableFuture<Set<String>> demoFuture = CompletableFuture.supplyAsync(() -> {
+                    SecurityContextHolder.setContext(securityContext);
+                    try {
+                        return packetReader.getAllKeys(id, src, proc);
+                    } finally {
+                        SecurityContextHolder.clearContext();
+                    }
+                });
                 CompletableFuture<BiometricRecord> bioFuture = CompletableFuture.supplyAsync(
                         () -> {
+                            SecurityContextHolder.setContext(securityContext);
                             try {
                                 return packetReader.getBiometric(id, bioKey, Lists.newArrayList(), src, proc, false);
                             } catch (Exception ex) {
                                 LOGGER.warn(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                                         "getBiometric skipped for " + src + "/" + proc + ": " + ex.getMessage());
                                 return null;
+                            } finally {
+                                SecurityContextHolder.clearContext();
                             }
                         });
 
