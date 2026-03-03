@@ -13,7 +13,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Maps;
@@ -56,10 +58,15 @@ public class PacketReaderService {
 
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketReaderService.class);
 
-    // Executor that automatically propagates the caller's Spring SecurityContext
-    // to async threads. Uses a cached thread pool (I/O-bound tasks, no CPU limit needed).
+    // Bounded executor with SecurityContext propagation.
+    // core=10, max=50 prevents thread explosion under high load.
+    // CallerRunsPolicy: when saturated, task runs on the calling thread
+    // (graceful degradation to sequential) instead of throwing an exception.
     private static final ExecutorService SECURE_EXECUTOR =
-            new DelegatingSecurityContextExecutorService(Executors.newCachedThreadPool());
+            new DelegatingSecurityContextExecutorService(
+                    new ThreadPoolExecutor(10, 50, 60L, TimeUnit.SECONDS,
+                            new LinkedBlockingQueue<>(500),
+                            new ThreadPoolExecutor.CallerRunsPolicy()));
 
     private static final String VALUE = "value";
     private static final String INDIVIDUAL_BIOMETRICS = "individualBiometrics";
@@ -114,11 +121,15 @@ public class PacketReaderService {
             // resolve biometric field key once outside the loop
             String bioKey = getKey();
 
-            // fetch tags concurrently — independent of container processing.
-            // SECURE_EXECUTOR (DelegatingSecurityContextExecutorService) automatically
-            // propagates the caller's SecurityContext to the async thread.
+            // Phase 1: submit ALL futures upfront before joining any.
+            // This ensures all containers run in parallel, not sequentially.
+            // SECURE_EXECUTOR propagates SecurityContext automatically.
             CompletableFuture<Map<String, String>> tagsFuture =
                     CompletableFuture.supplyAsync(() -> packetReader.getTags(id), SECURE_EXECUTOR);
+
+            List<ContainerInfoDto> pendingContainers = new ArrayList<>();
+            List<CompletableFuture<Set<String>>> demoFutures = new ArrayList<>();
+            List<CompletableFuture<BiometricRecord>> bioFutures = new ArrayList<>();
 
             for (ObjectDto o : allObjects) {
                 String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
@@ -129,14 +140,14 @@ public class PacketReaderService {
                 containerInfo.setSource(o.getSource());
                 containerInfo.setProcess(o.getProcess());
                 containerInfo.setLastModified(o.getLastModified());
+                pendingContainers.add(containerInfo);
 
                 final String src = o.getSource();
                 final String proc = o.getProcess();
 
-                // run demographic key fetch and biometric fetch concurrently per container
-                CompletableFuture<Set<String>> demoFuture =
-                        CompletableFuture.supplyAsync(() -> packetReader.getAllKeys(id, src, proc), SECURE_EXECUTOR);
-                CompletableFuture<BiometricRecord> bioFuture = CompletableFuture.supplyAsync(() -> {
+                demoFutures.add(CompletableFuture.supplyAsync(
+                        () -> packetReader.getAllKeys(id, src, proc), SECURE_EXECUTOR));
+                bioFutures.add(CompletableFuture.supplyAsync(() -> {
                     try {
                         return packetReader.getBiometric(id, bioKey, Lists.newArrayList(), src, proc, false);
                     } catch (Exception ex) {
@@ -144,12 +155,15 @@ public class PacketReaderService {
                                 "getBiometric skipped for " + src + "/" + proc + ": " + ex.getMessage());
                         return null;
                     }
-                }, SECURE_EXECUTOR);
+                }, SECURE_EXECUTOR));
+            }
 
-                Set<String> demographics = demoFuture.join();
-                BiometricRecord br = bioFuture.join();
+            // Phase 2: collect results (all tasks already running in parallel)
+            for (int i = 0; i < pendingContainers.size(); i++) {
+                ContainerInfoDto containerInfo = pendingContainers.get(i);
+                Set<String> demographics = demoFutures.get(i).join();
+                BiometricRecord br = bioFutures.get(i).join();
 
-                // build biometrics list from BiometricRecord
                 List<BiometricsDto> biometrics = null;
                 if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
                     Map<String, List<String>> biomap = new HashMap<>();
@@ -181,7 +195,7 @@ public class PacketReaderService {
                 containerInfoDtos.add(containerInfo);
             }
 
-            // collect tags result (was running concurrently with the loop above)
+            // collect tags (was running in parallel with all container tasks above)
             Map<String, String> tags = tagsFuture.join();
 
             InfoResponseDto infoResponseDto = new InfoResponseDto();
