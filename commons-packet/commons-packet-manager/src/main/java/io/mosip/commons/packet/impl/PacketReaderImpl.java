@@ -34,6 +34,7 @@ import org.assertj.core.util.Lists;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -92,6 +93,10 @@ public class PacketReaderImpl implements IPacketReader {
 
 	@Autowired
 	private CacheManager cacheManager;
+
+	@Autowired(required = false)
+	@Qualifier("packetFetchExecutor")
+	private java.util.concurrent.ExecutorService packetFetchExecutor;
 	/**
 	 * Perform packet validations and audit errors. List of validations - 1. schema
 	 * & idobject reference validation 2. files validation 3. decrypted packet
@@ -133,6 +138,8 @@ public class PacketReaderImpl implements IPacketReader {
 
 		try {
 			// Launch all sub-packet fetches in parallel (each is an independent S3 + decrypt + verify)
+			java.util.concurrent.Executor executor = packetFetchExecutor != null
+					? packetFetchExecutor : java.util.concurrent.ForkJoinPool.commonPool();
 			List<CompletableFuture<Packet>> futures = new ArrayList<>();
 			for (String srcPacket : sourcePacketNames) {
 				futures.add(CompletableFuture.supplyAsync(() -> {
@@ -141,7 +148,7 @@ public class PacketReaderImpl implements IPacketReader {
 					} catch (Exception e) {
 						throw new CompletionException(e);
 					}
-				}));
+				}, executor));
 			}
 
 			// Merge results in original order so putIfAbsent priority is preserved

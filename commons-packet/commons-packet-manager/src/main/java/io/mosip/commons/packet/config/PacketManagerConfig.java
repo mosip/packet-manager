@@ -21,10 +21,11 @@ import org.springframework.util.CollectionUtils;
 
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Configuration
 @EnableCaching
@@ -139,5 +140,15 @@ public class PacketManagerConfig {
     private Object getBean(String className) throws ClassNotFoundException {
         Class<?> clazz = Class.forName(className);
         return applicationContext.getBean(clazz);
+    }
+
+    /**
+     * Dedicated thread pool for parallel sub-packet S3 fetches in getAll().
+     * Uses a cached thread pool so I/O-bound tasks don't queue behind each other
+     * the way they would on ForkJoinPool.commonPool().
+     */
+    @Bean(name = "packetFetchExecutor")
+    public ExecutorService packetFetchExecutor() {
+        return Executors.newCachedThreadPool();
     }
 }
