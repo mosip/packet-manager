@@ -280,36 +280,37 @@ public class PacketReaderImpl implements IPacketReader {
 		String cacheKey = generateKey(id, biometricFieldName, source, process);
 		Cache cache = cacheManager.getCache("packets");
 
-		if(byPassCache || cache == null) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
-			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
-		}
-
-		BIR cachedValue = cache.get(cacheKey, BIR.class);
-		if(cachedValue != null) {
-			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-					"Cache Found for the Key : " + cacheKey);
-			return cachedValue;
+		if (!byPassCache && cache != null) {
+			// Cache CBEFF bytes (byte[]) not BIR — BIR contains complex nested objects and
+			// byte[] biometric data that fails GenericJackson2JsonRedisSerializer deserialization.
+			// byte[] serializes as base64 and always round-trips correctly.
+			byte[] cachedBytes = cache.get(cacheKey, byte[].class);
+			if (cachedBytes != null) {
+				LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+						"Cache Found for the Key : " + cacheKey);
+				return CbeffValidator.getBIRFromXML(cachedBytes);
+			}
 		}
 
 		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
-		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
-		if(bir != null) {
+		byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+		if (cbeffBytes == null) return null;
+
+		if (!byPassCache && cache != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-					"Adding cache the Key : " + cacheKey);
-			cache.put(cacheKey, bir);
+					"Adding cache for the Key : " + cacheKey);
+			cache.put(cacheKey, cbeffBytes);
 		}
 
-		return bir;
+		return CbeffValidator.getBIRFromXML(cbeffBytes);
 	}
 
-	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+	private byte[] loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
-		String bioString = packetReader.getField(id, biometricFieldName, source, process, false);//(String) idobjectMap.get(biometricFieldName);
+		String bioString = packetReader.getField(id, biometricFieldName, source, process, false);
 		JSONObject biometricMap = null;
 		if (bioString != null)
 			biometricMap = new JSONObject(bioString);
@@ -337,15 +338,13 @@ public class PacketReaderImpl implements IPacketReader {
 			fileName = biometricMap.get(VALUE).toString();
 		}
 
-		if (packetName == null || fileName == null)
-			return null;
+		if (packetName == null || fileName == null) return null;
 
 		Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
 		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
-		if (biometrics == null)
-			return null;
+		if (biometrics == null) return null;
 
-		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+		return IOUtils.toByteArray(biometrics);
 	}
 
 	@Override
