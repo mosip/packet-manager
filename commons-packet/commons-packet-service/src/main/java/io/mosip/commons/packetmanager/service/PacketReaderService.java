@@ -105,46 +105,65 @@ public class PacketReaderService {
             }
 
             String bioKey = getKey();
+            List<String> emptyFilters = Collections.emptyList();
 
-            List<CompletableFuture<ContainerInfoDto>> futures = new ArrayList<>();
+            /* -------- remove duplicates before parallel execution -------- */
 
-            Set<String> seen = Collections.synchronizedSet(new HashSet<>());
+            Map<String, ObjectDto> uniqueContainers = new LinkedHashMap<>();
 
             for (ObjectDto o : allObjects) {
 
+                String source = o.getSource();
+                String process = o.getProcess();
+
+                String key = source.toLowerCase() + ":" + process.toLowerCase();
+
+                uniqueContainers.putIfAbsent(key, o);
+            }
+
+            List<CompletableFuture<ContainerInfoDto>> futures =
+                    new ArrayList<>(uniqueContainers.size());
+
+            for (ObjectDto o : uniqueContainers.values()) {
+
                 futures.add(CompletableFuture.supplyAsync(() -> {
 
-                    String containerKey =
-                            o.getSource().toLowerCase() + ":" +
-                                    o.getProcess().toLowerCase();
-
-                    if (!seen.add(containerKey))
-                        return null;
+                    String source = o.getSource();
+                    String process = o.getProcess();
 
                     ContainerInfoDto containerInfo = new ContainerInfoDto();
 
-                    containerInfo.setSource(o.getSource());
-                    containerInfo.setProcess(o.getProcess());
+                    containerInfo.setSource(source);
+                    containerInfo.setProcess(process);
                     containerInfo.setLastModified(o.getLastModified());
 
-                    /* -------- DEMOGRAPHIC KEYS -------- */
+                    /* -------- run packet reads in parallel -------- */
 
-                    Set<String> demographics =
-                            packetReader.getAllKeys(id, o.getSource(), o.getProcess());
+                    CompletableFuture<Set<String>> demographicsFuture =
+                            CompletableFuture.supplyAsync(
+                                    () -> packetReader.getAllKeys(id, source, process),
+                                    packetFetchExecutor
+                            );
+
+                    CompletableFuture<BiometricRecord> biometricFuture =
+                            CompletableFuture.supplyAsync(
+                                    () -> packetReader.getBiometric(
+                                            id,
+                                            bioKey,
+                                            emptyFilters,
+                                            source,
+                                            process,
+                                            false
+                                    ),
+                                    packetFetchExecutor
+                            );
+
+                    Set<String> demographics = demographicsFuture.join();
+                    BiometricRecord br = biometricFuture.join();
 
                     containerInfo.setDemographics(demographics);
 
-                    /* -------- BIOMETRICS -------- */
-
-                    BiometricRecord br =
-                            packetReader.getBiometric(
-                                    id,
-                                    bioKey,
-                                    Collections.emptyList(),
-                                    o.getSource(),
-                                    o.getProcess(),
-                                    false
-                            );
+                    /* -------- biometrics parsing -------- */
 
                     if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
 
@@ -165,13 +184,15 @@ public class PacketReaderService {
                                 ).strip();
                             }
 
-                            biomap.computeIfAbsent(type, k -> new ArrayList<>());
+                            biomap.computeIfAbsent(type, k -> new ArrayList<>(2));
 
-                            if (subtype != null)
+                            if (subtype != null) {
                                 biomap.get(type).add(subtype);
+                            }
                         }
 
-                        List<BiometricsDto> biometrics = new ArrayList<>();
+                        List<BiometricsDto> biometrics =
+                                new ArrayList<>(biomap.size());
 
                         for (Map.Entry<String, List<String>> entry : biomap.entrySet()) {
 
@@ -190,26 +211,29 @@ public class PacketReaderService {
                 }, packetFetchExecutor));
             }
 
-            /* -------- WAIT FOR ALL TASKS -------- */
+            /* -------- wait for completion -------- */
 
             CompletableFuture.allOf(
-                    futures.toArray(new CompletableFuture[0])
+                    futures.toArray(CompletableFuture[]::new)
             ).join();
 
-            List<ContainerInfoDto> containerInfos = futures.stream()
-                    .map(CompletableFuture::join)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
+            List<ContainerInfoDto> containerInfos =
+                    new ArrayList<>(futures.size());
+
+            for (CompletableFuture<ContainerInfoDto> future : futures) {
+                containerInfos.add(future.join());
+            }
 
             Map<String, String> tags = packetReader.getTags(id);
 
-            InfoResponseDto infoResponseDto = new InfoResponseDto();
+            InfoResponseDto response = new InfoResponseDto();
 
-            infoResponseDto.setApplicationId(id);
-            infoResponseDto.setPacketId(id);
-            infoResponseDto.setInfo(containerInfos);
-            infoResponseDto.setTags(tags);
-            return infoResponseDto;
+            response.setApplicationId(id);
+            response.setPacketId(id);
+            response.setInfo(containerInfos);
+            response.setTags(tags);
+
+            return response;
 
         } catch (Exception e) {
 
@@ -223,9 +247,7 @@ public class PacketReaderService {
             if (e instanceof BaseUncheckedException)
                 throw (BaseUncheckedException) e;
 
-            if (e instanceof BaseCheckedException) {
-
-                BaseCheckedException ex = (BaseCheckedException) e;
+            if (e instanceof BaseCheckedException ex) {
 
                 throw new BaseUncheckedException(
                         ex.getErrorCode(),
@@ -241,7 +263,6 @@ public class PacketReaderService {
             );
         }
     }
-
     /**
      * Lightweight version of infoInternal used exclusively for source/process
      * resolution. Only fetches demographic keys per container — skips biometric
