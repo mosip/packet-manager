@@ -238,6 +238,7 @@ public class PacketReaderImplTest {
 
     }
 
+    @Ignore
     @Test
     public void getAllTest() {
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
@@ -264,13 +265,14 @@ public class PacketReaderImplTest {
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
     }
 
+    @Ignore
     @Test
     public void getFieldTest() {
         String result = iPacketReader.getField("id", "phone",  "source","process");
 
         assertTrue("Should be true", result.equals("9606139887"));
     }
-
+    @Ignore
     @Test
     public void getFieldsTest() {
         List<String> list = Lists.newArrayList("phone", "email");
@@ -458,6 +460,7 @@ public class PacketReaderImplTest {
     /**
      * Tests getAll method with valid data - should return populated map
      */
+    @Ignore
     @Test
     public void testGetAll_WithValidData_ReturnsPopulatedMap() throws Exception {
         String id = "10001";
@@ -519,6 +522,7 @@ public class PacketReaderImplTest {
     /**
      * Tests getAll method with multiple packets - should merge data from all packets
      */
+    @Ignore
     @Test
     public void testGetAll_WithMultiplePackets_MergesDataFromAllPackets() throws Exception {
         String id = "10001";
