@@ -61,11 +61,10 @@ public class PacketReaderService {
     private static final String SOURCE = "source";
     private static final String PROCESS = "process";
     private static final String PROVIDER = "provider";
-    private volatile String key = null;
+    private String key = null;
     private static final String sourceInitial = "source:";
     private static final String processInitial = "process:";
-    private volatile JSONObject mappingJson = null;
-    private final Object mappingJsonLock = new Object();
+    private JSONObject mappingJson = null;
 
     @Value("${config.server.file.storage.uri}")
     private String configServerUrl;
@@ -214,14 +213,15 @@ public class PacketReaderService {
     }
 
     private String getKey() throws IOException {
-        if (key != null)
-            return key;
+
         JSONObject jsonObject = getMappingJsonFile();
-        if (jsonObject != null) {
+        if(jsonObject != null) {
             LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
             key = individualBio.get(VALUE);
+            return key;
         }
-        return key;
+        return null;
+
     }
 
 
@@ -420,18 +420,15 @@ public class PacketReaderService {
     private JSONObject getMappingJsonFile() throws IOException {
         if (mappingJson != null)
             return mappingJson;
-        synchronized (mappingJsonLock) {
-            if (mappingJson != null)
-                return mappingJson;
-            String mappingJsonString = restTemplate.getForObject(configServerUrl + "/" + mappingjsonFileName, String.class);
-            JSONObject jsonObject = objectMapper.readValue(mappingJsonString, JSONObject.class);
-            LinkedHashMap combinedMap = new LinkedHashMap();
-            combinedMap.putAll((Map) jsonObject.get(IDENTITY));
-            combinedMap.putAll((Map) jsonObject.get(DOCUMENTS));
-            combinedMap.put(META_INFO, jsonObject.get(META_INFO));
-            combinedMap.put(AUDITS, jsonObject.get(AUDITS));
-            mappingJson = new JSONObject(combinedMap);
-        }
+
+        String mappingJsonString = restTemplate.getForObject(configServerUrl + "/" + mappingjsonFileName, String.class);
+        JSONObject jsonObject = objectMapper.readValue(mappingJsonString, JSONObject.class);
+        LinkedHashMap combinedMap = new LinkedHashMap();
+        combinedMap.putAll((Map) jsonObject.get(IDENTITY));
+        combinedMap.putAll((Map) jsonObject.get(DOCUMENTS));
+        combinedMap.put(META_INFO, jsonObject.get(META_INFO));
+        combinedMap.put(AUDITS, jsonObject.get(AUDITS));
+        mappingJson = new JSONObject(combinedMap);
         return mappingJson;
     }
 
@@ -511,8 +508,7 @@ public class PacketReaderService {
         return infoResponseDto;
     }
 
-    private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos,
-                                              ContainerInfoDto info, String process) {
+    private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos, ContainerInfoDto info, String process) {
 
         Optional<ContainerInfoDto> optionalInfo = finalInfos.stream()
                 .filter(i -> i.getSource().equals(info.getSource()) && i.getProcess().equals(process)).findAny();
