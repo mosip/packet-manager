@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 import org.springframework.util.CollectionUtils;
 
 
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -147,9 +149,15 @@ public class PacketManagerConfig {
      * Uses a cached thread pool so I/O-bound tasks don't queue behind each other
      * the way they would on ForkJoinPool.commonPool().
      */
-    @Bean(name = "packetFetchExecutor", destroyMethod = "close")
-    public ExecutorService packetFetchExecutor() {
-        return Executors.newCachedThreadPool();
+    @Bean(name = "packetFetchExecutor", destroyMethod = "shutdown")
+    public Executor packetFetchExecutor() {
+
+        ExecutorService executor =
+                Executors.newThreadPerTaskExecutor(
+                        Thread.ofVirtual().name("packet-fetch-vt-", 0).factory()
+                );
+
+        return new DelegatingSecurityContextExecutor(executor);
     }
 
     @Bean(name = "auditTaskExecutor", destroyMethod = "close")
