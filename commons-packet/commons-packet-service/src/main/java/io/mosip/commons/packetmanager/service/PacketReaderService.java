@@ -1,16 +1,11 @@
 package io.mosip.commons.packetmanager.service;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Maps;
@@ -89,6 +84,10 @@ public class PacketReaderService {
     private List<String> additionalFieldsSearch;
 
     @Autowired
+    @Qualifier("packetFetchExecutor")
+    private Executor packetFetchExecutor;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     public InfoResponseDto info(String id) {
@@ -96,75 +95,150 @@ public class PacketReaderService {
     }
 
     private InfoResponseDto infoInternal(String id) {
+
         try {
+
             List<ObjectDto> allObjects = packetReader.info(id);
-            List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
-            Set<String> seen = new HashSet<>();
+
+            if (CollectionUtils.isEmpty(allObjects)) {
+                return new InfoResponseDto();
+            }
+
             String bioKey = getKey();
 
+            List<CompletableFuture<ContainerInfoDto>> futures = new ArrayList<>();
+
+            Set<String> seen = Collections.synchronizedSet(new HashSet<>());
+
             for (ObjectDto o : allObjects) {
-                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
-                if (!seen.add(containerKey))
-                    continue;
 
-                ContainerInfoDto containerInfo = new ContainerInfoDto();
-                containerInfo.setSource(o.getSource());
-                containerInfo.setProcess(o.getProcess());
-                containerInfo.setLastModified(o.getLastModified());
+                futures.add(CompletableFuture.supplyAsync(() -> {
 
-                Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+                    String containerKey =
+                            o.getSource().toLowerCase() + ":" +
+                                    o.getProcess().toLowerCase();
 
-                List<BiometricsDto> biometrics = null;
-                BiometricRecord br = packetReader.getBiometric(id, bioKey, Lists.newArrayList(), o.getSource(), o.getProcess(), false);
-                if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
-                    Map<String, List<String>> biomap = new HashMap<>();
-                    for (BIR b : br.getSegments()) {
-                        String key = b.getBdbInfo().getType().iterator().next().value();
-                        String subtype = null;
-                        if (b.getBdbInfo().getSubtype() != null) {
-                            subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
+                    if (!seen.add(containerKey))
+                        return null;
+
+                    ContainerInfoDto containerInfo = new ContainerInfoDto();
+
+                    containerInfo.setSource(o.getSource());
+                    containerInfo.setProcess(o.getProcess());
+                    containerInfo.setLastModified(o.getLastModified());
+
+                    /* -------- DEMOGRAPHIC KEYS -------- */
+
+                    Set<String> demographics =
+                            packetReader.getAllKeys(id, o.getSource(), o.getProcess());
+
+                    containerInfo.setDemographics(demographics);
+
+                    /* -------- BIOMETRICS -------- */
+
+                    BiometricRecord br =
+                            packetReader.getBiometric(
+                                    id,
+                                    bioKey,
+                                    Collections.emptyList(),
+                                    o.getSource(),
+                                    o.getProcess(),
+                                    false
+                            );
+
+                    if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
+
+                        Map<String, List<String>> biomap = new HashMap<>();
+
+                        for (BIR b : br.getSegments()) {
+
+                            String type =
+                                    b.getBdbInfo().getType()
+                                            .iterator().next().value();
+
+                            String subtype = null;
+
+                            if (b.getBdbInfo().getSubtype() != null) {
+                                subtype = String.join(
+                                        " ",
+                                        b.getBdbInfo().getSubtype()
+                                ).strip();
+                            }
+
+                            biomap.computeIfAbsent(type, k -> new ArrayList<>());
+
+                            if (subtype != null)
+                                biomap.get(type).add(subtype);
                         }
-                        if (biomap.get(key) == null)
-                            biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
-                        else {
-                            List<String> finalVal = biomap.get(key);
-                            finalVal.add(subtype);
-                            biomap.put(key, finalVal);
-                        }
-                    }
-                    biometrics = new ArrayList<>();
-                    for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
-                        BiometricsDto bioDto = new BiometricsDto();
-                        bioDto.setType(b.getKey());
-                        bioDto.setSubtypes(b.getValue());
-                        biometrics.add(bioDto);
-                    }
-                }
 
-                containerInfo.setDemographics(demographics);
-                containerInfo.setBiometrics(biometrics);
-                containerInfoDtos.add(containerInfo);
+                        List<BiometricsDto> biometrics = new ArrayList<>();
+
+                        for (Map.Entry<String, List<String>> entry : biomap.entrySet()) {
+
+                            BiometricsDto dto = new BiometricsDto();
+                            dto.setType(entry.getKey());
+                            dto.setSubtypes(entry.getValue());
+
+                            biometrics.add(dto);
+                        }
+
+                        containerInfo.setBiometrics(biometrics);
+                    }
+
+                    return containerInfo;
+
+                }, packetFetchExecutor));
             }
+
+            /* -------- WAIT FOR ALL TASKS -------- */
+
+            CompletableFuture.allOf(
+                    futures.toArray(new CompletableFuture[0])
+            ).join();
+
+            List<ContainerInfoDto> containerInfos = futures.stream()
+                    .map(CompletableFuture::join)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
 
             Map<String, String> tags = packetReader.getTags(id);
 
             InfoResponseDto infoResponseDto = new InfoResponseDto();
+
             infoResponseDto.setApplicationId(id);
             infoResponseDto.setPacketId(id);
-            infoResponseDto.setInfo(containerInfoDtos);
+            infoResponseDto.setInfo(containerInfos);
             infoResponseDto.setTags(tags);
             return infoResponseDto;
-        } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
 
-            if (e instanceof BaseUncheckedException) {
-                BaseUncheckedException ex = (BaseUncheckedException) e;
-                throw ex;
-            } else if (e instanceof BaseCheckedException) {
+        } catch (Exception e) {
+
+            LOGGER.error(
+                    PacketManagerLogger.SESSIONID,
+                    PacketManagerLogger.REGISTRATIONID,
+                    id,
+                    ExceptionUtils.getStackTrace(e)
+            );
+
+            if (e instanceof BaseUncheckedException)
+                throw (BaseUncheckedException) e;
+
+            if (e instanceof BaseCheckedException) {
+
                 BaseCheckedException ex = (BaseCheckedException) e;
-                throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
-            } else
-                throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
+
+                throw new BaseUncheckedException(
+                        ex.getErrorCode(),
+                        ex.getMessage(),
+                        ex
+                );
+            }
+
+            throw new BaseUncheckedException(
+                    PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(),
+                    e.getMessage(),
+                    e
+            );
         }
     }
 
