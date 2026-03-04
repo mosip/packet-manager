@@ -150,14 +150,8 @@ public class PacketManagerConfig {
      * the way they would on ForkJoinPool.commonPool().
      */
     @Bean(name = "packetFetchExecutor")
-    public Executor packetFetchExecutor() {
-
-        ExecutorService executor =
-                Executors.newThreadPerTaskExecutor(
-                        Thread.ofVirtual().name("packet-fetch-vt-", 0).factory()
-                );
-
-        return new DelegatingSecurityContextExecutor(executor);
+    public ExecutorService packetFetchExecutor() {
+        return Executors.newVirtualThreadPerTaskExecutor();
     }
     @Bean(name = "auditTaskExecutor", destroyMethod = "close")
     public ExecutorService auditTaskExecutor() {
