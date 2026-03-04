@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -32,6 +34,7 @@ import org.assertj.core.util.Lists;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -90,6 +93,10 @@ public class PacketReaderImpl implements IPacketReader {
 
 	@Autowired
 	private CacheManager cacheManager;
+
+	@Autowired(required = false)
+	@Qualifier("packetFetchExecutor")
+	private java.util.concurrent.ExecutorService packetFetchExecutor;
 	/**
 	 * Perform packet validations and audit errors. List of validations - 1. schema
 	 * & idobject reference validation 2. files validation 3. decrypted packet
@@ -130,8 +137,23 @@ public class PacketReaderImpl implements IPacketReader {
 		String[] sourcePacketNames = packetNames.split(",");
 
 		try {
+			// Launch all sub-packet fetches in parallel (each is an independent S3 + decrypt + verify)
+			java.util.concurrent.Executor executor = packetFetchExecutor != null
+					? packetFetchExecutor : java.util.concurrent.ForkJoinPool.commonPool();
+			List<CompletableFuture<Packet>> futures = new ArrayList<>();
 			for (String srcPacket : sourcePacketNames) {
-				Packet packet = packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+				futures.add(CompletableFuture.supplyAsync(() -> {
+					try {
+						return packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+					} catch (Exception e) {
+						throw new CompletionException(e);
+					}
+				}, executor));
+			}
+
+			// Merge results in original order so putIfAbsent priority is preserved
+			for (CompletableFuture<Packet> future : futures) {
+				Packet packet = future.join();
 				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
 				if (idJsonStream != null) {
 					byte[] bytearray = IOUtils.toByteArray(idJsonStream);
@@ -157,6 +179,18 @@ public class PacketReaderImpl implements IPacketReader {
 					});
 				}
 			}
+		} catch (CompletionException ce) {
+			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					cause instanceof Exception ? ExceptionUtils.getStackTrace((Exception) cause) : cause.toString());
+			if (cause instanceof BaseCheckedException) {
+				BaseCheckedException ex = (BaseCheckedException) cause;
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			} else if (cause instanceof BaseUncheckedException) {
+				BaseUncheckedException ex = (BaseUncheckedException) cause;
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+			throw new GetAllIdentityException(cause.getMessage());
 		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
@@ -280,32 +314,34 @@ public class PacketReaderImpl implements IPacketReader {
 		String cacheKey = generateKey(id, biometricFieldName, source, process);
 		Cache cache = cacheManager.getCache("packets");
 
-		if(byPassCache || cache == null) {
+		if (byPassCache || cache == null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
-			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+			byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+			return cbeffBytes != null ? CbeffValidator.getBIRFromXML(cbeffBytes) : null;
 		}
 
-		BIR cachedValue = cache.get(cacheKey, BIR.class);
-		if(cachedValue != null) {
+		byte[] cachedBytes = cache.get(cacheKey, byte[].class);
+		if (cachedBytes != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Cache Found for the Key : " + cacheKey);
-			return cachedValue;
+			return CbeffValidator.getBIRFromXML(cachedBytes);
 		}
 
 		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
-		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
-		if(bir != null) {
+		byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+		if (cbeffBytes != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Adding cache the Key : " + cacheKey);
-			cache.put(cacheKey, bir);
+			cache.put(cacheKey, cbeffBytes);
+			return CbeffValidator.getBIRFromXML(cbeffBytes);
 		}
 
-		return bir;
+		return null;
 	}
 
-	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+	private byte[] loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
@@ -345,7 +381,7 @@ public class PacketReaderImpl implements IPacketReader {
 		if (biometrics == null)
 			return null;
 
-		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+		return IOUtils.toByteArray(biometrics);
 	}
 
 	@Override
