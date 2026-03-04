@@ -83,7 +83,7 @@ public class PacketReaderService {
     @Value("#{T(java.util.Arrays).asList('${packetmanager.additional.fields.search.from.metainfo:officerBiometricFileName,supervisorBiometricFileName}')}")
     private List<String> additionalFieldsSearch;
 
-    @Autowired
+    @Autowired(required = false)
     @Qualifier("packetFetchExecutor")
     private Executor packetFetchExecutor;
 
