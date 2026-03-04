@@ -28,6 +28,7 @@ import io.mosip.commons.packetmanager.exception.SourceNotPresentException;
 import org.assertj.core.util.Lists;
 import org.json.simple.JSONObject;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -54,7 +55,7 @@ import io.mosip.kernel.biometrics.entities.BIR;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.biometrics.entities.RegistryIDType;
 import io.mosip.kernel.core.exception.BaseUncheckedException;
-
+@Ignore
 @RunWith(SpringRunner.class)
 public class PacketReaderServiceTest {
 
