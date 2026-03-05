@@ -19,18 +19,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.core.util.JsonUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.assertj.core.util.Lists;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,7 +93,7 @@ public class PacketReaderImpl implements IPacketReader {
 
 	@Autowired(required = false)
 	@Qualifier("packetFetchExecutor")
-	private java.util.concurrent.ExecutorService packetFetchExecutor;
+	private Executor packetFetchExecutor;
 	/**
 	 * Perform packet validations and audit errors. List of validations - 1. schema
 	 * & idobject reference validation 2. files validation 3. decrypted packet
@@ -131,16 +128,18 @@ public class PacketReaderImpl implements IPacketReader {
 	@Override
 	@Cacheable(value = "packet", key="{'allFields'.concat('-').concat(#p0).concat('-').concat(#p2)}" ,unless = "#result == null")
 	public Map<String, Object> getAll(String id, String source, String process) {
+
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"Getting all fields :: enrtry");
+				"Getting all fields :: entry");
+
 		Map<String, Object> finalMap = new LinkedHashMap<>();
 		String[] sourcePacketNames = packetNames.split(",");
 
 		try {
-			// Launch all sub-packet fetches in parallel (each is an independent S3 + decrypt + verify)
-			java.util.concurrent.Executor executor = packetFetchExecutor != null
-					? packetFetchExecutor : java.util.concurrent.ForkJoinPool.commonPool();
-			List<CompletableFuture<Packet>> futures = new ArrayList<>();
+
+			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
+			List<CompletableFuture<Packet>> futures = new ArrayList<>(sourcePacketNames.length);
+
 			for (String srcPacket : sourcePacketNames) {
 				futures.add(CompletableFuture.supplyAsync(() -> {
 					try {
@@ -148,59 +147,106 @@ public class PacketReaderImpl implements IPacketReader {
 					} catch (Exception e) {
 						throw new CompletionException(e);
 					}
-				}, executor));
+				}, exec));
 			}
 
-			// Merge results in original order so putIfAbsent priority is preserved
-			for (CompletableFuture<Packet> future : futures) {
-				Packet packet = future.join();
-				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
-				if (idJsonStream != null) {
-					byte[] bytearray = IOUtils.toByteArray(idJsonStream);
-					String jsonString = new String(bytearray);
-					LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-							.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+			// Wait for all packets
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-					currentIdMap.keySet().stream().forEach(key -> {
-						Object value = currentIdMap.get(key);
-						if (value != null && (value instanceof Number))
-							finalMap.putIfAbsent(key, value);
-						else if (value != null && (value instanceof String))
-							finalMap.putIfAbsent(key, value.toString().replaceAll("(^\")|(\"$)", ""));
-						else {
-							try {
-								finalMap.putIfAbsent(key,
-										value != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
-							} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-								LOGGER.error(ExceptionUtils.getStackTrace(e));
-								throw new GetAllIdentityException(e.getMessage());
-							}
+			for (CompletableFuture<Packet> future : futures) {
+
+				Packet packet = future.join();
+
+				try (InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID")) {
+
+					if (idJsonStream == null) {
+						continue;
+					}
+
+					Map<String, Object> identityWrapper =
+							mapper.readValue(idJsonStream, LinkedHashMap.class);
+
+					Map<String, Object> currentIdMap =
+							(Map<String, Object>) identityWrapper.get(IDENTITY);
+
+					if (currentIdMap == null) {
+						continue;
+					}
+
+					for (Map.Entry<String, Object> entry : currentIdMap.entrySet()) {
+
+						String key = entry.getKey();
+
+						if (finalMap.containsKey(key)) {
+							continue;
 						}
-					});
+
+						Object value = entry.getValue();
+
+						if (value == null) {
+							finalMap.put(key, null);
+							continue;
+						}
+
+						if (value instanceof Number) {
+							finalMap.put(key, value);
+							continue;
+						}
+
+						if (value instanceof String str) {
+
+							// Faster than regex
+							if (str.length() >= 2 && str.charAt(0) == '"' &&
+									str.charAt(str.length() - 1) == '"') {
+								str = str.substring(1, str.length() - 1);
+							}
+
+							finalMap.put(key, str);
+							continue;
+						}
+
+						try {
+							finalMap.put(key, JsonUtils.javaObjectToJsonString(value));
+						} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+							LOGGER.error(ExceptionUtils.getStackTrace(e));
+							throw new GetAllIdentityException(e.getMessage());
+						}
+					}
 				}
 			}
+
 		} catch (CompletionException ce) {
+
 			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-					cause instanceof Exception ? ExceptionUtils.getStackTrace((Exception) cause) : cause.toString());
-			if (cause instanceof BaseCheckedException) {
-				BaseCheckedException ex = (BaseCheckedException) cause;
-				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-			} else if (cause instanceof BaseUncheckedException) {
-				BaseUncheckedException ex = (BaseUncheckedException) cause;
+					cause instanceof Exception
+							? ExceptionUtils.getStackTrace((Exception) cause)
+							: cause.toString());
+
+			if (cause instanceof BaseCheckedException ex) {
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			}
+
+			if (cause instanceof BaseUncheckedException ex) {
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+
 			throw new GetAllIdentityException(cause.getMessage());
+
 		} catch (Exception e) {
+
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
-			if (e instanceof BaseCheckedException) {
-				BaseCheckedException ex = (BaseCheckedException) e;
-				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-			} else if (e instanceof BaseUncheckedException) {
-				BaseUncheckedException ex = (BaseUncheckedException) e;
+
+			if (e instanceof BaseCheckedException ex) {
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			}
+
+			if (e instanceof BaseUncheckedException ex) {
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+
 			throw new GetAllIdentityException(e.getMessage());
 		}
 

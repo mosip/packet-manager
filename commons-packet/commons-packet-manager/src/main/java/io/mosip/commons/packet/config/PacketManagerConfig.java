@@ -16,18 +16,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 import org.springframework.util.CollectionUtils;
-
 
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Configuration
 @EnableCaching
@@ -143,12 +138,5 @@ public class PacketManagerConfig {
         Class<?> clazz = Class.forName(className);
         return applicationContext.getBean(clazz);
     }
-
-    /**
-     * Dedicated thread pool for parallel sub-packet S3 fetches in getAll().
-     * Uses a cached thread pool so I/O-bound tasks don't queue behind each other
-     * the way they would on ForkJoinPool.commonPool().
-     */
-
 
 }
