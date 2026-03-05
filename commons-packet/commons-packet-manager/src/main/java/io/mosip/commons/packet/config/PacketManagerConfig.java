@@ -149,13 +149,6 @@ public class PacketManagerConfig {
      * Uses a cached thread pool so I/O-bound tasks don't queue behind each other
      * the way they would on ForkJoinPool.commonPool().
      */
-    @Bean(name = "packetFetchExecutor")
-    public ExecutorService packetFetchExecutor() {
-        return Executors.newVirtualThreadPerTaskExecutor();
-    }
-    @Bean(name = "auditTaskExecutor", destroyMethod = "close")
-    public ExecutorService auditTaskExecutor() {
-        return Executors.newVirtualThreadPerTaskExecutor();
-    }
+
 
 }
