@@ -104,9 +104,12 @@ public class PacketReaderController {
         try {
             Map<String, String> resultFields = new HashMap<>();
             if ((fieldDtos.getSource()) == null) {
+                // Fetch info once for source resolution; reuse across all fields
+                // to avoid N redundant S3 listObjectsV2 calls (one per field).
+                InfoResponseDto cachedInfo = packetReaderService.getInfoForSourceResolution(fieldDtos.getId());
                 for (String field : fieldDtos.getFields()) {
                     SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(fieldDtos.getId(),
-                            field, fieldDtos.getSource(), fieldDtos.getProcess());
+                            field, fieldDtos.getSource(), fieldDtos.getProcess(), cachedInfo);
                     String value = sourceProcessDto == null ? null :
                             packetReader.getField(fieldDtos.getId(), field, sourceProcessDto.getSource(),
                                     sourceProcessDto.getProcess(), fieldDtos.getBypassCache());

@@ -213,7 +213,8 @@ public class PacketReaderService {
     }
 
     private String getKey() throws IOException {
-
+        if (key != null)
+            return key;
         JSONObject jsonObject = getMappingJsonFile();
         if(jsonObject != null) {
             LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
@@ -221,7 +222,6 @@ public class PacketReaderService {
             return key;
         }
         return null;
-
     }
 
 
@@ -242,9 +242,16 @@ public class PacketReaderService {
         return new SourceProcessDto(objectDto.getSource(), objectDto.getProcess());
     }
 
+    public InfoResponseDto getInfoForSourceResolution(String id) {
+        return infoInternalForSourceResolution(id);
+    }
+
     public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process) {
+        return getSourceAndProcess(id, field, source, process, infoInternalForSourceResolution(id));
+    }
+
+    public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process, InfoResponseDto infoResponseDto) {
         SourceProcessDto sourceProcessDto = null;
-        InfoResponseDto infoResponseDto = infoInternalForSourceResolution(id);
         List<ContainerInfoDto> info = infoResponseDto.getInfo();
         // sorting in reverse order by process name to search from latest iteration first.
         Collections.sort(info, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
