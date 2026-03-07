@@ -651,6 +651,9 @@ public class PacketReaderImplTest {
         String process = "NEW";
         String biometricFieldName = "individualBiometrics";
 
+        // Route the code through the normal path so packetKeeper.getPacket() is actually called
+        when(packetReader.getField(eq(id), eq(biometricFieldName), eq(source), eq(process), eq(false)))
+                .thenReturn("{\"value\":\"bio_file\"}");
         when(packetKeeper.getPacket(any(PacketInfo.class)))
                 .thenThrow(new PacketKeeperException("PKR-001", "Packet access error"));
 
@@ -926,6 +929,9 @@ public class PacketReaderImplTest {
     @Test(expected = GetBiometricException.class)
     public void testGetBiometric_WhenBaseCheckedException_ThrowsGetBiometricException() throws Exception {
         RuntimeException wrapperException = new RuntimeException(new BaseCheckedException("ERR-005", "Base checked exception"));
+        // Route through normal path so packetKeeper.getPacket() is called
+        when(packetReader.getField(eq("id"), eq("biometricField"), eq("source"), eq("process"), eq(false)))
+                .thenReturn("{\"value\":\"bio_file\"}");
         when(packetKeeper.getPacket(any())).thenThrow(wrapperException);
 
         iPacketReader.getBiometric("id", "biometricField", null, "source", "process");
@@ -937,6 +943,9 @@ public class PacketReaderImplTest {
     @Test(expected = GetBiometricException.class)
     public void testGetBiometric_WhenBaseUncheckedException_ThrowsGetBiometricException() throws Exception {
         BaseUncheckedException baseException = new BaseUncheckedException("ERR-006", "Base unchecked exception");
+        // Route through normal path so packetKeeper.getPacket() is called
+        when(packetReader.getField(eq("id"), eq("biometricField"), eq("source"), eq("process"), eq(false)))
+                .thenReturn("{\"value\":\"bio_file\"}");
         when(packetKeeper.getPacket(any())).thenThrow(baseException);
 
         iPacketReader.getBiometric("id", "biometricField", null, "source", "process");
