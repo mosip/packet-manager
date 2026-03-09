@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 import io.mosip.commons.packet.facade.PacketReader;
@@ -27,6 +28,7 @@ import org.json.JSONException;
 import org.json.JSONTokener;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -86,6 +88,10 @@ public class PacketValidator {
     @Autowired
     private AuditLogEntry auditLogEntry;
 
+    @Autowired
+    @Qualifier("packetFetchExecutor")
+    private Executor packetFetchExecutor;
+
 
     public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
         boolean result = validateSchema(id, source, process);
@@ -117,7 +123,7 @@ public class PacketValidator {
                     } catch (PacketKeeperException e) {
                         throw new RuntimeException(e);
                     }
-                }))
+                }, packetFetchExecutor))
                 .collect(Collectors.toList());
 
         Map<String, Packet> packetsMap = new HashMap<>();
