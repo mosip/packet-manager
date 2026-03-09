@@ -94,12 +94,15 @@ public class PacketValidator {
 
 
     public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
-        boolean result = validateSchema(id, source, process);
+        // Fetch all sub-packets ONCE and reuse for both schema validation and checksum
+        // validation — avoids a second round of S3 GET + decrypt calls.
+        Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
+        Map<String, Object> identityFields = extractIdentityFields(packetsMap);
+
+        boolean result = validateSchema(id, process, identityFields);
         if(result) {
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
             auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
-            // Only fetch packets in parallel after schema passes — avoids unnecessary S3 calls on schema failures.
-            Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
             result = fileAndChecksumValidation(id, source, process, packetsMap);
         } else {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
@@ -107,6 +110,30 @@ public class PacketValidator {
         }
 
         return result;
+    }
+
+    /**
+     * Extract identity fields from pre-fetched packets, iterating in packetNames order
+     * (same merge behaviour as PacketReaderImpl.getAll — later packets override earlier ones).
+     */
+    private Map<String, Object> extractIdentityFields(Map<String, Packet> packetsMap) {
+        Map<String, Object> finalMap = new LinkedHashMap<>();
+        for (String packetName : packetNames.split(",")) {
+            Packet packet = packetsMap.get(packetName.trim());
+            if (packet == null || packet.getPacket() == null) continue;
+            try (InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID")) {
+                if (idJsonStream == null) continue;
+                Map<String, Object> identityWrapper = mapper.readValue(idJsonStream, LinkedHashMap.class);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> currentIdMap = (Map<String, Object>) identityWrapper.get(IDENTITY);
+                if (currentIdMap != null)
+                    finalMap.putAll(currentIdMap);
+            } catch (Exception e) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                        packetName, "Failed to extract identity fields: " + ExceptionUtils.getStackTrace(e));
+            }
+        }
+        return finalMap;
     }
 
     /**
@@ -134,17 +161,27 @@ public class PacketValidator {
         return packetsMap;
     }
 
-    private boolean validateSchema(String id, String source, String process) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
-        Map<String, Object> objectMap = new HashMap<>();
+    private boolean validateSchema(String id, String process, Map<String, Object> identityFields) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
         try {
             String idschemaValueFromMappingJson = idSchemaUtils.getIdschemaVersionFromMappingJson();
-            String idschemaVersion = reader.getField(id, idschemaValueFromMappingJson, source, process, false);
-            List<String> allFields = idSchemaUtils.getDefaultFields(Double.valueOf(idschemaVersion));
-            Map<String, String> fieldsMap = reader.getFields(id, allFields, source, process, false);
-            objectMap.putAll(fieldsMap);
+            Object versionObj = identityFields.get(idschemaValueFromMappingJson);
+            if (versionObj == null) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                        "ID schema version field not found in packet identity");
+                return false;
+            }
+            double idschemaVersion = Double.parseDouble(versionObj.toString());
+            List<String> allFields = idSchemaUtils.getDefaultFields(idschemaVersion);
+
+            // Build objectMap from pre-extracted identity fields — no extra S3 calls.
+            Map<String, Object> objectMap = new HashMap<>();
+            for (String field : allFields) {
+                Object value = identityFields.get(field);
+                if (value != null) objectMap.put(field, value);
+            }
 
             if (convertIdschemaToDouble)
-                objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
+                objectMap.put(idschemaValueFromMappingJson, idschemaVersion);
 
             String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
             if (fields != null) {
@@ -153,10 +190,8 @@ public class PacketValidator {
                 JSONObject finalIdObject = new JSONObject(finalMap);
 
                 return idObjectValidator.validateIdObject(
-                        idSchemaUtils.getIdSchema(
-                                Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
+                        idSchemaUtils.getIdSchema(idschemaVersion),
                         finalIdObject, Arrays.asList(fields.split(",")));
-
             }
 
             return false;
@@ -165,7 +200,6 @@ public class PacketValidator {
                     "Id object masterdata validation failed with errors:  " + e.getErrorTexts());
             return false;
         }
-
     }
 
     /**
