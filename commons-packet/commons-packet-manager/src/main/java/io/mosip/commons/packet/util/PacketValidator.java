@@ -163,6 +163,7 @@ public class PacketValidator {
 
     private boolean validateSchema(String id, String process, Map<String, Object> identityFields) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
         try {
+            Map<String, Object> mergedFields = getMergedFieldsFromPackets(packetsMap);
             String idschemaValueFromMappingJson = idSchemaUtils.getIdschemaVersionFromMappingJson();
             Object versionObj = identityFields.get(idschemaValueFromMappingJson);
             if (versionObj == null) {
@@ -208,6 +209,52 @@ public class PacketValidator {
                     "Id object masterdata validation failed with errors:  " + e.getErrorTexts());
             return false;
         }
+    }
+
+    /**
+     * Extract merged identity fields from packets (same logic as PacketReaderImpl.getAll).
+     * Handles packets with same id but different source/process via packetsMap keyed by packetName.
+     */
+    private Map<String, Object> getMergedFieldsFromPackets(Map<String, Packet> packetsMap) throws IOException {
+        Map<String, Object> finalMap = new LinkedHashMap<>();
+        for (String packetName : packetNames.split(",")) {
+            Packet packet = packetsMap.get(packetName.trim());
+            if (packet == null) continue;
+            InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
+            if (idJsonStream != null) {
+                byte[] bytearray = IOUtils.toByteArray(idJsonStream);
+                String jsonString = new String(bytearray);
+                LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
+                        .readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+                if (currentIdMap != null) {
+                    currentIdMap.keySet().forEach(key -> {
+                        Object value = currentIdMap.get(key);
+                        if (value != null && (value instanceof Number))
+                            finalMap.putIfAbsent(key, value);
+                        else if (value != null && (value instanceof String))
+                            finalMap.putIfAbsent(key, value.toString().replaceAll("(^\")|(\"$)", ""));
+                        else {
+                            try {
+                                finalMap.putIfAbsent(key,
+                                        value != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
+                            } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+                                throw new GetAllMetaInfoException(e.getMessage());
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        return finalMap;
+    }
+
+    private Map<String, String> getFieldsFromMergedMap(Map<String, Object> mergedMap, List<String> fields) {
+        Map<String, String> result = new HashMap<>();
+        for (String field : fields) {
+            Object value = mergedMap.get(field);
+            result.put(field, value != null ? value.toString() : null);
+        }
+        return result;
     }
 
     /**
