@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Data
 @EqualsAndHashCode
-public class PacketDto implements Serializable {
+public class PacketDto  {
 
     private String id;
     private String additionalInfoReqId;

@@ -140,38 +140,38 @@ public class PacketReaderServiceTest {
     public void testGetTagsSuccess() {
         Map<String, String> tags = new HashMap<>();
         tags.put("test", "testValue");
-    	 when(packetReader.getTags(anyString())).thenReturn(tags);
-    	 TagRequestDto tagRequestDto=new TagRequestDto();
-    	 tagRequestDto.setId("id");
-    	 List<String> tagNames=new ArrayList<String>();
-    	 tagNames.add("test");
-    	 tagRequestDto.setTagNames(tagNames);
-    	 TagResponseDto tagResponseDto=packetReaderService.getTags(tagRequestDto);
-    	 assertEquals(tagResponseDto.getTags(), tags);
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto=new TagRequestDto();
+        tagRequestDto.setId("id");
+        List<String> tagNames=new ArrayList<String>();
+        tagNames.add("test");
+        tagRequestDto.setTagNames(tagNames);
+        TagResponseDto tagResponseDto=packetReaderService.getTags(tagRequestDto);
+        assertEquals(tagResponseDto.getTags(), tags);
     }
-	@Test(expected = GetTagException.class)
+    @Test(expected = GetTagException.class)
     public void testGetTagNotFound() {
-		 Map<String, String> tags = new HashMap<>();
-	        tags.put("test", "testValue");
-	    	 when(packetReader.getTags(anyString())).thenReturn(tags);
-	    	 TagRequestDto tagRequestDto=new TagRequestDto();
-	    	 tagRequestDto.setId("id");
-	    	 List<String> tagNames=new ArrayList<String>();
-	    	 tagNames.add("testtag");
-	    	 tagRequestDto.setTagNames(tagNames);
-	    	 packetReaderService.getTags(tagRequestDto);
+        Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto=new TagRequestDto();
+        tagRequestDto.setId("id");
+        List<String> tagNames=new ArrayList<String>();
+        tagNames.add("testtag");
+        tagRequestDto.setTagNames(tagNames);
+        packetReaderService.getTags(tagRequestDto);
 
     }
-	 @Test(expected = GetTagException.class)
-	    public void testGetTagsException() {
-		 when(packetReader.getTags(anyString())).thenThrow(new BaseUncheckedException("code","message"));
-		 TagRequestDto tagRequestDto=new TagRequestDto();
-    	 tagRequestDto.setId("id");
-    	 List<String> tagNames=new ArrayList<String>();
-    	 tagNames.add("testtag");
-    	 tagRequestDto.setTagNames(tagNames);
-    	 packetReaderService.getTags(tagRequestDto);  
-	    }
+    @Test(expected = GetTagException.class)
+    public void testGetTagsException() {
+        when(packetReader.getTags(anyString())).thenThrow(new BaseUncheckedException("code","message"));
+        TagRequestDto tagRequestDto=new TagRequestDto();
+        tagRequestDto.setId("id");
+        List<String> tagNames=new ArrayList<String>();
+        tagNames.add("testtag");
+        tagRequestDto.setTagNames(tagNames);
+        packetReaderService.getTags(tagRequestDto);
+    }
 
     /**
      * Tests getSourceAndProcess when source is empty - should return info response
