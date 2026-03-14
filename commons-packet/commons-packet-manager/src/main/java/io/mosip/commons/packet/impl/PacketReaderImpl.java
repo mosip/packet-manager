@@ -82,7 +82,7 @@ public class PacketReaderImpl implements IPacketReader {
 	 * Default 40 concurrent fetches: at ~5MB per sub-packet × 3 packets = 15MB per op → 600MB cap.
 	 * Tune via packetmanager.fetch.concurrency.limit based on available heap.
 	 */
-	@Value("${packetmanager.fetch.concurrency.limit:40}")
+	@Value("${packetmanager.fetch.concurrency.limit:35}")
 	private int fetchConcurrencyLimit;
 
 	private Semaphore fetchSemaphore;
@@ -498,6 +498,7 @@ public class PacketReaderImpl implements IPacketReader {
 	public Map<String, String> getMetaInfo(String id, String source, String process) {
 		Map<String, String> finalMap = new LinkedHashMap<>();
 
+		getFetchSemaphore().acquireUninterruptibly();
 		try {
 			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
 			String[] names = getPacketNames();
@@ -549,6 +550,8 @@ public class PacketReaderImpl implements IPacketReader {
 			if (e instanceof BaseUncheckedException ex)
 				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
 			throw new GetAllMetaInfoException(e.getMessage());
+		} finally {
+			getFetchSemaphore().release();
 		}
 		return finalMap;
 	}
@@ -558,6 +561,7 @@ public class PacketReaderImpl implements IPacketReader {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "getAuditInfo :: entry");
 		List<Map<String, String>> finalMap = new ArrayList<>();
 
+		getFetchSemaphore().acquireUninterruptibly();
 		try {
 			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
 			String[] names = getPacketNames();
@@ -602,6 +606,8 @@ public class PacketReaderImpl implements IPacketReader {
 			if (e instanceof BaseUncheckedException ex)
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
 			throw new GetAllIdentityException(e.getMessage());
+		} finally {
+			getFetchSemaphore().release();
 		}
 		return finalMap;
 	}
