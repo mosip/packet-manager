@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 import io.mosip.commons.packet.facade.PacketReader;
@@ -27,6 +28,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 import org.json.simple.JSONObject;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +61,25 @@ public class PacketValidator {
 
     @Value("${mosip.commons.packet.manager.schema.validator.convertIdSchemaToDouble:true}")
     private boolean convertIdschemaToDouble;
+
+    /**
+     * Max concurrent validatePacket operations allowed simultaneously.
+     * Each validate() downloads all sub-packets into heap (several MB each).
+     * Too many concurrent validates exhaust heap → OOM.
+     * Default 30: at ~10MB per validate, keeps peak validate heap ≤ 300MB.
+     * Tune based on available heap: limit ≈ (heapMB × 0.4) / avgPacketSizeMB.
+     */
+    @Value("${packetmanager.validate.concurrency.limit:25}")
+    private int validateConcurrencyLimit;
+
+    private Semaphore validateSemaphore;
+
+    @PostConstruct
+    private void initSemaphore() {
+        validateSemaphore = new Semaphore(validateConcurrencyLimit, true);
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
+                "PacketValidator concurrency limit set to " + validateConcurrencyLimit);
+    }
 
     private static final Logger LOGGER = PacketManagerLogger.getLogger(PacketValidator.class);
     private static final String FIELD_LIST = "mosip.kernel.idobjectvalidator.mandatory-attributes.reg-processor.%s";
@@ -94,22 +115,29 @@ public class PacketValidator {
 
 
     public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
-        // Fetch all sub-packets ONCE and reuse for both schema validation and checksum
-        // validation — avoids a second round of S3 GET + decrypt calls.
-        Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
-        Map<String, Object> identityFields = extractIdentityFields(packetsMap);
+        // Limit concurrent validates to prevent OOM: each validate downloads all sub-packets
+        // (several MB each) into heap. Without a cap, hundreds of concurrent Tomcat threads
+        // each holding packet bytes exhaust the heap.
+        validateSemaphore.acquireUninterruptibly();
+        try {
+            // Fetch all sub-packets ONCE and reuse for both schema validation and checksum
+            // validation — avoids a second round of S3 GET + decrypt calls.
+            Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
+            Map<String, Object> identityFields = extractIdentityFields(packetsMap);
 
-        boolean result = validateSchema(id, process, identityFields);
-        if(result) {
-            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
-            auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
-            result = fileAndChecksumValidation(id, source, process, packetsMap);
-        } else {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
-            auditLogEntry.addAudit("Id object validation failed", eventId, eventName, eventType, null, null, id);
+            boolean result = validateSchema(id, process, identityFields);
+            if (result) {
+                LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
+                auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
+                result = fileAndChecksumValidation(id, source, process, packetsMap);
+            } else {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
+                auditLogEntry.addAudit("Id object validation failed", eventId, eventName, eventType, null, null, id);
+            }
+            return result;
+        } finally {
+            validateSemaphore.release();
         }
-
-        return result;
     }
 
     /**
