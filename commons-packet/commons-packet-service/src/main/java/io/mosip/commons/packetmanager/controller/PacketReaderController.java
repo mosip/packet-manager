@@ -51,8 +51,6 @@ public class PacketReaderController {
     @Autowired
     private PacketReader packetReader;
 
-    private static Logger LOGGER = PacketManagerLogger.getLogger(PacketReaderController.class);
-
     @Autowired
     private PacketReaderService packetReaderService;
     @PreAuthorize("hasAnyRole(@authorizedRoles.getPostsearchfield())")
@@ -64,16 +62,17 @@ public class PacketReaderController {
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<FieldResponseDto> searchField(@RequestBody(required = true) RequestWrapper<FieldDto> fieldDto) {
+        public ResponseWrapper<FieldResponseDto> searchField(@RequestBody(required = true) RequestWrapper<FieldDto> fieldDto) {
         SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(fieldDto.getRequest().getId(),
                 fieldDto.getRequest().getField(), fieldDto.getRequest().getSource(), fieldDto.getRequest().getProcess());
         String resultField = sourceProcessDto == null ? null :
                 packetReader.getField(fieldDto.getRequest().getId(),
-                        fieldDto.getRequest().getField(), sourceProcessDto.getSource(), sourceProcessDto.getProcess(), fieldDto.getRequest().getBypassCache());
+                fieldDto.getRequest().getField(), sourceProcessDto.getSource(), sourceProcessDto.getProcess(), fieldDto.getRequest().getBypassCache());
         ResponseWrapper<FieldResponseDto> response = new ResponseWrapper<FieldResponseDto>();
         Map<String, String> responseMap = new HashMap<>();
         responseMap.put(fieldDto.getRequest().getField(), resultField);
         FieldResponseDto fieldResponseDto = new FieldResponseDto(responseMap);
+
         response.setResponse(fieldResponseDto);
         return response;
     }
@@ -89,7 +88,6 @@ public class PacketReaderController {
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     public ResponseWrapper<FieldResponseDto> searchFields(@RequestBody(required = true) RequestWrapper<FieldDtos> request)  {
         FieldDtos fieldDtos = request.getRequest();
-        String rid = fieldDtos != null ? fieldDtos.getId() : null;
         Map<String, String> resultFields = new HashMap<>();
         if ((fieldDtos.getSource()) == null) {
             // Fetch info once for source resolution; reuse across all fields
@@ -100,11 +98,11 @@ public class PacketReaderController {
                         field, fieldDtos.getSource(), fieldDtos.getProcess(), cachedInfo);
                 String value = sourceProcessDto == null ? null :
                         packetReader.getField(fieldDtos.getId(), field, sourceProcessDto.getSource(),
-                                sourceProcessDto.getProcess(), fieldDtos.getBypassCache());
+                        sourceProcessDto.getProcess(), fieldDtos.getBypassCache());
                 resultFields.put(field, value);
             }
         } else
-            resultFields = packetReader.getFields(fieldDtos.getId(), fieldDtos.getFields(), fieldDtos.getSource(), fieldDtos.getProcess(), fieldDtos.getBypassCache());
+        resultFields = packetReader.getFields(fieldDtos.getId(), fieldDtos.getFields(), fieldDtos.getSource(), fieldDtos.getProcess(), fieldDtos.getBypassCache());
         FieldResponseDto resultField = new FieldResponseDto(resultFields);
         ResponseWrapper<FieldResponseDto> response = new ResponseWrapper<FieldResponseDto>();
         response.setResponse(resultField);
@@ -126,11 +124,10 @@ public class PacketReaderController {
                 documentDto.getDocumentName(), documentDto.getSource(), documentDto.getProcess());
         Document document = sourceProcessDto == null ? null :
                 packetReader.getDocument(documentDto.getId(), documentDto.getDocumentName(),
-                        sourceProcessDto.getSource(), sourceProcessDto.getProcess());
+                sourceProcessDto.getSource(), sourceProcessDto.getProcess());
         ResponseWrapper<Document> response = new ResponseWrapper<Document>();
         response.setResponse(document);
         return response;
-
     }
 
     @ResponseFilter
@@ -144,17 +141,15 @@ public class PacketReaderController {
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     public ResponseWrapper<BiometricRecord> getBiometrics(@RequestBody(required = true) RequestWrapper<BiometricRequestDto> request) {
         BiometricRequestDto bioRequest = request.getRequest();
-
         SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(bioRequest.getId(),
                 bioRequest.getPerson(), bioRequest.getSource(), bioRequest.getProcess());
         List<String> modalities = bioRequest.getModalities() == null ? Lists.newArrayList() : bioRequest.getModalities();
         BiometricRecord responseDto = sourceProcessDto == null ? null :
                 packetReader.getBiometric(bioRequest.getId(), bioRequest.getPerson(), modalities,
-                        sourceProcessDto.getSource(), sourceProcessDto.getProcess(), bioRequest.isBypassCache());
+                sourceProcessDto.getSource(), sourceProcessDto.getProcess(), bioRequest.isBypassCache());
         ResponseWrapper<BiometricRecord> response = getResponseWrapper();
         response.setResponse(responseDto);
         return response;
-
     }
 
     @ResponseFilter
@@ -175,7 +170,6 @@ public class PacketReaderController {
         ResponseWrapper<FieldResponseDto> response = getResponseWrapper();
         response.setResponse(resultField);
         return response;
-
     }
 
     @ResponseFilter
@@ -188,28 +182,20 @@ public class PacketReaderController {
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     public ResponseWrapper<List<FieldResponseDto>> getAudits(@RequestBody(required = true) RequestWrapper<InfoDto> request) {
-        long startMs = System.currentTimeMillis();
         InfoDto metaDto = request.getRequest();
-        String rid = metaDto != null ? metaDto.getId() : null;
-        LOGGER.info("getAudits entered | RID=" + rid);
-        try {
-            SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
-            List<Map<String, String>> resultFields = packetReader.getAudits(metaDto.getId(),
-                    sourceProcessDto.getSource(), sourceProcessDto.getProcess(), metaDto.getBypassCache());
-            List<FieldResponseDto> resultField = new ArrayList<>();
-            if (resultFields != null && !resultFields.isEmpty()) {
-                resultFields.stream().forEach(e -> {
-                    FieldResponseDto fieldResponseDto = new FieldResponseDto(e);
-                    resultField.add(fieldResponseDto);
-                });
-            }
-            ResponseWrapper<List<FieldResponseDto>> response = getResponseWrapper();
-            response.setResponse(resultField);
-            return response;
-        } finally {
-            long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info("getAudits completed | RID=" + rid + " timeMs=" + timeMs);
+        SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(metaDto.getId(), metaDto.getSource(), metaDto.getProcess());
+        List<Map<String, String>> resultFields = packetReader.getAudits(metaDto.getId(),
+                sourceProcessDto.getSource(), sourceProcessDto.getProcess(), metaDto.getBypassCache());
+        List<FieldResponseDto> resultField = new ArrayList<>();
+        if (resultFields != null && !resultFields.isEmpty()) {
+            resultFields.stream().forEach(e -> {
+                FieldResponseDto fieldResponseDto = new FieldResponseDto(e);
+                resultField.add(fieldResponseDto);
+            });
         }
+        ResponseWrapper<List<FieldResponseDto>> response = getResponseWrapper();
+        response.setResponse(resultField);
+        return response;
     }
 
     @ResponseFilter
@@ -228,26 +214,25 @@ public class PacketReaderController {
         ResponseWrapper<ValidatePacketResponse> response = getResponseWrapper();
         response.setResponse(new ValidatePacketResponse(resultFields));
         return response;
-
     }
 
     @PreAuthorize("hasAnyRole(@authorizedRoles.getPostgettags())")
     @ResponseFilter
-    @PostMapping(path = "/getTags", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@PostMapping(path = "/getTags", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "getTags", description = "getTags", tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
             @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
-    public ResponseWrapper<TagResponseDto> getTags(
-            @RequestBody(required = true) RequestWrapper<TagRequestDto> request) {
-        String rid = request.getRequest() != null ? request.getRequest().getId() : null;
-        TagResponseDto tagResponseDto = packetReaderService.getTags(request.getRequest());
-        ResponseWrapper<TagResponseDto> response = getResponseWrapper();
-        response.setResponse(tagResponseDto);
-        return response;
-    }
+	public ResponseWrapper<TagResponseDto> getTags(
+			@RequestBody(required = true) RequestWrapper<TagRequestDto> request) {
+
+		TagResponseDto tagResponseDto = packetReaderService.getTags(request.getRequest());
+		ResponseWrapper<TagResponseDto> response = getResponseWrapper();
+		response.setResponse(tagResponseDto);
+		return response;
+	}
 
     @ResponseFilter
     @PreAuthorize("hasAnyRole(@authorizedRoles.getPostinfo())")
@@ -259,10 +244,10 @@ public class PacketReaderController {
             @ApiResponse(responseCode = "403", description = "Forbidden", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "404", description = "Not Found", content = @Content(schema = @Schema(hidden = true))) })
     public ResponseWrapper<InfoResponseDto> info(@RequestBody(required = true) RequestWrapper<InfoRequestDto> request) {
-        String rid = request.getRequest() != null ? request.getRequest().getId() : null;
+        String id = request.getRequest().getId();
         InfoResponseDto resultFields = null;
-        if (rid != null && !rid.isEmpty())
-            resultFields = packetReaderService.info(rid);
+        if (id != null && !id.isEmpty())
+            resultFields = packetReaderService.info(id);
         ResponseWrapper<InfoResponseDto> response = getResponseWrapper();
         response.setResponse(resultFields);
         return response;

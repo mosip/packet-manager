@@ -189,8 +189,6 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
     public byte[] decrypt(String refId, byte[] packet) {
         byte[] decryptedPacket = null;
 
-        long startMs = System.currentTimeMillis();
-        LOGGER.info(   "decrypt entered | RID=");
         try {
             CryptomanagerRequestDto cryptomanagerRequestDto = new CryptomanagerRequestDto();
             RequestWrapper<CryptomanagerRequestDto> request = new RequestWrapper<>();
@@ -221,8 +219,6 @@ public class OnlinePacketCryptoServiceImpl implements IPacketCryptoService {
 
             CryptomanagerResponseDto responseObject = mapper.readValue(response.getBody(), CryptomanagerResponseDto.class);
 
-            long timeMs = System.currentTimeMillis() - startMs;
-            LOGGER.info( "decrypt completed | timeMs=" + timeMs);
             if (responseObject != null &&
                     responseObject.getErrors() != null && !responseObject.getErrors().isEmpty()) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REFERENCEID, refId,

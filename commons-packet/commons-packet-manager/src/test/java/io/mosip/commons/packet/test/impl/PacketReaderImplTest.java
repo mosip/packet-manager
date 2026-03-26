@@ -215,7 +215,7 @@ public class PacketReaderImplTest {
         PowerMockito.mockStatic(IOUtils.class);
         when(IOUtils.toByteArray(any(InputStream.class))).thenReturn(str.getBytes());
 
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(finalMap);
+        when(objectMapper.readValue(any(InputStream.class), any(Class.class))).thenReturn(finalMap);
         when(idSchemaUtils.getSource(any(), any())).thenReturn("id");
         when(idSchemaUtils.getIdschemaVersionFromMappingJson()).thenReturn("0.1");
 
@@ -238,7 +238,6 @@ public class PacketReaderImplTest {
 
     }
 
-    @Ignore
     @Test
     public void getAllTest() {
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
@@ -248,7 +247,7 @@ public class PacketReaderImplTest {
 
     @Test(expected = GetAllIdentityException.class)
     public void getAllExceptionTest() throws IOException {
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(null);
+        when(objectMapper.readValue(any(InputStream.class), any(Class.class))).thenReturn(null);
 
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
     }
@@ -260,19 +259,18 @@ public class PacketReaderImplTest {
         keyValueMap.put("email", new JSONObject(new LinkedHashMap()));
         Map<String, Object> finalMap = new LinkedHashMap<>();
         finalMap.put("identity", keyValueMap);
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(null);
+        when(objectMapper.readValue(any(InputStream.class), any(Class.class))).thenReturn(null);
 
         Map<String, Object> result = iPacketReader.getAll("id", "source", "process");
     }
 
-    @Ignore
     @Test
     public void getFieldTest() {
         String result = iPacketReader.getField("id", "phone",  "source","process");
 
         assertTrue("Should be true", result.equals("9606139887"));
     }
-    @Ignore
+
     @Test
     public void getFieldsTest() {
         List<String> list = Lists.newArrayList("phone", "email");
@@ -460,7 +458,6 @@ public class PacketReaderImplTest {
     /**
      * Tests getAll method with valid data - should return populated map
      */
-    @Ignore
     @Test
     public void testGetAll_WithValidData_ReturnsPopulatedMap() throws Exception {
         String id = "10001";
@@ -522,7 +519,6 @@ public class PacketReaderImplTest {
     /**
      * Tests getAll method with multiple packets - should merge data from all packets
      */
-    @Ignore
     @Test
     public void testGetAll_WithMultiplePackets_MergesDataFromAllPackets() throws Exception {
         String id = "10001";
@@ -799,7 +795,7 @@ public class PacketReaderImplTest {
         Map<String, Object> finalMap = new LinkedHashMap<>();
         finalMap.put("identity", keyValueMap);
 
-        when(objectMapper.readValue(anyString(), any(Class.class))).thenReturn(finalMap);
+        when(objectMapper.readValue(any(InputStream.class), any(Class.class))).thenReturn(finalMap);
 
         PowerMockito.mockStatic(JsonUtils.class);
         when(JsonUtils.javaObjectToJsonString(any()))

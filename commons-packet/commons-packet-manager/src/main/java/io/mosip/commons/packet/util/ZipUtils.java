@@ -123,7 +123,6 @@ public final class ZipUtils {
 
                     return new ByteArrayInputStream(out.toByteArray()); // Early return
                 }
-
                 zis.closeEntry();
             }
         }

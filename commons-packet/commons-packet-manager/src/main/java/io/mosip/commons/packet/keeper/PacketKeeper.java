@@ -69,13 +69,13 @@ public class PacketKeeper {
 
     @Value("${objectstore.crypto.name}")
     private String cryptoName;
-
+    
     @Value("${mosip.kernel.registrationcenterid.length}")
 	private int centerIdLength;
 
 	@Value("${mosip.kernel.machineid.length}")
 	private int machineIdLength;
-
+	
 	@Value("${packetmanager.packet.signature.disable-verification:false}")
 	private boolean disablePacketSignatureVerification;
 
@@ -134,7 +134,7 @@ public class PacketKeeper {
     }
 
     /**
-     * Get packet with proper stream handling
+     * Get packet
      *
      * @param packetInfo : packet info
      * @return : Packet
@@ -167,8 +167,6 @@ public class PacketKeeper {
                         packetName, "metainfo not found, using provided packetInfo");
                 packet.setPacketInfo(packetInfo);
             }
-
-            // Decrypt packet
             byte[] subPacket = getCryptoService().decrypt(helper.getRefId(
                     packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), encryptedSubPacket);
             packet.setPacket(subPacket);
@@ -181,7 +179,6 @@ public class PacketKeeper {
             }
 
             return packet;
-
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
             if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404))
@@ -200,7 +197,7 @@ public class PacketKeeper {
     }
 
     /**
-     * Put packet into storage with proper stream handling
+     * Put packet into storage/cache
      *
      * @param packet : the Packet
      * @return PacketInfo

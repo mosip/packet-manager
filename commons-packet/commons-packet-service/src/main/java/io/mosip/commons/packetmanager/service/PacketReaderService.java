@@ -51,7 +51,6 @@ import io.mosip.kernel.core.util.StringUtils;
 public class PacketReaderService {
 
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketReaderService.class);
-
     private static final String VALUE = "value";
     private static final String INDIVIDUAL_BIOMETRICS = "individualBiometrics";
     private static final String IDENTITY = "identity";
@@ -145,14 +144,14 @@ public class PacketReaderService {
                 containerInfo.setBiometrics(biometrics);
                 containerInfoDtos.add(containerInfo);
             }
-
+            // get tags
             Map<String, String> tags = packetReader.getTags(id);
 
             InfoResponseDto infoResponseDto = new InfoResponseDto();
             infoResponseDto.setApplicationId(id);
             infoResponseDto.setPacketId(id);
             infoResponseDto.setInfo(containerInfoDtos);
-            infoResponseDto.setTags(tags);
+			infoResponseDto.setTags(tags);
             return infoResponseDto;
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
@@ -207,7 +206,8 @@ public class PacketReaderService {
             else if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
-            } else
+            }
+            else
                 throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
         }
     }

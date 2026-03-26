@@ -10,7 +10,7 @@ public class ServerUtil {
 
 	/** The Constant LOGGER. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerUtil.class);
-
+	
 	/** The host not found. */
 	private static final String NO_HOST = "HOST_NOT_FOUND";
 
@@ -40,7 +40,7 @@ public class ServerUtil {
 	}
 
 	/**
-	 * Returns the singleton instance. Thread-safe without locking after class load.
+	 * This method return singleton instance.
 	 *
 	 * @return The ServerUtil object
 	 */
@@ -52,6 +52,7 @@ public class ServerUtil {
 	 * This method return ServerIp.
 	 *
 	 * @return The ServerIp
+	 *
 	 */
 	public String getServerIp() {
 		return serverIp;
@@ -61,6 +62,7 @@ public class ServerUtil {
 	 * This method return Server Host Name.
 	 *
 	 * @return The ServerName
+	 *
 	 */
 	public String getServerName() {
 		return serverName;

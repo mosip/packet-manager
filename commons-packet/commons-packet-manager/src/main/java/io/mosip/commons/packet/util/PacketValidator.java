@@ -228,14 +228,16 @@ public class PacketValidator {
                 return idObjectValidator.validateIdObject(
                         idSchemaUtils.getIdSchema(idschemaVersion),
                         finalIdObject, Arrays.asList(fields.split(",")));
+
             }
 
-            return false;
+			return false;
         } catch (IdObjectValidationFailedException e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     "Id object masterdata validation failed with errors:  " + e.getErrorTexts());
             return false;
         }
+
     }
 
     /**

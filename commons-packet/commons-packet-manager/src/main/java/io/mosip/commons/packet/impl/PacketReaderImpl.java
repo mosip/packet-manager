@@ -183,9 +183,8 @@ public class PacketReaderImpl implements IPacketReader {
 	 * @return
 	 */
 	@Override
-	@Cacheable(value = "packet", key="{'allFields'.concat('-').concat(#p0).concat('-').concat(#p2)}" ,unless = "#result == null")
+    @Cacheable(value = "packet", key="{'allFields'.concat('-').concat(#p0).concat('-').concat(#p2)}" ,unless = "#result == null")
 	public Map<String, Object> getAll(String id, String source, String process) {
-
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Getting all fields :: entry");
 
@@ -313,7 +312,7 @@ public class PacketReaderImpl implements IPacketReader {
 			getFetchSemaphore().release();
 		}
 
-		return finalMap;
+        return finalMap;
 	}
 
 	@Override
@@ -373,11 +372,11 @@ public class PacketReaderImpl implements IPacketReader {
 	}
 
 	@Override
-	public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source, String process, boolean byPassCache) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getBiometric :: for - " + biometricFieldName + " with byPassCache - " + byPassCache);
-		BiometricRecord biometricRecord = null;
-
+    public BiometricRecord getBiometric(String id, String biometricFieldName, List<String> modalities, String source, String process, boolean byPassCache) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getBiometric :: for - " + biometricFieldName + " with byPassCache - " + byPassCache);
+        BiometricRecord biometricRecord = null;
+		
 		try {
 			BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process, byPassCache);
 			if(bir == null) {
@@ -385,29 +384,29 @@ public class PacketReaderImpl implements IPacketReader {
 						"Biometric data not found for id: " + id + " and biometricFieldName: " + biometricFieldName);
 				return null;
 			}
-			biometricRecord = new BiometricRecord();
-			if(bir.getOthers() != null) {
-				HashMap<String, String> others = new HashMap<>();
-				bir.getOthers().entrySet().forEach(e -> {
-					others.put(e.getKey(), e.getValue());
-				});
-				biometricRecord.setOthers(others);
-			}
-			biometricRecord.setSegments(filterByModalities(modalities, bir.getBirs()));
-		} catch (Exception e) {
-			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-					ExceptionUtils.getStackTrace(e));
-			if (e instanceof BaseCheckedException) {
-				BaseCheckedException ex = (BaseCheckedException) e;
-				throw new GetBiometricException(ex.getErrorCode(), ex.getMessage());
-			} else if (e instanceof BaseUncheckedException) {
-				BaseUncheckedException ex = (BaseUncheckedException) e;
-				throw new GetBiometricException(ex.getErrorCode(), ex.getMessage());
-			}
-			throw new GetBiometricException(e.getMessage());
-		}
-		return biometricRecord;
-	}
+            biometricRecord = new BiometricRecord();
+            if(bir.getOthers() != null) {
+                HashMap<String, String> others = new HashMap<>();
+                bir.getOthers().entrySet().forEach(e -> {
+                    others.put(e.getKey(), e.getValue());
+                });
+                biometricRecord.setOthers(others);
+            }
+            biometricRecord.setSegments(filterByModalities(modalities, bir.getBirs()));
+        } catch (Exception e) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                    ExceptionUtils.getStackTrace(e));
+            if (e instanceof BaseCheckedException) {
+                BaseCheckedException ex = (BaseCheckedException) e;
+                throw new GetBiometricException(ex.getErrorCode(), ex.getMessage());
+            } else if (e instanceof BaseUncheckedException) {
+                BaseUncheckedException ex = (BaseUncheckedException) e;
+                throw new GetBiometricException(ex.getErrorCode(), ex.getMessage());
+            }
+            throw new GetBiometricException(e.getMessage());
+        }
+        return biometricRecord;
+    }
 
 	// Kept for backward compatibility. This method will not utilize the cache. Will be removed in future
 	@Override
@@ -423,7 +422,7 @@ public class PacketReaderImpl implements IPacketReader {
 		String cacheKey = generateKey(id, biometricFieldName, source, process);
 		Cache cache = cacheManager.getCache("packets");
 
-		if (byPassCache || cache == null) {
+		if(byPassCache || cache == null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
 			byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
@@ -545,10 +544,13 @@ public class PacketReaderImpl implements IPacketReader {
 				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
 			throw new GetAllMetaInfoException(cause.getMessage());
 		} catch (Exception e) {
-			if (e instanceof BaseCheckedException ex)
+			if (e instanceof BaseCheckedException) {
+				BaseCheckedException ex = (BaseCheckedException) e;
 				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
-			if (e instanceof BaseUncheckedException ex)
+			} else if (e instanceof BaseUncheckedException) {
+				BaseUncheckedException ex = (BaseUncheckedException) e;
 				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
+			}
 			throw new GetAllMetaInfoException(e.getMessage());
 		} finally {
 			getFetchSemaphore().release();
@@ -601,10 +603,13 @@ public class PacketReaderImpl implements IPacketReader {
 		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
-			if (e instanceof BaseCheckedException ex)
+			if (e instanceof BaseCheckedException) {
+				BaseCheckedException ex = (BaseCheckedException) e;
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
-			if (e instanceof BaseUncheckedException ex)
+			} else if (e instanceof BaseUncheckedException) {
+				BaseUncheckedException ex = (BaseUncheckedException) e;
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
+			}
 			throw new GetAllIdentityException(e.getMessage());
 		} finally {
 			getFetchSemaphore().release();
