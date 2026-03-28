@@ -74,81 +74,43 @@ public class AuditLogEntry {
 		serverName = serverUtil.getServerName();
 	}
 
-	public CompletableFuture<String> addAudit(String description,
-											  String eventId,
-											  String eventName,
-											  String eventType,
-											  String moduleId,
-											  String moduleName,
-											  String id) {
-
-		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(),
-				LoggerFileConstant.ID.toString(),
-				id,
-				"AuditLogEntry::addAudit::async submitted");
+	@SuppressWarnings("unchecked")
+	public CompletableFuture<String> addAudit(String description, String eventId,
+			String eventName, String eventType, String moduleId, String moduleName, String id) {
+		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
+				id, "AuditLogEntry::addAudit::async submitted");
 
 		return CompletableFuture.supplyAsync(() -> {
 
 			try {
 
 				AuditRequestDto auditRequestDto = new AuditRequestDto();
-
 				auditRequestDto.setDescription(description);
-				auditRequestDto.setActionTimeStamp(
-						DateUtils2.getUTCCurrentDateTimeString());
-
-				auditRequestDto.setApplicationId(
-						LoggerFileConstant.MOSIP_4.toString());
-
-				auditRequestDto.setApplicationName(
-						LoggerFileConstant.PACKET_MANAGER.toString());
-
-				auditRequestDto.setCreatedBy(
-						LoggerFileConstant.SYSTEM.toString());
-
+				auditRequestDto.setActionTimeStamp(DateUtils2.getUTCCurrentDateTimeString());
+				auditRequestDto.setApplicationId(LoggerFileConstant.MOSIP_4.toString());
+				auditRequestDto.setApplicationName(LoggerFileConstant.PACKET_MANAGER.toString());
+				auditRequestDto.setCreatedBy(LoggerFileConstant.SYSTEM.toString());
 				auditRequestDto.setEventId(eventId);
 				auditRequestDto.setEventName(eventName);
 				auditRequestDto.setEventType(eventType);
-
 				auditRequestDto.setHostIp(serverIp);
 				auditRequestDto.setHostName(serverName);
-
 				auditRequestDto.setId(id);
-				auditRequestDto.setIdType(
-						LoggerFileConstant.ID.toString());
-
+				auditRequestDto.setIdType(LoggerFileConstant.ID.toString());
 				auditRequestDto.setModuleId(moduleId);
 				auditRequestDto.setModuleName(moduleName);
-
-				auditRequestDto.setSessionUserId(
-						LoggerFileConstant.SYSTEM.toString());
-
-				RequestWrapper<AuditRequestDto> requestWrapper =
-						new RequestWrapper<>();
-
+				auditRequestDto.setSessionUserId(LoggerFileConstant.SYSTEM.toString());
+				auditRequestDto.setSessionUserName(null);
+				RequestWrapper<AuditRequestDto> requestWrapper = new RequestWrapper<>();
 				requestWrapper.setId(AUDIT_SERVICE_ID);
+				requestWrapper.setMetadata(null);
 				requestWrapper.setRequest(auditRequestDto);
-
-				String currentDateTimeStr =
-						DateUtils2.getUTCCurrentDateTimeString(dateTimePattern);
-
-				requestWrapper.setRequesttime(
-						LocalDateTime.parse(currentDateTimeStr,
-								dateTimeFormatter));
-
+				String currentDateTimeStr = DateUtils2.getUTCCurrentDateTimeString(dateTimePattern);
+				requestWrapper.setRequesttime(LocalDateTime.parse(currentDateTimeStr, dateTimeFormatter));
 				requestWrapper.setVersion(APPLICATION_VERSION);
-
-				HttpEntity<RequestWrapper<AuditRequestDto>> httpEntity =
-						new HttpEntity<>(requestWrapper);
-
-				ResponseEntity<String> response =
-						restTemplate.exchange(
-								auditLogUrl,
-								HttpMethod.POST,
-								httpEntity,
-								String.class
-						);
-
+				HttpEntity<RequestWrapper<AuditRequestDto>> httpEntity = new HttpEntity<>(requestWrapper);
+				ResponseEntity<String> response = restTemplate.exchange(auditLogUrl, HttpMethod.POST, httpEntity,
+						String.class);
 				return response.getBody();
 
 			} catch (Exception e) {

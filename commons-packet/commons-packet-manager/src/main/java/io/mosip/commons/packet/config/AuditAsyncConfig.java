@@ -32,17 +32,10 @@ public class AuditAsyncConfig {
                 Thread.ofPlatform().name("audit-", 0).daemon(true).factory());
         return auditPool;
     }
-
     /**
-     * Fixed platform-thread pool for parallel sub-packet S3 fetches.
-     * Replaces virtual-thread-per-task executor to avoid:
-     *  - Carrier thread pinning from AWS SDK v1 synchronized blocks
-     *  - Carrier thread accumulation (up to maxPoolSize) over hours
-     *  - ThreadLocal memory leaks per virtual thread in AWS/Jedis/Spring libs
-     *
-     * Platform threads are reused: stable memory, no per-task overhead.
-     * Pool size 30 supports 10 concurrent getAll() calls × 3 sub-packets each.
-     * Actual concurrency is further controlled by fetchSemaphore in PacketReaderImpl.
+     * Fixed platform-thread pool for fire-and-forget packet fetch and validate calls.
+     * Threads are REUSED across requests — no per-task thread creation.
+     * Daemon threads so they don't block JVM shutdown.
      */
     @Bean(name = "packetFetchExecutor")
     public ExecutorService packetFetchExecutor() {

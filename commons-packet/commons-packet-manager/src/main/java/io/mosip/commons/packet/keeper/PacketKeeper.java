@@ -159,20 +159,19 @@ public class PacketKeeper {
             // Get metadata
             Map<String, Object> metaInfo = getAdapter().getMetaData(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
                     packetInfo.getSource(), packetInfo.getProcess(), packetName);
-
             if (metaInfo != null && !metaInfo.isEmpty()) {
                 packet.setPacketInfo(PacketManagerHelper.getPacketInfo(metaInfo));
             } else {
                 LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        packetName, "metainfo not found, using provided packetInfo");
+                        packetName, "metainfo not found for this packet");
                 packet.setPacketInfo(packetInfo);
             }
             byte[] subPacket = getCryptoService().decrypt(helper.getRefId(
                     packet.getPacketInfo().getId(), packet.getPacketInfo().getRefId()), encryptedSubPacket);
             packet.setPacket(subPacket);
 
-            // Verify signature and integrity
-            if (!checkSignature(packet, encryptedSubPacket)) {
+
+			if (!checkSignature(packet, encryptedSubPacket)) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
                         packetName, "Packet Integrity and Signature check failed");
                 throw new PacketIntegrityFailureException();
@@ -203,36 +202,24 @@ public class PacketKeeper {
      * @return PacketInfo
      */
     public PacketInfo putPacket(Packet packet) throws PacketKeeperException {
-        String packetName = getName(packet.getPacketInfo().getId(), packet.getPacketInfo().getPacketName());
-
-        LOGGER.info( "putPacket - started for packetId: " +
-                packet.getPacketInfo().getId() + ", process: " + packet.getPacketInfo().getProcess());
-
         try {
             // Encrypt packet
-            byte[] encryptedSubPacket = getCryptoService().encrypt(packet.getPacketInfo().getRefId(),
-                    packet.getPacket());
+            byte[] encryptedSubPacket = getCryptoService().encrypt(packet.getPacketInfo().getRefId(), packet.getPacket());
+
             // Put packet in object store using try-with-resources
             try (ByteArrayInputStream encryptedStream = new ByteArrayInputStream(encryptedSubPacket)) {
                 boolean response = getAdapter().putObject(PACKET_MANAGER_ACCOUNT,
                         packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
-                        packet.getPacketInfo().getProcess(), packetName, encryptedStream);
+                        packet.getPacketInfo().getProcess(), packet.getPacketInfo().getPacketName(), encryptedStream);
                 if (response) {
                     PacketInfo packetInfo = packet.getPacketInfo();
-
-                    // Sign encrypted packet
-                    packetInfo.setSignature(CryptoUtil.encodeToURLSafeBase64(
-                            getCryptoService().sign(packet.getPacket())));
-                    // Generate encrypted packet hash
-                    packetInfo.setEncryptedHash(CryptoUtil.encodeToURLSafeBase64(
-                            HMACUtils2.generateHash(encryptedSubPacket)));
-
-
+                    // sign encrypted packet
+                    packetInfo.setSignature(CryptoUtil.encodeToURLSafeBase64(getCryptoService().sign(packet.getPacket())));
+                    // generate encrypted packet hash
+                    packetInfo.setEncryptedHash(CryptoUtil.encodeToURLSafeBase64(HMACUtils2.generateHash(encryptedSubPacket)));
                     Map<String, Object> metaMap = PacketManagerHelper.getMetaMap(packetInfo);
                     metaMap = getAdapter().addObjectMetaData(PACKET_MANAGER_ACCOUNT,
-                            packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(),
-                            packet.getPacketInfo().getProcess(), packetName, metaMap);
-
+                            packet.getPacketInfo().getId(), packet.getPacketInfo().getSource(), packet.getPacketInfo().getProcess(), packet.getPacketInfo().getPacketName(), metaMap);
                     return PacketManagerHelper.getPacketInfo(metaMap);
                 } else {
                     throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_PUT_ERROR.getErrorCode(),

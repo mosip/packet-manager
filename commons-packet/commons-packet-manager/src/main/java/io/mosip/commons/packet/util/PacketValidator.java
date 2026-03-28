@@ -66,7 +66,7 @@ public class PacketValidator {
      * Max concurrent validatePacket operations allowed simultaneously.
      * Each validate() downloads all sub-packets into heap (several MB each).
      * Too many concurrent validates exhaust heap → OOM.
-     * Default 30: at ~10MB per validate, keeps peak validate heap ≤ 300MB.
+     * Default 25: at ~10MB per validate, keeps peak validate heap ≤ 300MB.
      * Tune based on available heap: limit ≈ (heapMB × 0.4) / avgPacketSizeMB.
      */
     @Value("${packetmanager.validate.concurrency.limit:25}")

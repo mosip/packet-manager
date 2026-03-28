@@ -295,7 +295,7 @@ public class PacketReaderService {
                         for (String process : processStr.split("\\|")) {
                             Optional<ContainerInfoDto> containerDto = info.stream().filter(infoDto ->
                                     isFieldPresent(field, infoDto) && infoDto.getSource().equalsIgnoreCase(sourceStr)
-                                            && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
+                            && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process)).findAny();
                             // if container is not present then continue searching
                             if (containerDto.isPresent()) {
                                 return containerDto.get();
@@ -440,38 +440,38 @@ public class PacketReaderService {
     }
 
     public TagResponseDto getTags(TagRequestDto tagRequestDto) {
-        try {
-            Map<String, String> tags = new HashMap<String, String>();
-            Map<String, String> existingTags = packetReader.getTags(tagRequestDto.getId());
-            List<String> tagNames=tagRequestDto.getTagNames();
-            TagResponseDto tagResponseDto = new TagResponseDto();
-            if (tagNames != null && !tagNames.isEmpty()) {
-                for (String tag : tagNames) {
-                    if (existingTags.containsKey(tag)) {
-                        tags.put(tag, existingTags.get(tag));
-                    } else {
-                        throw new GetTagException(PacketUtilityErrorCodes.TAG_NOT_FOUND.getErrorCode(),
-                                PacketUtilityErrorCodes.TAG_NOT_FOUND.getErrorMessage() + tag);
-                    }
-                }
-                tagResponseDto.setTags(tags);
-            } else {
-                tagResponseDto.setTags(existingTags);
-            }
-            return tagResponseDto;
-        } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, tagRequestDto.getId(),
-                    ExceptionUtils.getStackTrace(e));
-            if (e instanceof BaseCheckedException) {
-                BaseCheckedException ex = (BaseCheckedException) e;
-                throw new GetTagException(ex.getErrorCode(), ex.getMessage());
-            } else if (e instanceof BaseUncheckedException) {
-                BaseUncheckedException ex = (BaseUncheckedException) e;
-                throw new GetTagException(ex.getErrorCode(), ex.getMessage());
-            }
-            throw new GetTagException(e.getMessage());
+    	try {
+			Map<String, String> tags = new HashMap<String, String>();
+			Map<String, String> existingTags = packetReader.getTags(tagRequestDto.getId());
+			List<String> tagNames=tagRequestDto.getTagNames();
+		    TagResponseDto tagResponseDto = new TagResponseDto();
+			if (tagNames != null && !tagNames.isEmpty()) {
+				for (String tag : tagNames) {
+					if (existingTags.containsKey(tag)) {
+						tags.put(tag, existingTags.get(tag));
+					} else {
+						throw new GetTagException(PacketUtilityErrorCodes.TAG_NOT_FOUND.getErrorCode(),
+								PacketUtilityErrorCodes.TAG_NOT_FOUND.getErrorMessage() + tag);
+					}
+				}
+				tagResponseDto.setTags(tags);
+			} else {
+				tagResponseDto.setTags(existingTags);
+			}
+           return tagResponseDto;
+		} catch (Exception e) {
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, tagRequestDto.getId(),
+					ExceptionUtils.getStackTrace(e));
+			if (e instanceof BaseCheckedException) {
+				BaseCheckedException ex = (BaseCheckedException) e;
+				throw new GetTagException(ex.getErrorCode(), ex.getMessage());
+			} else if (e instanceof BaseUncheckedException) {
+				BaseUncheckedException ex = (BaseUncheckedException) e;
+				throw new GetTagException(ex.getErrorCode(), ex.getMessage());
+			}
+			throw new GetTagException(e.getMessage());
 
-        }
+		}
 
     }
 
@@ -517,26 +517,26 @@ public class PacketReaderService {
 
     private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos, ContainerInfoDto info, String process) {
 
-        Optional<ContainerInfoDto> optionalInfo = finalInfos.stream()
-                .filter(i -> i.getSource().equals(info.getSource()) && i.getProcess().equals(process)).findAny();
+		Optional<ContainerInfoDto> optionalInfo = finalInfos.stream()
+				.filter(i -> i.getSource().equals(info.getSource()) && i.getProcess().equals(process)).findAny();
 
-        if (optionalInfo.isPresent()) {
+		if (optionalInfo.isPresent()) {
 
-            ContainerInfoDto optionalInfovalue = optionalInfo.get();
-            finalInfos.remove(optionalInfovalue);
-            optionalInfovalue.setDemographics(mergeDemographics(optionalInfovalue, info));
-            optionalInfovalue.setBiometrics(mergeBiometrics(optionalInfovalue, info));
-            optionalInfovalue.setDocuments(mergeDocuments(optionalInfovalue, info));
-            optionalInfovalue.setLastModified(
-                    optionalInfovalue.getLastModified().before(info.getLastModified()) ? info.getLastModified()
-                            : optionalInfovalue.getLastModified());
-            return optionalInfovalue;
-        }
-        return null;
+			ContainerInfoDto optionalInfovalue = optionalInfo.get();
+			finalInfos.remove(optionalInfovalue);
+			optionalInfovalue.setDemographics(mergeDemographics(optionalInfovalue, info));
+			optionalInfovalue.setBiometrics(mergeBiometrics(optionalInfovalue, info));
+			optionalInfovalue.setDocuments(mergeDocuments(optionalInfovalue, info));
+			optionalInfovalue.setLastModified(
+					optionalInfovalue.getLastModified().before(info.getLastModified()) ? info.getLastModified()
+							: optionalInfovalue.getLastModified());
+			return optionalInfovalue;
+		}
+		return null;
 
-    }
+	}
 
-
+	
     private Set<String> mergeDemographics(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
         if (newInfo.getDemographics() == null)
             return existingInfo.getDemographics();
