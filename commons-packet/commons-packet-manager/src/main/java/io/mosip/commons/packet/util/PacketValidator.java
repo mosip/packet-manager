@@ -202,15 +202,18 @@ public class PacketValidator {
             List<String> allFields = idSchemaUtils.getDefaultFields(idschemaVersion);
 
             // Build objectMap from pre-extracted identity fields — no extra S3 calls.
-            // Complex values (List/Map) are serialized to JSON strings so that
-            // loadDemographicIdentity() can parse them via JSONTokener, matching the
-            // behaviour of reader.getFields() which converted all values to strings.
+            // Mirrors the type conversion done by reader.getFields() → getAll():
+            //   Number  → kept as Number (same as original)
+            //   String  → leading/trailing quotes stripped (same as original)
+            //   Boolean/List/Map/other → serialized to JSON string (same as original)
             Map<String, Object> objectMap = new HashMap<>();
             for (String field : allFields) {
                 Object value = identityFields.get(field);
                 if (value == null) continue;
-                if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+                if (value instanceof Number) {
                     objectMap.put(field, value);
+                } else if (value instanceof String str) {
+                    objectMap.put(field, str.replaceAll("(^\")|(\"$)", ""));
                 } else {
                     objectMap.put(field, mapper.writeValueAsString(value));
                 }

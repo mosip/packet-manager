@@ -255,12 +255,10 @@ public class PacketReaderImpl implements IPacketReader {
 
 						if (value instanceof String str) {
 
-							// Faster than regex
-							if (str.length() >= 2 && str.charAt(0) == '"' &&
-									str.charAt(str.length() - 1) == '"') {
-								str = str.substring(1, str.length() - 1);
-							}
-
+							if (!str.isEmpty() && str.charAt(0) == '"')
+								str = str.substring(1);
+							if (!str.isEmpty() && str.charAt(str.length() - 1) == '"')
+								str = str.substring(0, str.length() - 1);
 							finalMap.put(key, str);
 							continue;
 						}
