@@ -419,7 +419,7 @@ public class PacketReaderImpl implements IPacketReader {
 		if (bioString == null || biometricMap == null || biometricMap.isNull(VALUE)) {
 			// biometric file not present in idobject. Search in meta data.
 			// Use facade's cached getMetaInfo() to avoid redundant S3 calls under high load.
-			Map<String, String> metadataMap = packetReader.getMetaInfo(id, source, process, false);
+			Map<String, String> metadataMap = getMetaInfo(id, source, process);
 			String operationsData = metadataMap.get(META_INFO_OPERATIONS_DATA);
 			if (StringUtils.isNotEmpty(operationsData)) {
 				JSONArray jsonArray = new JSONArray(operationsData);
