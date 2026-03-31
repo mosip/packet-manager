@@ -384,31 +384,31 @@ public class PacketReaderImpl implements IPacketReader {
 		if(byPassCache || cache == null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
-			byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
-			return cbeffBytes != null ? CbeffValidator.getBIRFromXML(cbeffBytes) : null;
+			BIR bir = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+			return bir != null ? bir : null;
 		}
 
-		byte[] cachedBytes = cache.get(cacheKey, byte[].class);
-		if (cachedBytes != null) {
+		BIR cachedBir = cache.get(cacheKey, BIR.class);
+		if (cachedBir != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Cache Found for the Key : " + cacheKey);
-			return CbeffValidator.getBIRFromXML(cachedBytes);
+			return cachedBir;
 		}
 
 		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
-		byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
-		if (cbeffBytes != null) {
+		BIR bir = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+		if (bir != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Adding cache the Key : " + cacheKey);
-			cache.put(cacheKey, cbeffBytes);
-			return CbeffValidator.getBIRFromXML(cbeffBytes);
+			cache.put(cacheKey, bir);
+			return bir;
 		}
 
 		return null;
 	}
 
-	private byte[] loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+	private BIR loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
@@ -448,8 +448,7 @@ public class PacketReaderImpl implements IPacketReader {
 		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
 		if (biometrics == null)
 			return null;
-
-		return IOUtils.toByteArray(biometrics);
+		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
 	}
 
 	@Override
