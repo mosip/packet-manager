@@ -16,11 +16,15 @@ public class AuditAsyncConfig {
     @Value("${packetmanager.audit.thread.pool.size:5}")
     private int auditPoolSize;
 
-    @Value("${packetmanager.fetch.thread.pool.size:60}")
+    @Value("${packetmanager.fetch.thread.pool.size:40}")
     private int fetchPoolSize;
+
+    @Value("${packetmanager.validate.thread.pool.size:30}")
+    private int validatePoolSize;
 
     private ExecutorService auditPool;
     private ExecutorService fetchPool;
+    private ExecutorService validatePool;
 
     /**
      * Fixed platform-thread pool for fire-and-forget audit HTTP calls.
@@ -55,6 +59,18 @@ public class AuditAsyncConfig {
         return fetchPool;
     }
 
+    /**
+     * Fixed platform-thread pool for parallel sub-packet S3 fetches during validation.
+     * Separate from packetFetchExecutor so validate concurrency can be tuned independently
+     * without affecting read operations.
+     */
+    @Bean(name = "packetValidateExecutor")
+    public ExecutorService packetValidateExecutor() {
+        validatePool = Executors.newFixedThreadPool(validatePoolSize,
+                Thread.ofPlatform().name("pkt-validate-", 0).factory());
+        return validatePool;
+    }
+
     @PreDestroy
     public void shutdown() {
         // Audit: daemon threads die on JVM exit anyway, but explicit shutdown is clean
@@ -69,6 +85,17 @@ public class AuditAsyncConfig {
                     fetchPool.shutdownNow();
             } catch (InterruptedException e) {
                 fetchPool.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        if (validatePool != null) {
+            validatePool.shutdown();
+            try {
+                if (!validatePool.awaitTermination(30, TimeUnit.SECONDS))
+                    validatePool.shutdownNow();
+            } catch (InterruptedException e) {
+                validatePool.shutdownNow();
                 Thread.currentThread().interrupt();
             }
         }
