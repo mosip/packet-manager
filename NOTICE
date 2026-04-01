@@ -1,0 +1,71 @@
+MOSIP Project – Notices
+Copyright © 2022
+Modular Open Source Identity Platform (MOSIP)
+
+This project includes third-party software components licensed under a variety
+of open-source licenses. Attribution for these components is provided below.
+Full license texts are available in the LICENSES/ directory or from their
+respective upstream sources.
+
+---
+
+Third-party attributions:
+
+• MOSIP Kernel Libraries  
+  (CBEFF Util API, BOM, Core, Logback Logger, Key Manager Service,  
+   ID Object Validator, Auth Adapter)  
+  Licensed under the Mozilla Public License 2.0.
+
+• MOSIP Commons Libraries  
+  (Khazana, Packet Manager)  
+  Licensed under the Mozilla Public License 2.0.
+
+• MOSIP Biometrics API  
+  Licensed under the Mozilla Public License 2.0.
+
+• com.github.Rakshithasai123/packet-manager  
+  Licensed under the Mozilla Public License 2.0.
+
+• Spring Boot Components  
+  (Starter Security, Starter Cache, Starter Data JPA, Starter WebFlux,  
+   Spring Security Test, Spring Boot Maven Plugin)  
+  Licensed under the Apache License 2.0.
+
+• SpringDoc OpenAPI  
+  (Starter WebMVC UI, Maven Plugin)  
+  Licensed under the Apache License 2.0.
+
+• Springfox Swagger  
+  (Swagger2, Swagger UI)  
+  Licensed under the Apache License 2.0.
+
+• Apache Commons Collections 4  
+  Licensed under the Apache License 2.0.
+
+• PowerMock (JUnit4 Module, Mockito2 API)  
+  Licensed under the Apache License 2.0.
+
+• Hazelcast Kubernetes  
+  Licensed under the Apache License 2.0.
+
+• Jakarta XML Bind (JAXB API)  
+  Licensed under the EPL 2.0 / GPLv2 with Classpath Exception.
+
+• JUnit (Vintage Engine, JUnit4/5 components)  
+  Licensed under the Eclipse Public License 1.0 / 2.0.
+
+• JSON-simple  
+  Licensed under the Apache License 2.0.
+
+• Mockito Core  
+  Licensed under the MIT License.
+
+• Apache Maven Plugins  
+  (Compiler Plugin, WAR Plugin, JAR Plugin, Javadoc Plugin,  
+   GPG Plugin, Surefire Plugin)  
+  Licensed under the Apache License 2.0.
+
+
+• H2 Database  
+  Dual-licensed under MPL 2.0 and EPL 1.0.
+

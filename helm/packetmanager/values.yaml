@@ -70,8 +70,8 @@ startupProbe:
     path: /commons/v1/packetmanager/actuator/health
     port: 8093
   initialDelaySeconds: 0
-  periodSeconds: 10
-  timeoutSeconds: 5
+  periodSeconds: 60
+  timeoutSeconds: 30
   failureThreshold: 30
   successThreshold: 1
 livenessProbe:
@@ -80,8 +80,8 @@ livenessProbe:
     path: /commons/v1/packetmanager/actuator/health
     port: 8093
   initialDelaySeconds: 20
-  periodSeconds: 10
-  timeoutSeconds: 5
+  periodSeconds: 60
+  timeoutSeconds: 30
   failureThreshold: 6
   successThreshold: 1
 readinessProbe:
@@ -90,8 +90,8 @@ readinessProbe:
     path: /commons/v1/packetmanager/actuator/health
     port: 8093
   initialDelaySeconds: 0
-  periodSeconds: 10
-  timeoutSeconds: 5
+  periodSeconds: 60
+  timeoutSeconds: 30
   failureThreshold: 6
   successThreshold: 1
 ##
@@ -203,7 +203,15 @@ podAnnotations: {}
 
 ## lifecycleHooks for the  container to automate configuration before or after startup.
 ##
-lifecycleHooks: {}
+lifecycleHooks:
+  preStop:
+    exec:
+      command:
+        - sh
+        - -c
+        - sleep 30
+## Termination grace perios : the maximum amount of time (in seconds) Kubernetes will wait for a container to gracefully shut down
+terminationGracePeriodSeconds: 60
 ## Custom Liveness probes for
 ##
 customLivenessProbe: {}
@@ -232,7 +240,7 @@ extraEnvVarsCM:
   - artifactory-share
 ## Secret with extra environment variables
 ##
-extraEnvVarsSecret:
+extraEnvVarsSecret: []
 ## Extra volumes to add to the deployment
 ##
 extraVolumes: []
@@ -289,8 +297,8 @@ volumePermissions:
   enabled: false
   image:
     registry: docker.io
-    repository: bitnami/bitnami-shell
-    tag: "10"
+    repository: mosipid/os-shell
+    tag: "12-debian-12-r46"
     pullPolicy: Always
     ## Optionally specify an array of imagePullSecrets.
     ## Secrets must be manually created in the namespace.
