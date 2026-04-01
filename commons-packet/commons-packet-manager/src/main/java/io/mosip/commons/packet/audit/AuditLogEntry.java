@@ -2,11 +2,15 @@ package io.mosip.commons.packet.audit;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
+import jakarta.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -20,13 +24,21 @@ import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 
 @Component
 public class AuditLogEntry {
 
-	/** The logger. */
-	private final Logger LOGGER = PacketManagerLogger.getLogger(AuditLogEntry.class);
+	private static final Logger LOGGER =
+			PacketManagerLogger.getLogger(AuditLogEntry.class);
+
+	private static final String AUDIT_SERVICE_ID =
+			"mosip.commons.packet.manager";
+
+	private static final String APPLICATION_VERSION = "v1";
+
+	private static final String DATETIME_PATTERN =
+			"mosip.utc-datetime-pattern";
 
 	@Autowired
 	@Lazy
@@ -36,63 +48,81 @@ public class AuditLogEntry {
 	@Autowired
 	private Environment env;
 
+	@Autowired
+	@Qualifier("auditTaskExecutor")
+	private Executor auditExecutor;
+
 	@Value("${AUDIT_URL:null}")
 	private String auditLogUrl;
 
-	private static final String AUDIT_SERVICE_ID = "mosip.commons.packet.manager";
-	private static final String APPLICATION_VERSION = "v1";
-	private static final String DATETIME_PATTERN = "mosip.utc-datetime-pattern";
+	private DateTimeFormatter dateTimeFormatter;
+	private String dateTimePattern;
 
-	@SuppressWarnings("unchecked")
-	public String addAudit(String description, String eventId,
-			String eventName, String eventType, String moduleId, String moduleName, String id) {
-		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
-				id, "AuditLogEntry:: addAudit::entry");
+	private String serverIp;
+	private String serverName;
 
-		AuditRequestDto auditRequestDto;
-		RequestWrapper<AuditRequestDto> requestWrapper = new RequestWrapper<>();
-		ResponseEntity<String> responseWrapper = null;
+	@PostConstruct
+	private void init() {
 
-		try {
+		dateTimePattern = env.getProperty(DATETIME_PATTERN);
 
-			auditRequestDto = new AuditRequestDto();
-			auditRequestDto.setDescription(description);
-			auditRequestDto.setActionTimeStamp(DateUtils.getUTCCurrentDateTimeString());
-			auditRequestDto.setApplicationId(LoggerFileConstant.MOSIP_4.toString());
-			auditRequestDto.setApplicationName(LoggerFileConstant.PACKET_MANAGER.toString());
-			auditRequestDto.setCreatedBy(LoggerFileConstant.SYSTEM.toString());
-			auditRequestDto.setEventId(eventId);
-			auditRequestDto.setEventName(eventName);
-			auditRequestDto.setEventType(eventType);
-			auditRequestDto.setHostIp(ServerUtil.getServerUtilInstance().getServerIp());
-			auditRequestDto.setHostName(ServerUtil.getServerUtilInstance().getServerName());
-			auditRequestDto.setId(id);
-			auditRequestDto.setIdType(LoggerFileConstant.ID.toString());
-			auditRequestDto.setModuleId(moduleId);
-			auditRequestDto.setModuleName(moduleName);
-			auditRequestDto.setSessionUserId(LoggerFileConstant.SYSTEM.toString());
-			auditRequestDto.setSessionUserName(null);
-			requestWrapper.setId(AUDIT_SERVICE_ID);
-			requestWrapper.setMetadata(null);
-			requestWrapper.setRequest(auditRequestDto);
-			DateTimeFormatter format = DateTimeFormatter.ofPattern(env.getProperty(DATETIME_PATTERN));
-			LocalDateTime localdatetime = LocalDateTime
-					.parse(DateUtils.getUTCCurrentDateTimeString(env.getProperty(DATETIME_PATTERN)), format);
-			requestWrapper.setRequesttime(localdatetime);
-			requestWrapper.setVersion(APPLICATION_VERSION);
-			HttpEntity<RequestWrapper<AuditRequestDto>> httpEntity = new HttpEntity<>(requestWrapper);
-			responseWrapper = restTemplate.exchange(auditLogUrl, HttpMethod.POST, httpEntity,
-					String.class);
+		dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
 
-		} catch (Exception arae) {
-		    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-		    		null, ExceptionUtils.getStackTrace(arae));  
-		}
-		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
-				id,
-				"AuditLogRequestBuilder:: AuditLogEntry::exit");
+		ServerUtil serverUtil = ServerUtil.getServerUtilInstance();
 
-		return responseWrapper != null ? responseWrapper.getBody() : null;
+		serverIp = serverUtil.getServerIp();
+		serverName = serverUtil.getServerName();
 	}
 
+	@SuppressWarnings("unchecked")
+	public CompletableFuture<String> addAudit(String description, String eventId,
+			String eventName, String eventType, String moduleId, String moduleName, String id) {
+		LOGGER.debug(LoggerFileConstant.SESSIONID.toString(), LoggerFileConstant.ID.toString(),
+				id, "AuditLogEntry::addAudit::async submitted");
+
+		return CompletableFuture.supplyAsync(() -> {
+
+			try {
+
+				AuditRequestDto auditRequestDto = new AuditRequestDto();
+				auditRequestDto.setDescription(description);
+				auditRequestDto.setActionTimeStamp(DateUtils2.getUTCCurrentDateTimeString());
+				auditRequestDto.setApplicationId(LoggerFileConstant.MOSIP_4.toString());
+				auditRequestDto.setApplicationName(LoggerFileConstant.PACKET_MANAGER.toString());
+				auditRequestDto.setCreatedBy(LoggerFileConstant.SYSTEM.toString());
+				auditRequestDto.setEventId(eventId);
+				auditRequestDto.setEventName(eventName);
+				auditRequestDto.setEventType(eventType);
+				auditRequestDto.setHostIp(serverIp);
+				auditRequestDto.setHostName(serverName);
+				auditRequestDto.setId(id);
+				auditRequestDto.setIdType(LoggerFileConstant.ID.toString());
+				auditRequestDto.setModuleId(moduleId);
+				auditRequestDto.setModuleName(moduleName);
+				auditRequestDto.setSessionUserId(LoggerFileConstant.SYSTEM.toString());
+				auditRequestDto.setSessionUserName(null);
+				RequestWrapper<AuditRequestDto> requestWrapper = new RequestWrapper<>();
+				requestWrapper.setId(AUDIT_SERVICE_ID);
+				requestWrapper.setMetadata(null);
+				requestWrapper.setRequest(auditRequestDto);
+				String currentDateTimeStr = DateUtils2.getUTCCurrentDateTimeString(dateTimePattern);
+				requestWrapper.setRequesttime(LocalDateTime.parse(currentDateTimeStr, dateTimeFormatter));
+				requestWrapper.setVersion(APPLICATION_VERSION);
+				HttpEntity<RequestWrapper<AuditRequestDto>> httpEntity = new HttpEntity<>(requestWrapper);
+				ResponseEntity<String> response = restTemplate.exchange(auditLogUrl, HttpMethod.POST, httpEntity,
+						String.class);
+				return response.getBody();
+
+			} catch (Exception e) {
+
+				LOGGER.error(PacketManagerLogger.SESSIONID,
+						PacketManagerLogger.REGISTRATIONID,
+						id,
+						ExceptionUtils.getStackTrace(e));
+
+				return null;
+			}
+
+		}, auditExecutor);
+	}
 }

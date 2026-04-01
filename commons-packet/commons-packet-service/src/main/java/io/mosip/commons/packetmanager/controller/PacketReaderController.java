@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.mosip.commons.packetmanager.dto.SourceProcessDto;
+import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +34,6 @@ import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.http.RequestWrapper;
 import io.mosip.kernel.core.http.ResponseFilter;
 import io.mosip.kernel.core.http.ResponseWrapper;
-import io.mosip.kernel.core.util.DateUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -252,7 +252,7 @@ public class PacketReaderController {
         ResponseWrapper<Object> response = new ResponseWrapper<>();
         response.setId("mosip.registration.packet.reader");
         response.setVersion("v1");
-        response.setResponsetime(DateUtils.getUTCCurrentDateTime());
+        response.setResponsetime(DateUtils2.getUTCCurrentDateTime());
         return response;
     }
 }
