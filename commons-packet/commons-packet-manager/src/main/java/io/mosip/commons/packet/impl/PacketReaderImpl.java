@@ -384,31 +384,29 @@ public class PacketReaderImpl implements IPacketReader {
 		if(byPassCache || cache == null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
-			BIR bir = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
-			return bir != null ? bir : null;
+			return loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
 		}
 
-		BIR cachedBir = cache.get(cacheKey, BIR.class);
-		if (cachedBir != null) {
+		BIR cachedValue = cache.get(cacheKey, BIR.class);
+		if(cachedValue != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Cache Found for the Key : " + cacheKey);
-			return cachedBir;
+			return cachedValue;
 		}
 
 		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
-		BIR bir = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
-		if (bir != null) {
+		BIR bir = loadBiometricsFromObjectStore(id, biometricFieldName, source, process);
+		if(bir != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Adding cache the Key : " + cacheKey);
 			cache.put(cacheKey, bir);
+		}
+
 			return bir;
 		}
 
-		return null;
-	}
-
-	private BIR loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
@@ -418,7 +416,6 @@ public class PacketReaderImpl implements IPacketReader {
 			biometricMap = new JSONObject(bioString);
 		if (bioString == null || biometricMap == null || biometricMap.isNull(VALUE)) {
 			// biometric file not present in idobject. Search in meta data.
-			// Use facade's cached getMetaInfo() to avoid redundant S3 calls under high load.
 			Map<String, String> metadataMap = getMetaInfo(id, source, process);
 			String operationsData = metadataMap.get(META_INFO_OPERATIONS_DATA);
 			if (StringUtils.isNotEmpty(operationsData)) {
@@ -448,6 +445,7 @@ public class PacketReaderImpl implements IPacketReader {
 		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
 		if (biometrics == null)
 			return null;
+
 		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
 	}
 

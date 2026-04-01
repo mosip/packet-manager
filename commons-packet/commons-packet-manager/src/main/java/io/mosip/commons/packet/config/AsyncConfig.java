@@ -9,7 +9,7 @@ import java.util.concurrent.*;
 import jakarta.annotation.PreDestroy;
 
 @Configuration
-public class AuditAsyncConfig {
+public class AsyncConfig {
 
     @Value("${packetmanager.audit.thread.pool.size:5}")
     private int auditPoolSize;
@@ -35,14 +35,12 @@ public class AuditAsyncConfig {
 
     /**
      * Fixed platform-thread pool for fire-and-forget audit HTTP calls.
-     * Daemon threads: audit is best-effort, losing a few entries on pod
-     * shutdown is acceptable. Daemon avoids blocking JVM exit for audit work.
      */
     @Bean(name = "auditTaskExecutor")
     public ExecutorService auditTaskExecutor() {
         auditPool = new ThreadPoolExecutor(
                 auditPoolSize,
-                fetchPoolSize,
+                auditPoolSize,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(auditQueueCapacity),
                 Thread.ofPlatform().name("pkt-audit-", 0).factory(),
@@ -95,8 +93,16 @@ public class AuditAsyncConfig {
 
     @PreDestroy
     public void shutdown() {
-        // Audit: daemon threads die on JVM exit anyway, but explicit shutdown is clean
-        if (auditPool != null) auditPool.shutdownNow();
+        if (auditPool != null) {
+            auditPool.shutdown();
+            try {
+                if (!auditPool.awaitTermination(30, TimeUnit.SECONDS))
+                    auditPool.shutdownNow();
+            } catch (InterruptedException e) {
+                auditPool.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
 
         // Fetch: graceful — let in-progress S3 downloads complete (up to 30s),
         // then force-stop anything still running

@@ -19,7 +19,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+import io.mosip.commons.packet.exception.GetAllIdentityException;
 import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.kernel.core.exception.BaseCheckedException;
+import io.mosip.kernel.core.exception.BaseUncheckedException;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import org.apache.commons.io.IOUtils;
@@ -125,11 +128,54 @@ public class PacketValidator {
                 Map<String, Object> identityWrapper = mapper.readValue(idJsonStream, LinkedHashMap.class);
                 @SuppressWarnings("unchecked")
                 Map<String, Object> currentIdMap = (Map<String, Object>) identityWrapper.get(IDENTITY);
-                if (currentIdMap != null)
-                    finalMap.putAll(currentIdMap);
+                for (Map.Entry<String, Object> entry : currentIdMap.entrySet()) {
+
+                    String key = entry.getKey();
+
+                    if (finalMap.containsKey(key)) {
+                        continue;
+                    }
+
+                    Object value = entry.getValue();
+
+                    if (value == null) {
+                        finalMap.put(key, null);
+                        continue;
+                    }
+
+                    if (value instanceof Number) {
+                        finalMap.put(key, value);
+                        continue;
+                    }
+
+                    if (value instanceof String str) {
+
+                        if (!str.isEmpty() && str.charAt(0) == '"')
+                            str = str.substring(1);
+                        if (!str.isEmpty() && str.charAt(str.length() - 1) == '"')
+                            str = str.substring(0, str.length() - 1);
+                        finalMap.put(key, str);
+                        continue;
+                    }
+
+                    try {
+                        finalMap.put(key, JsonUtils.javaObjectToJsonString(value));
+                    } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+                        LOGGER.error(ExceptionUtils.getStackTrace(e));
+                        throw new GetAllIdentityException(e.getMessage());
+                    }
+                }
             } catch (Exception e) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
                         packetName, "Failed to extract identity fields: " + ExceptionUtils.getStackTrace(e));
+                if (e instanceof BaseCheckedException) {
+                    BaseCheckedException ex = (BaseCheckedException) e;
+                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+                } else if (e instanceof BaseUncheckedException) {
+                    BaseUncheckedException ex = (BaseUncheckedException) e;
+                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+                }
+                throw new GetAllIdentityException(e.getMessage());
             }
         }
         return finalMap;
@@ -171,24 +217,10 @@ public class PacketValidator {
             }
             double idschemaVersion = Double.parseDouble(versionObj.toString());
             List<String> allFields = idSchemaUtils.getDefaultFields(idschemaVersion);
-
-            // Build objectMap from pre-extracted identity fields — no extra S3 calls.
-            // Mirrors the type conversion done by reader.getFields() → getAll():
-            //   Number  → kept as Number (same as original)
-            //   String  → leading/trailing quotes stripped (same as original)
-            //   Boolean/List/Map/other → serialized to JSON string (same as original)
             Map<String, Object> objectMap = new HashMap<>();
-            for (String field : allFields) {
-                Object value = identityFields.get(field);
-                if (value == null) continue;
-                if (value instanceof Number) {
-                    objectMap.put(field, value);
-                } else if (value instanceof String str) {
-                    objectMap.put(field, str.replaceAll("(^\")|(\"$)", ""));
-                } else {
-                    objectMap.put(field, mapper.writeValueAsString(value));
-                }
-            }
+            allFields.forEach(field ->
+                    objectMap.put(field, identityFields.get(field))
+            );
 
             if (convertIdschemaToDouble)
                 objectMap.put(idschemaValueFromMappingJson, idschemaVersion);
