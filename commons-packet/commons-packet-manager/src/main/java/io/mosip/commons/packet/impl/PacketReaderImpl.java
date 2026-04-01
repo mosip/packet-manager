@@ -21,7 +21,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Semaphore;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.core.util.JsonUtils;
@@ -76,26 +75,12 @@ public class PacketReaderImpl implements IPacketReader {
 	@Value("${mosip.commons.packetnames}")
 	private String packetNames;
 
-	/**
-	 * Limits concurrent S3 packet-fetch operations (getAll, getMetaInfo, getBiometric, getAudit).
-	 * Each cache-miss downloads full sub-packet bytes into heap.
-	 * Default 40 concurrent fetches: at ~5MB per sub-packet × 3 packets = 15MB per op → 600MB cap.
-	 * Tune via packetmanager.fetch.concurrency.limit based on available heap.
-	 */
-	@Value("${packetmanager.fetch.concurrency.limit:35}")
-	private int fetchConcurrencyLimit;
-
-	private Semaphore fetchSemaphore;
-
 	// Split once at startup — avoids String.split() allocation on every request under high load
 	private volatile String[] packetNameArray;
 
 	@PostConstruct
 	public void init() {
 		packetNameArray = packetNames.split(",");
-		fetchSemaphore = new Semaphore(fetchConcurrencyLimit, true);
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
-				"PacketReaderImpl fetch concurrency limit set to " + fetchConcurrencyLimit);
 	}
 
 	/**
@@ -111,23 +96,6 @@ public class PacketReaderImpl implements IPacketReader {
 			packetNameArray = arr;
 		}
 		return arr;
-	}
-
-	/**
-	 * Lazy accessor for fetchSemaphore.
-	 * In production, @PostConstruct initializes this with the configured limit.
-	 * In tests using @InjectMocks, @PostConstruct is skipped, so we initialize
-	 * on first access using fetchConcurrencyLimit (injected by @InjectMocks if
-	 * @Value is honored, otherwise defaults to 0 → falls back to 40).
-	 */
-	private Semaphore getFetchSemaphore() {
-		Semaphore s = fetchSemaphore;
-		if (s == null) {
-			int limit = fetchConcurrencyLimit > 0 ? fetchConcurrencyLimit : 40;
-			s = new Semaphore(limit, true);
-			fetchSemaphore = s;
-		}
-		return s;
 	}
 
 	@Autowired
@@ -190,12 +158,7 @@ public class PacketReaderImpl implements IPacketReader {
 
 		Map<String, Object> finalMap = new LinkedHashMap<>();
 
-		// Semaphore guards cache-miss path only: @Cacheable intercepts before reaching
-		// this method body on a hit, so the permit is released almost immediately on hits.
-		// On a miss this downloads full packet bytes into heap — concurrency cap prevents OOM.
-		getFetchSemaphore().acquireUninterruptibly();
 		try {
-
 			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
 			String[] names = getPacketNames();
 			List<CompletableFuture<Packet>> futures = new ArrayList<>(names.length);
@@ -255,12 +218,10 @@ public class PacketReaderImpl implements IPacketReader {
 
 						if (value instanceof String str) {
 
-							// Faster than regex
-							if (str.length() >= 2 && str.charAt(0) == '"' &&
-									str.charAt(str.length() - 1) == '"') {
-								str = str.substring(1, str.length() - 1);
-							}
-
+							if (!str.isEmpty() && str.charAt(0) == '"')
+								str = str.substring(1);
+							if (!str.isEmpty() && str.charAt(str.length() - 1) == '"')
+								str = str.substring(0, str.length() - 1);
 							finalMap.put(key, str);
 							continue;
 						}
@@ -308,8 +269,6 @@ public class PacketReaderImpl implements IPacketReader {
 			}
 
 			throw new GetAllIdentityException(e.getMessage());
-		} finally {
-			getFetchSemaphore().release();
 		}
 
         return finalMap;
@@ -425,31 +384,31 @@ public class PacketReaderImpl implements IPacketReader {
 		if(byPassCache || cache == null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Skipping Cache due to byPassCache : " + byPassCache + " or IsCachePresent : " + (cache != null));
-			byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
-			return cbeffBytes != null ? CbeffValidator.getBIRFromXML(cbeffBytes) : null;
+			BIR bir = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+			return bir != null ? bir : null;
 		}
 
-		byte[] cachedBytes = cache.get(cacheKey, byte[].class);
-		if (cachedBytes != null) {
+		BIR cachedBir = cache.get(cacheKey, BIR.class);
+		if (cachedBir != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Cache Found for the Key : " + cacheKey);
-			return CbeffValidator.getBIRFromXML(cachedBytes);
+			return cachedBir;
 		}
 
 		LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 				"Cache not found for the Key : " + cacheKey + " Loading biometrics from ObjectStore");
-		byte[] cbeffBytes = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
-		if (cbeffBytes != null) {
+		BIR bir = loadCbeffBytesFromObjectStore(id, biometricFieldName, source, process);
+		if (bir != null) {
 			LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					"Adding cache the Key : " + cacheKey);
-			cache.put(cacheKey, cbeffBytes);
-			return CbeffValidator.getBIRFromXML(cbeffBytes);
+			cache.put(cacheKey, bir);
+			return bir;
 		}
 
 		return null;
 	}
 
-	private byte[] loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
+	private BIR loadCbeffBytesFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
 		String fileName = null;
 
@@ -460,7 +419,7 @@ public class PacketReaderImpl implements IPacketReader {
 		if (bioString == null || biometricMap == null || biometricMap.isNull(VALUE)) {
 			// biometric file not present in idobject. Search in meta data.
 			// Use facade's cached getMetaInfo() to avoid redundant S3 calls under high load.
-			Map<String, String> metadataMap = packetReader.getMetaInfo(id, source, process, false);
+			Map<String, String> metadataMap = getMetaInfo(id, source, process);
 			String operationsData = metadataMap.get(META_INFO_OPERATIONS_DATA);
 			if (StringUtils.isNotEmpty(operationsData)) {
 				JSONArray jsonArray = new JSONArray(operationsData);
@@ -489,15 +448,13 @@ public class PacketReaderImpl implements IPacketReader {
 		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
 		if (biometrics == null)
 			return null;
-
-		return IOUtils.toByteArray(biometrics);
+		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
 	}
 
 	@Override
 	public Map<String, String> getMetaInfo(String id, String source, String process) {
 		Map<String, String> finalMap = new LinkedHashMap<>();
 
-		getFetchSemaphore().acquireUninterruptibly();
 		try {
 			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
 			String[] names = getPacketNames();
@@ -552,8 +509,6 @@ public class PacketReaderImpl implements IPacketReader {
 				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
 			}
 			throw new GetAllMetaInfoException(e.getMessage());
-		} finally {
-			getFetchSemaphore().release();
 		}
 		return finalMap;
 	}
@@ -563,7 +518,6 @@ public class PacketReaderImpl implements IPacketReader {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "getAuditInfo :: entry");
 		List<Map<String, String>> finalMap = new ArrayList<>();
 
-		getFetchSemaphore().acquireUninterruptibly();
 		try {
 			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
 			String[] names = getPacketNames();
@@ -611,8 +565,6 @@ public class PacketReaderImpl implements IPacketReader {
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
 			}
 			throw new GetAllIdentityException(e.getMessage());
-		} finally {
-			getFetchSemaphore().release();
 		}
 		return finalMap;
 	}

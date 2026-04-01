@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 import io.mosip.commons.packet.facade.PacketReader;
@@ -28,7 +27,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONTokener;
 import org.json.simple.JSONObject;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -62,25 +60,6 @@ public class PacketValidator {
     @Value("${mosip.commons.packet.manager.schema.validator.convertIdSchemaToDouble:true}")
     private boolean convertIdschemaToDouble;
 
-    /**
-     * Max concurrent validatePacket operations allowed simultaneously.
-     * Each validate() downloads all sub-packets into heap (several MB each).
-     * Too many concurrent validates exhaust heap → OOM.
-     * Default 25: at ~10MB per validate, keeps peak validate heap ≤ 300MB.
-     * Tune based on available heap: limit ≈ (heapMB × 0.4) / avgPacketSizeMB.
-     */
-    @Value("${packetmanager.validate.concurrency.limit:25}")
-    private int validateConcurrencyLimit;
-
-    private Semaphore validateSemaphore;
-
-    @PostConstruct
-    private void initSemaphore() {
-        validateSemaphore = new Semaphore(validateConcurrencyLimit, true);
-        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
-                "PacketValidator concurrency limit set to " + validateConcurrencyLimit);
-    }
-
     private static final Logger LOGGER = PacketManagerLogger.getLogger(PacketValidator.class);
     private static final String FIELD_LIST = "mosip.kernel.idobjectvalidator.mandatory-attributes.reg-processor.%s";
 
@@ -110,34 +89,26 @@ public class PacketValidator {
     private AuditLogEntry auditLogEntry;
 
     @Autowired
-    @Qualifier("packetFetchExecutor")
-    private Executor packetFetchExecutor;
+    @Qualifier("packetValidateExecutor")
+    private Executor packetValidateExecutor;
 
 
     public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
-        // Limit concurrent validates to prevent OOM: each validate downloads all sub-packets
-        // (several MB each) into heap. Without a cap, hundreds of concurrent Tomcat threads
-        // each holding packet bytes exhaust the heap.
-        validateSemaphore.acquireUninterruptibly();
-        try {
-            // Fetch all sub-packets ONCE and reuse for both schema validation and checksum
-            // validation — avoids a second round of S3 GET + decrypt calls.
-            Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
-            Map<String, Object> identityFields = extractIdentityFields(packetsMap);
+        // Fetch all sub-packets ONCE and reuse for both schema validation and checksum
+        // validation — avoids a second round of S3 GET + decrypt calls.
+        Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
+        Map<String, Object> identityFields = extractIdentityFields(packetsMap);
 
-            boolean result = validateSchema(id, process, identityFields);
-            if (result) {
-                LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
-                auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
-                result = fileAndChecksumValidation(id, source, process, packetsMap);
-            } else {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
-                auditLogEntry.addAudit("Id object validation failed", eventId, eventName, eventType, null, null, id);
-            }
-            return result;
-        } finally {
-            validateSemaphore.release();
+        boolean result = validateSchema(id, process, identityFields);
+        if (result) {
+            LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
+            auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
+            result = fileAndChecksumValidation(id, source, process, packetsMap);
+        } else {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
+            auditLogEntry.addAudit("Id object validation failed", eventId, eventName, eventType, null, null, id);
         }
+        return result;
     }
 
     /**
@@ -178,7 +149,7 @@ public class PacketValidator {
                     } catch (PacketKeeperException e) {
                         throw new RuntimeException(e);
                     }
-                }, packetFetchExecutor))
+                }, packetValidateExecutor))
                 .collect(Collectors.toList());
 
         Map<String, Packet> packetsMap = new HashMap<>();
@@ -202,15 +173,18 @@ public class PacketValidator {
             List<String> allFields = idSchemaUtils.getDefaultFields(idschemaVersion);
 
             // Build objectMap from pre-extracted identity fields — no extra S3 calls.
-            // Complex values (List/Map) are serialized to JSON strings so that
-            // loadDemographicIdentity() can parse them via JSONTokener, matching the
-            // behaviour of reader.getFields() which converted all values to strings.
+            // Mirrors the type conversion done by reader.getFields() → getAll():
+            //   Number  → kept as Number (same as original)
+            //   String  → leading/trailing quotes stripped (same as original)
+            //   Boolean/List/Map/other → serialized to JSON string (same as original)
             Map<String, Object> objectMap = new HashMap<>();
             for (String field : allFields) {
                 Object value = identityFields.get(field);
                 if (value == null) continue;
-                if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+                if (value instanceof Number) {
                     objectMap.put(field, value);
+                } else if (value instanceof String str) {
+                    objectMap.put(field, str.replaceAll("(^\")|(\"$)", ""));
                 } else {
                     objectMap.put(field, mapper.writeValueAsString(value));
                 }
