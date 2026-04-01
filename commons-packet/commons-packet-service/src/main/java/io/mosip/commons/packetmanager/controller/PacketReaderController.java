@@ -5,9 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.commons.packetmanager.dto.SourceProcessDto;
-import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.DateUtils2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -90,12 +88,9 @@ public class PacketReaderController {
         FieldDtos fieldDtos = request.getRequest();
         Map<String, String> resultFields = new HashMap<>();
         if ((fieldDtos.getSource()) == null) {
-            // Fetch info once for source resolution; reuse across all fields
-            // to avoid N redundant S3 listObjectsV2 calls (one per field).
-            InfoResponseDto cachedInfo = packetReaderService.getInfoForSourceResolution(fieldDtos.getId());
             for (String field : fieldDtos.getFields()) {
                 SourceProcessDto sourceProcessDto = packetReaderService.getSourceAndProcess(fieldDtos.getId(),
-                        field, fieldDtos.getSource(), fieldDtos.getProcess(), cachedInfo);
+                        field, fieldDtos.getSource(), fieldDtos.getProcess());
                 String value = sourceProcessDto == null ? null :
                         packetReader.getField(fieldDtos.getId(), field, sourceProcessDto.getSource(),
                         sourceProcessDto.getProcess(), fieldDtos.getBypassCache());
