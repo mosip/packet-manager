@@ -86,6 +86,7 @@ public class PacketWriter {
      * @param document     : the document
      * @return PacketWriter
      */
+    @CacheEvict(value = "packets", key = "'documents'.concat('-').concat(#p0).concat('-').concat(#p2).concat('-').concat(#p3).concat('-').concat(#p4)")
     public void setDocument(String id, String documentName, Document document, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "setDocument for field name : " + documentName + " source : " + source + " process : " + process);
@@ -98,6 +99,7 @@ public class PacketWriter {
      * @param metaInfo : meta key value pairs
      * @return PacketWriter
      */
+    @CacheEvict(value = "packets", key = "'metaInfo'.concat('-').concat(#p0).concat('-').concat(#p2).concat('-').concat(#p3)")
     public void addMetaInfo(String id, Map<String, String> metaInfo, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "setMetaInfo for source : " + source + " process : " + process);
@@ -111,6 +113,7 @@ public class PacketWriter {
      * @Param value : meta value
      * @return PacketWriter
      */
+    @CacheEvict(value = "packets", key = "'metaInfo'.concat('-').concat(#p0).concat('-').concat(#p3).concat('-').concat(#p4)")
     public void addMetaInfo(String id, String key, String value, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "setMetaInfo for source : " + source + " process : " + process);
@@ -125,6 +128,7 @@ public class PacketWriter {
      * @param process : the process
      * @return PacketInfo
      */
+    @CacheEvict(value = "packets", key = "#p0.concat('-').concat(#p2).concat('-').concat(#p3)")
     public void addAudits(String id, List<Map<String, String>> audits, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "setAudits for source : " + source + " process : " + process);
@@ -139,6 +143,7 @@ public class PacketWriter {
      * @param process : the process
      * @return PacketInfo
      */
+    @CacheEvict(value = "packets", key = "#p0.concat('-').concat(#p2).concat('-').concat(#p3)")
     public void addAudit(String id, Map<String, String> audit, String source, String process) {
         LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                 "setAudits for source : " + source + " process : " + process);
@@ -216,19 +221,19 @@ public class PacketWriter {
         return provider;
     }
 
-	@CacheEvict(value = "tags", key = "{#p1}")
+	@CacheEvict(value = "tags", key = "#p1")
 	public Map<String, String> addTags(TagDto tagDto,String id) {
 		Map<String, String> tags = packetKeeper.addTags(tagDto);
 		return tags;
 	}
 
-	@CacheEvict(value = "tags", key = "{#p1}")
+	@CacheEvict(value = "tags", key = "#p1")
 	public Map<String, String> addorUpdate(TagDto tagDto,String id) {
 		Map<String, String> tags = packetKeeper.addorUpdate(tagDto);
 		return tags;
 	}
 	
-	@CacheEvict(value = "tags", key = "{#p1}")
+	@CacheEvict(value = "tags", key = "#p1")
 	public void deleteTags(TagRequestDto tagDto, String id) {
 		packetKeeper.deleteTags(tagDto);
 	}
