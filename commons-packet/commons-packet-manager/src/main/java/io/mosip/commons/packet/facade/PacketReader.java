@@ -222,7 +222,7 @@ public class PacketReader {
         return getProvider(source, process).getAuditInfo(id, source, process);
     }
 
-    @Cacheable(value = "tags", key = "#p0", unless = "#result == null")
+//    @Cacheable(value = "tags", key = "{#p0}", unless = "#result == null")
     public Map<String, String> getTags(String id) {
         Map<String, String> tags = packetKeeper.getTags(id);
         return tags;
