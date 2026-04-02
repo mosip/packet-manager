@@ -224,7 +224,9 @@ public class PacketReader {
 
     @Cacheable(value = "tags", key = "{#p0}" ,unless = "#result == null")
     public  Map<String, String>  getTags(String id) {
+        System.out.println("getTags called for id : " + id);
         Map<String, String> tags = packetKeeper.getTags(id);
+        System.out.println("tags for id : " + id + " are : " + tags);
         return tags;
     }
 

@@ -218,18 +218,22 @@ public class PacketWriter {
 
 	@CacheEvict(value = "tags", key = "{#p1}")
 	public Map<String, String> addTags(TagDto tagDto,String id) {
+        System.out.println("PacketWriter addTags called for id : " + id + " with tags : " + tagDto.getTags());
 		Map<String, String> tags = packetKeeper.addTags(tagDto);
+        
 		return tags;
 	}
 
 	@CacheEvict(value = "tags", key = "{#p1}")
 	public Map<String, String> addorUpdate(TagDto tagDto,String id) {
+            System.out.println("PacketWriter addorUpdate called for id : " + id + " with tags : " + tagDto.getTags());
 		Map<String, String> tags = packetKeeper.addorUpdate(tagDto);
 		return tags;
 	}
 	
 	@CacheEvict(value = "tags", key = "{#p1}")
 	public void deleteTags(TagRequestDto tagDto, String id) {
-		packetKeeper.deleteTags(tagDto);
+		System.out.println("PacketWriter deleteTags called for id : " + id + " with tags : " + tagDto.getTagNames());
+        packetKeeper.deleteTags(tagDto);
 	}
 }
