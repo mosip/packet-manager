@@ -127,7 +127,7 @@ additionalResources:
     -Dlogging.level.root=INFO -Dlogging.level.com.amazonaws=TRACE
     -Dlogging.level.com.amazonaws.request=TRACE
     -Dlogging.level.com.amazonaws.http=TRACE -XX:ZUncommitDelay=60
-    -Xms4800m -Xmx4800m -XX:SoftMaxHeapSize=4300m
+    -Xms2200m -Xmx4800m -XX:SoftMaxHeapSize=4300m
     -XX:ActiveProcessorCount=2
     -Djava.util.concurrent.ForkJoinPool.common.parallelism=2
     -XX:+UseContainerSupport -XX:MaxMetaspaceSize=256m
