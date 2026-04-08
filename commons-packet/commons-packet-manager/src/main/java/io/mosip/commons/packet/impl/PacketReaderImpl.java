@@ -311,15 +311,16 @@ public class PacketReaderImpl implements IPacketReader {
 				String packetName = idSchemaUtils.getSource(documentName, schemaVersion);
 				Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
 				String value = documentMap.has(VALUE) ? documentMap.get(VALUE).toString() : null;
-				InputStream documentStream = ZipUtils.unzipAndGetFile(packet.getPacket(), value);
-				if (documentStream != null) {
-					Document document = new Document();
-					document.setDocument(IOUtils.toByteArray(documentStream));
-					document.setValue(value);
-					document.setType(documentMap.has(TYPE) ? documentMap.get(TYPE).toString() : null);
-					document.setFormat(documentMap.has(FORMAT) ? documentMap.get(FORMAT).toString() : null);
-					document.setRefNumber(documentMap.has(REFNUMBER) ? documentMap.get(REFNUMBER).toString() : null);
-					return document;
+				try (InputStream documentStream = ZipUtils.unzipAndGetFile(packet.getPacket(), value)) {
+					if (documentStream != null) {
+						Document document = new Document();
+						document.setDocument(IOUtils.toByteArray(documentStream));
+						document.setValue(value);
+						document.setType(documentMap.has(TYPE) ? documentMap.get(TYPE).toString() : null);
+						document.setFormat(documentMap.has(FORMAT) ? documentMap.get(FORMAT).toString() : null);
+						document.setRefNumber(documentMap.has(REFNUMBER) ? documentMap.get(REFNUMBER).toString() : null);
+						return document;
+					}
 				}
 			}
 		} catch (Exception e) {
@@ -442,11 +443,12 @@ public class PacketReaderImpl implements IPacketReader {
 			return null;
 
 		Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
-		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
-		if (biometrics == null)
-			return null;
+		try (InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName)) {
+			if (biometrics == null)
+				return null;
 
-		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+			return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+		}
 	}
 
 	@Override
@@ -472,23 +474,24 @@ public class PacketReaderImpl implements IPacketReader {
 
 			for (CompletableFuture<Packet> future : futures) {
 				Packet packet = future.join();
-				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO");
-				if (idJsonStream != null) {
-					byte[] bytearray = IOUtils.toByteArray(idJsonStream);
-					String jsonString = new String(bytearray);
-					LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-							.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+				try (InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO")) {
+					if (idJsonStream != null) {
+						byte[] bytearray = IOUtils.toByteArray(idJsonStream);
+						String jsonString = new String(bytearray);
+						LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
+								.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
 
-					currentIdMap.keySet().stream().forEach(key -> {
-						try {
-							finalMap.putIfAbsent(key,
-									currentIdMap.get(key) != null ? JsonUtils
-											.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(^\")|(\"$)", "")
-											: null);
-						} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-							throw new GetAllMetaInfoException(e.getMessage());
-						}
-					});
+						currentIdMap.keySet().stream().forEach(key -> {
+							try {
+								finalMap.putIfAbsent(key,
+										currentIdMap.get(key) != null ? JsonUtils
+												.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(^\")|(\"$)", "")
+												: null);
+							} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+								throw new GetAllMetaInfoException(e.getMessage());
+							}
+						});
+					}
 				}
 			}
 		} catch (CompletionException ce) {
@@ -535,12 +538,13 @@ public class PacketReaderImpl implements IPacketReader {
 
 			for (CompletableFuture<Packet> future : futures) {
 				Packet packet = future.join();
-				InputStream auditJson = ZipUtils.unzipAndGetFile(packet.getPacket(), "audit");
-				if (auditJson != null) {
-					byte[] bytearray = IOUtils.toByteArray(auditJson);
-					String jsonString = new String(bytearray);
-					List<Map<String, String>> currentMap = (List<Map<String, String>>) mapper.readValue(jsonString, List.class);
-					finalMap.addAll(currentMap);
+				try (InputStream auditJson = ZipUtils.unzipAndGetFile(packet.getPacket(), "audit")) {
+					if (auditJson != null) {
+						byte[] bytearray = IOUtils.toByteArray(auditJson);
+						String jsonString = new String(bytearray);
+						List<Map<String, String>> currentMap = (List<Map<String, String>>) mapper.readValue(jsonString, List.class);
+						finalMap.addAll(currentMap);
+					}
 				}
 			}
 		} catch (CompletionException ce) {
