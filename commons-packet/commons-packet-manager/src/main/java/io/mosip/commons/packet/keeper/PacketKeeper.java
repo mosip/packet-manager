@@ -180,21 +180,28 @@ public class PacketKeeper {
 
             return packet;
         } catch (NoSuchKeyException e) {
+            System.out.println("NoSuchKeyException caught: " + e.getMessage());
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
             throw new ObjectDoesnotExistsException();
         } catch (Exception e) {
+            System.out.println("Exception caught: " + e.getMessage());
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
             //Backward compatibility for AWS SDK v1 way
-            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404))
+            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404)) {
+                System.out.println("Identified as ObjectDoesnotExistsException based on message content");
                 throw new ObjectDoesnotExistsException();
+            }
             if (e instanceof BaseCheckedException) {
+                System.out.println("Identified as BaseCheckedException");
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             }
             if (e instanceof BaseUncheckedException) {
+                System.out.println("Identified as BaseUncheckedException");
                 BaseUncheckedException ex = (BaseUncheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             }
+            System.out.println("Identified as general Exception");
             throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(), 
                     "Exception occured reading packet : " + e.getMessage(), e);
         }
