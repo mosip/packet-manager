@@ -179,43 +179,26 @@ public class PacketKeeper {
 
             return packet;
         } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                    packetInfo.getId(), ExceptionUtils.getStackTrace(e));
-
-            // ✅ New AWS SDK v2 way (BEST)
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
+            //New AWS SDK v2 way (BEST)
             if (e instanceof software.amazon.awssdk.services.s3.model.NoSuchKeyException) {
                 throw new ObjectDoesnotExistsException();
             }
-
-            // ✅ Backward compatibility (old string-based check)
-            if (e.getMessage() != null &&
-                    e.getMessage().contains(OBJECT_DOESNOT_EXISTS)) {
+            //Backward compatibility for AWS SDK v1 way
+            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404))
                 throw new ObjectDoesnotExistsException();
-            }
-
-            // Optional: fallback for generic 404 (if needed)
-            if (e.getMessage() != null &&
-                    e.getMessage().contains("Status Code: 404")) {
-                throw new ObjectDoesnotExistsException();
-            }
-
-            else if (e instanceof BaseCheckedException) {
+            if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             }
-
-            else if (e instanceof BaseUncheckedException) {
+            if (e instanceof BaseUncheckedException) {
                 BaseUncheckedException ex = (BaseUncheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             }
-
-            else {
-                throw new PacketKeeperException(
-                        PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
-                        "Exception occured reading packet : " + e.getMessage(), e);
-            }
+            throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(), 
+                    "Exception occured reading packet : " + e.getMessage(), e);
         }
-        }
+    }
 
     /**
      * Put packet into storage/cache
