@@ -142,10 +142,8 @@ public class PacketKeeper {
      */
     public Packet getPacket(PacketInfo packetInfo) throws PacketKeeperException {
         String packetName = getName(packetInfo.getId(), packetInfo.getPacketName());
-        System.out.println("Getting packet with name : " + packetName);
         try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
                 packetInfo.getSource(), packetInfo.getProcess(), packetName)) {
-    System.out.println("Packet stream is : " + is);
             if (is == null) {
                 LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
                         packetName, packetInfo.getProcess() + " Packet is not present in packet store.");
@@ -181,23 +179,18 @@ public class PacketKeeper {
 
             return packet;
         } catch (Exception e) {
-            System.out.println("Exception while getting packet : " + e.getMessage());
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
             if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && (e.getMessage().contains(STATUS_404) || e.getMessage().contains(STATUS_404_V2))) {
-                System.out.println("Object does not exist in object store");
                 throw new ObjectDoesnotExistsException();
             }
             else if (e instanceof BaseCheckedException) {
-                System.out.println("BaseCheckedException occurred : " + e.getMessage());
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             }
             else if (e instanceof BaseUncheckedException) {
-                System.out.println("BaseUncheckedException occurred : " + e.getMessage());
                 BaseUncheckedException ex = (BaseUncheckedException) e;
                 throw new PacketKeeperException(ex.getErrorCode(), ex.getMessage());
             } else
-                System.out.println("Unknown exception occurred while getting packet : " + e.getMessage());
                 throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
                     "Exception occured reading packet : " + e.getMessage(), e);
         }
