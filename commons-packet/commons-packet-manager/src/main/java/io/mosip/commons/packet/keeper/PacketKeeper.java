@@ -46,9 +46,9 @@ public class PacketKeeper {
      * The reg proc logger.
      */
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketKeeper.class);
-    private static final String OBJECT_DOESNOT_EXISTS = "The specified key does not exist";
-    private static final String STATUS_404 = "Status Code: 404; Error Code: NoSuchKey"; // AWS SDK v1
-    private static final String STATUS_404_V2 = "NoSuchKeyException"; // AWS SDK v2
+    // AWS SDK v1 AmazonS3Exception uses errorCode "NoSuchKey"; v2 has a dedicated NoSuchKeyException class.
+    private static final String NO_SUCH_KEY_EXCEPTION = "NoSuchKeyException";
+    private static final String NO_SUCH_KEY_ERROR_CODE = "Error Code: NoSuchKey";
 
     @Value("${packet.manager.account.name}")
     private String PACKET_MANAGER_ACCOUNT;
@@ -180,7 +180,7 @@ public class PacketKeeper {
             return packet;
         } catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
-            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && (e.getMessage().contains(STATUS_404) || e.getMessage().contains(STATUS_404_V2))) {
+            if (isNoSuchKeyException(e)) {
                 throw new ObjectDoesnotExistsException();
             }
             else if (e instanceof BaseCheckedException) {
@@ -264,6 +264,25 @@ public class PacketKeeper {
 
     private static String getName(String id, String name) {
         return id + UNDERSCORE + name;
+    }
+
+    /**
+     * Walks the full cause chain to detect a NoSuchKey S3 error from either AWS SDK version.
+     * v2 throws NoSuchKeyException directly; v1 throws AmazonS3Exception whose message contains "Error Code: NoSuchKey".
+     */
+    private static boolean isNoSuchKeyException(Throwable e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (NO_SUCH_KEY_EXCEPTION.equals(cause.getClass().getSimpleName())) {
+                return true;
+            }
+            String msg = cause.getMessage();
+            if (msg != null && msg.contains(NO_SUCH_KEY_ERROR_CODE)) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     public boolean deletePacket(String id, String source, String process) {
