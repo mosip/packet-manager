@@ -47,7 +47,8 @@ public class PacketKeeper {
      */
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketKeeper.class);
     private static final String OBJECT_DOESNOT_EXISTS = "The specified key does not exist";
-    private static final String STATUS_404 = "Status Code: 404; Error Code: NoSuchKey";
+    private static final String STATUS_404 = "Status Code: 404; Error Code: NoSuchKey"; // AWS SDK v1
+    private static final String STATUS_404_V2 = "NoSuchKeyException"; // AWS SDK v2
 
     @Value("${packet.manager.account.name}")
     private String PACKET_MANAGER_ACCOUNT;
@@ -182,7 +183,7 @@ public class PacketKeeper {
         } catch (Exception e) {
             System.out.println("Exception while getting packet : " + e.getMessage());
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
-            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404)) {
+            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && (e.getMessage().contains(STATUS_404) || e.getMessage().contains(STATUS_404_V2))) {
                 System.out.println("Object does not exist in object store");
                 throw new ObjectDoesnotExistsException();
             }
