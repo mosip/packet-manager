@@ -47,7 +47,7 @@ public class PacketKeeper {
      */
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketKeeper.class);
     private static final String OBJECT_DOESNOT_EXISTS = "The specified key does not exist";
-    private static final String STATUS_404 = "Status Code: 404; Error Code: NoSuchKey";
+    private static final String STATUS_404 = "Status Code: 404";
 
     @Value("${packet.manager.account.name}")
     private String PACKET_MANAGER_ACCOUNT;
