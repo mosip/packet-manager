@@ -34,7 +34,6 @@ import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.logger.spi.Logger;
 import io.mosip.kernel.core.util.CryptoUtil;
 import io.mosip.kernel.core.util.HMACUtils2;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 /**
  * The packet keeper is used to store & retrieve packet, creation of audit, encrypt and sign packet.
@@ -183,13 +182,9 @@ public class PacketKeeper {
         }
         catch (Exception e) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, packetInfo.getId(), ExceptionUtils.getStackTrace(e));
-
-            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404_V2)) {
-                throw new ObjectDoesnotExistsException();
-            }
             
-            //Backward compatibility for AWS SDK v1 way
-            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404)) {
+            if (e.getMessage() != null && e.getMessage().contains(OBJECT_DOESNOT_EXISTS) && e.getMessage().contains(STATUS_404)
+            || e.getMessage().contains(STATUS_404_V2)) {
                 throw new ObjectDoesnotExistsException();
             }
             if (e instanceof BaseCheckedException) {
