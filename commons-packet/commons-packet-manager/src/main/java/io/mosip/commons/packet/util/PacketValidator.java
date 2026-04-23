@@ -192,7 +192,7 @@ public class PacketValidator {
                     try {
                         Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
                         return Map.entry(packetName, packet);
-                    } catch (PacketKeeperException e) {
+                    } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 }, packetValidateExecutor))
