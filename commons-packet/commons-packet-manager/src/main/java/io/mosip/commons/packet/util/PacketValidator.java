@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
@@ -193,17 +194,40 @@ public class PacketValidator {
                         Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
                         return Map.entry(packetName, packet);
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        throw new CompletionException(e);
                     }
                 }, packetValidateExecutor))
                 .collect(Collectors.toList());
+        try {
+            Map<String, Packet> packetsMap = new HashMap<>();
+            for (CompletableFuture<Map.Entry<String, Packet>> future : futures) {
+                Map.Entry<String, Packet> entry = future.join();
+                packetsMap.put(entry.getKey(), entry.getValue());
+            }
+            return packetsMap;
+        } catch (CompletionException ce) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                    ExceptionUtils.getStackTrace(ce));
+            Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+            if (cause instanceof BaseCheckedException ex) {
+                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+            }
+            if (cause instanceof BaseUncheckedException ex) {
+                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+            }
+            throw new GetAllIdentityException(cause.getMessage());
 
-        Map<String, Packet> packetsMap = new HashMap<>();
-        for (CompletableFuture<Map.Entry<String, Packet>> future : futures) {
-            Map.Entry<String, Packet> entry = future.join();
-            packetsMap.put(entry.getKey(), entry.getValue());
+        } catch (Exception e) {
+
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                    ExceptionUtils.getStackTrace(e));
+
+            if (e instanceof BaseUncheckedException ex) {
+                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+            }
+
+            throw new GetAllIdentityException(e.getMessage());
         }
-        return packetsMap;
     }
 
     private boolean validateSchema(String id, String process, Map<String, Object> identityFields) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
