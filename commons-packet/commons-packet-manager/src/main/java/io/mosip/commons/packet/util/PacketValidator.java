@@ -208,11 +208,14 @@ public class PacketValidator {
         } catch (CompletionException ce) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(ce));
+            System.out.println("inside completion exception");
             Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
             if (cause instanceof BaseCheckedException ex) {
+                System.out.println("inside base checked exception");
                 throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
             }
             if (cause instanceof BaseUncheckedException ex) {
+                System.out.println("inside base unchecked exception");
                 throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
             }
             throw new GetAllIdentityException(cause.getMessage());
