@@ -237,9 +237,9 @@ public class PacketReaderImpl implements IPacketReader {
 			}
 
 		} catch (CompletionException ce) {
-			
+
 			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
-			
+
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					cause instanceof Exception
 							? ExceptionUtils.getStackTrace((Exception) cause)
@@ -252,7 +252,7 @@ public class PacketReaderImpl implements IPacketReader {
 			if (cause instanceof BaseUncheckedException ex) {
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			}
-			
+
 			throw new GetAllIdentityException(cause.getMessage());
 
 		} catch (Exception e) {
