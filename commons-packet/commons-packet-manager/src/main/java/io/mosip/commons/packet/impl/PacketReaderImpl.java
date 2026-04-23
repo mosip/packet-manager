@@ -237,24 +237,19 @@ public class PacketReaderImpl implements IPacketReader {
 			}
 
 		} catch (CompletionException ce) {
-System.out.println("CompletionException occurred: " + ce.getMessage());
 			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
-System.out.println("Cause of CompletionException: " + cause.getMessage());
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					cause instanceof Exception
 							? ExceptionUtils.getStackTrace((Exception) cause)
 							: cause.toString());
 
 			if (cause instanceof BaseCheckedException ex) {
-				System.out.println("BaseCheckedException occurred: " + ex.getMessage());
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			}
 
 			if (cause instanceof BaseUncheckedException ex) {
-				System.out.println("BaseUncheckedException occurred: " + ex.getMessage());
 				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
 			}
-System.out.println("Unknown exception occurred: " + cause.getMessage());
 			throw new GetAllIdentityException(cause.getMessage());
 
 		} catch (Exception e) {
