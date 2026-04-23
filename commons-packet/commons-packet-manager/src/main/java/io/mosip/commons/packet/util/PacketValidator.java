@@ -216,7 +216,7 @@ public class PacketValidator {
             }
             if (cause instanceof BaseUncheckedException ex) {
                 System.out.println("inside base unchecked exception");
-                throw new GetAllIdentityException(ex.getErrorCode(), (String) null);
+                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
             }
             throw new GetAllIdentityException(cause.getMessage());
 

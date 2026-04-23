@@ -559,13 +559,9 @@ public class PacketReaderImpl implements IPacketReader {
 		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
-			if (e instanceof BaseCheckedException) {
-				BaseCheckedException ex = (BaseCheckedException) e;
-				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
-			} else if (e instanceof BaseUncheckedException) {
-				BaseUncheckedException ex = (BaseUncheckedException) e;
-				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
-			}
+            if (e instanceof BaseUncheckedException ex) {
+                throw new GetAllIdentityException(ex.getErrorCode(), (String) null);
+            }
 			throw new GetAllIdentityException(e.getMessage());
 		}
 		return finalMap;
