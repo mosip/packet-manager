@@ -20,7 +20,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
-import io.mosip.commons.packet.exception.GetAllIdentityException;
+import io.mosip.commons.packet.constants.PacketUtilityErrorCodes;
+import io.mosip.commons.packet.exception.*;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.core.exception.BaseCheckedException;
 import io.mosip.kernel.core.exception.BaseUncheckedException;
@@ -44,8 +45,6 @@ import io.mosip.commons.packet.constants.PacketManagerConstants;
 import io.mosip.commons.packet.dto.Packet;
 import io.mosip.commons.packet.dto.PacketInfo;
 import io.mosip.commons.packet.dto.packet.FieldValueArray;
-import io.mosip.commons.packet.exception.GetAllMetaInfoException;
-import io.mosip.commons.packet.exception.PacketKeeperException;
 import io.mosip.commons.packet.keeper.PacketKeeper;
 import io.mosip.kernel.core.idobjectvalidator.exception.IdObjectIOException;
 import io.mosip.kernel.core.idobjectvalidator.exception.IdObjectValidationFailedException;
@@ -208,28 +207,19 @@ public class PacketValidator {
         } catch (CompletionException ce) {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(ce));
-            System.out.println("inside completion exception");
-            Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
-            if (cause instanceof BaseCheckedException ex) {
-                System.out.println("inside base checked exception");
-                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-            }
-            if (cause instanceof BaseUncheckedException ex) {
-                System.out.println("inside base unchecked exception");
-                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-            }
-            throw new GetAllIdentityException(cause.getMessage());
-
+            Throwable cause = ce.getCause();
+            // Unwrap double-wrapping: Supplier wraps in CompletionException, then join() wraps again
+            while (cause instanceof CompletionException && cause.getCause() != null)
+                cause = cause.getCause();
+            if (cause instanceof ObjectDoesnotExistsException) throw (ObjectDoesnotExistsException) cause;
+            if (cause instanceof PacketKeeperException) throw (PacketKeeperException) cause;
+            throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
+                    "Exception occured in fetchAllPacketsInParallel", cause);
         } catch (Exception e) {
-
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
                     ExceptionUtils.getStackTrace(e));
-
-            if (e instanceof BaseUncheckedException ex) {
-                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-            }
-
-            throw new GetAllIdentityException(e.getMessage());
+            throw new PacketKeeperException(PacketUtilityErrorCodes.PACKET_KEEPER_GET_ERROR.getErrorCode(),
+                    "Exception occured in fetchAllPacketsInParallel", e);
         }
     }
 
