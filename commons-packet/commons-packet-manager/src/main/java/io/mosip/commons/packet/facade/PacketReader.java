@@ -104,6 +104,8 @@ public class PacketReader {
         if (bypassCache)
             values = getProvider(source, process).getFields(id, fields, source, process);
         else {
+            Map debugMap = getAllFields(id, source, process);
+            System.out.println("debugMap : " + debugMap);
             values = getAllFields(id, source, process).entrySet()
                     .stream().filter(m -> fields.contains(m.getKey())).collect(Collectors.toMap(m -> m.getKey(), m -> m.getValue() != null ? m.getValue().toString() : null));
         }
