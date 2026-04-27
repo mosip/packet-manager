@@ -217,10 +217,8 @@ public class PacketValidator {
             }
             double idschemaVersion = Double.parseDouble(versionObj.toString());
             List<String> allFields = idSchemaUtils.getDefaultFields(idschemaVersion);
-            Map<String, Object> objectMap = new HashMap<>();
-            allFields.forEach(field ->
-                    objectMap.put(field, identityFields.get(field))
-            );
+            Map<String, Object> objectMap = allFields.stream()
+                    .collect(Collectors.toMap(field -> field, field -> identityFields.get(field)));
 
             if (convertIdschemaToDouble)
                 objectMap.put(idschemaValueFromMappingJson, idschemaVersion);
