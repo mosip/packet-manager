@@ -81,10 +81,18 @@ public class PacketReader {
         if (bypassCache)
             value = getProvider(source, process).getField(id, field, source, process);
         else {
-            Map debugMap = getAllFields(id, source, process);
-            System.out.println("debugMap : " + debugMap);
-            Optional<Object> optionalValue = getAllFields(id, source, process).entrySet().stream().filter(m-> m.getKey().equalsIgnoreCase(field) && m.getValue()!=null).map(m -> m.getValue()).findAny();
-            value = optionalValue.isPresent() ? optionalValue.get().toString() : null;
+//            Optional<Object> optionalValue = getAllFields(id, source, process).entrySet().stream().filter(m-> m.getKey().equalsIgnoreCase(field) && m.getValue()!=null).map(m -> m.getValue()).findAny();
+//            value = optionalValue.isPresent() ? optionalValue.get().toString() : null;
+
+            Optional<Object> optionalValue = getAllFields(id, source, process)
+                    .entrySet()
+                    .stream()
+                    .filter(m -> m.getKey().equalsIgnoreCase(field)) // ❌ null filter hata diya
+                    .map(m -> m.getValue())
+                    .findAny();
+
+// Direct get + toString (unsafe)
+            value = optionalValue.get().toString();
         }
         return value;
     }
