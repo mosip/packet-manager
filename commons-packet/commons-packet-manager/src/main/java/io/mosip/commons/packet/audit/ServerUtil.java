@@ -1,28 +1,42 @@
 package io.mosip.commons.packet.audit;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ServerUtil {
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
-	/** The server instance. */
-	private static ServerUtil serverInstance = null;
+public class ServerUtil {
 
 	/** The Constant LOGGER. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerUtil.class);
-
+	
 	/** The host not found. */
-	private String noHost = "HOST_NOT_FOUND";
+	private static final String NO_HOST = "HOST_NOT_FOUND";
+
+	private final String serverIp;
+	private final String serverName;
 
 	/**
-	 * 
-	 * Instantiates a new server util.
+	 * Instantiates a new server util and caches host info to avoid repeated lookups.
 	 */
 	private ServerUtil() {
 		super();
+		String ip = "UNKNOWN-HOST";
+		String name = "UNKNOWN-HOST";
+		try {
+			InetAddress localHost = InetAddress.getLocalHost();
+			ip = localHost.getHostAddress();
+			name = localHost.getHostName();
+		} catch (UnknownHostException e) {
+			LOGGER.error(NO_HOST, e.getMessage());
+		}
+		this.serverIp = ip;
+		this.serverName = name;
+	}
+
+	private static class Holder {
+		static final ServerUtil INSTANCE = new ServerUtil();
 	}
 
 	/**
@@ -30,14 +44,8 @@ public class ServerUtil {
 	 *
 	 * @return The ServerUtil object
 	 */
-	public static synchronized ServerUtil getServerUtilInstance() {
-
-		if (serverInstance == null) {
-			serverInstance = new ServerUtil();
-			return serverInstance;
-		} else {
-			return serverInstance;
-		}
+	public static ServerUtil getServerUtilInstance() {
+		return Holder.INSTANCE;
 	}
 
 	/**
@@ -47,12 +55,7 @@ public class ServerUtil {
 	 *
 	 */
 	public String getServerIp() {
-		try {
-			return InetAddress.getLocalHost().getHostAddress();
-		} catch (UnknownHostException e) {
-			LOGGER.error(noHost, e.getMessage());
-			return "UNKNOWN-HOST";
-		}
+		return serverIp;
 	}
 
 	/**
@@ -62,11 +65,7 @@ public class ServerUtil {
 	 *
 	 */
 	public String getServerName() {
-		try {
-			return InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			LOGGER.error(noHost, e.getMessage());
-			return "UNKNOWN-HOST";
-		}
+		return serverName;
 	}
+
 }

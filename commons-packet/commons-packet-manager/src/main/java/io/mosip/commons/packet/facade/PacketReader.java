@@ -2,22 +2,29 @@ package io.mosip.commons.packet.facade;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 
-import io.micrometer.core.annotation.Timed;
 import io.mosip.commons.khazana.dto.ObjectDto;
 import io.mosip.commons.packet.dto.Document;
+import io.mosip.commons.packet.exception.NoAvailableProviderException;
 import io.mosip.commons.packet.keeper.PacketKeeper;
+import io.mosip.commons.packet.spi.IPacketReader;
+import io.mosip.commons.packet.util.PacketHelper;
 import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.logger.spi.Logger;
+
 
 /**
  * The packet Reader facade
@@ -25,192 +32,229 @@ import io.mosip.kernel.core.logger.spi.Logger;
 @RefreshScope
 @Component
 public class PacketReader {
-	private static final Logger LOGGER = PacketManagerLogger.getLogger(PacketReader.class);
 
-	@Autowired
-	private PacketKeeper packetKeeper;
+    private static final Logger LOGGER = PacketManagerLogger.getLogger(PacketReader.class);
 
-	@Autowired
-	private PacketReaderProviderRegistry providerRegistry;
+    @Autowired(required = false)
+    @Qualifier("referenceReaderProviders")
+    @Lazy
+    private List<IPacketReader> referenceReaderProviders;
 
-	/**
-	 * Get a field from identity file
-	 *
-	 * @param id      : the registration id
-	 * @param field   : field name to search
-	 * @param source  : the source packet. If not present return default
-	 * @param process : the process
-	 * @return String field
-	 */
-	@Timed("packet.reader.getField")
-	@PreAuthorize("hasRole('DATA_READ')")
-	public String getField(String id, String field, String source, String process, boolean bypassCache) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getField - field={}, source={}, process={}", field, source, process);
+    @Autowired
+    private PacketKeeper packetKeeper;
 
-		if (bypassCache) {
-			return providerRegistry.getReaderProvider(source, process).getField(id, field, source, process);
-		}
+    /*
+     * Note on enabling info cache:
+     *
+     * Previously, issues were observed when the info cache was not cleared
+     * while processing a BIOMETRIC_CORRECTION packet for a given RID, since
+     * the correction packet is uploaded with the same RID.
+     *
+     * In production, we can enable the info cache for performance improvements,
+     * provided the following assumptions hold true:
+     *
+     * 1. By the time a BIOMETRIC_CORRECTION packet is uploaded, the info cache
+     *    for that RID will already be cleared. This is because, in production,
+     *    BIOMETRIC_CORRECTION packets are typically uploaded after some time,
+     *    and the cache duration is relatively short — reducing the risk of stale data.
+     *
+     * 2. Packet data is not modified "in-flight" (i.e., during processing),
+     *    ensuring that caching will not introduce inconsistencies.
+     */
+    @Value("${packetmanager.cache.info.enabled:false}")
+    private boolean isInfoCacheEnabled;
 
-		return getAllFields(id, source, process).entrySet().stream()
-				.filter(e -> field.equalsIgnoreCase(e.getKey()) && e.getValue() != null)
-				.map(e -> e.getValue().toString()).findFirst().orElse(null);
-	}
+    /**
+     * Get a field from identity file
+     *
+     * @param id      : the registration id
+     * @param field   : field name to search
+     * @param source  : the source packet. If not present return default
+     * @param process : the process
+     * @return String field
+     */
+    @PreAuthorize("hasRole('DATA_READ')")
+    public String getField(String id, String field, String source, String process, boolean bypassCache) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getFields for fields : " + field + " source : " + source + " process : " + process);
+        String value;
+        if (bypassCache)
+            value = getProvider(source, process).getField(id, field, source, process);
+        else {
+            Optional<Object> optionalValue = getAllFields(id, source, process).entrySet().stream().filter(m-> m.getKey().equalsIgnoreCase(field) && m.getValue()!=null).map(m -> m.getValue()).findAny();
+            value = optionalValue.isPresent() ? optionalValue.get().toString() : null;
+        }
+        return value;
+    }
 
-	/**
-	 * Get fields from identity file
-	 *
-	 * @param id      : the registration id
-	 * @param fields  : fields to search
-	 * @param source  : the source packet. If not present return default
-	 * @param process : the process
-	 * @return Map fields
-	 */
-	@Timed("packet.reader.getFields")
-	@PreAuthorize("hasRole('DATA_READ')")
-	public Map<String, String> getFields(String id, List<String> fields, String source, String process,
-			boolean bypassCache) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getFields - fields={}, source={}, process={}", fields, source, process);
+    /**
+     * Get fields from identity file
+     *
+     * @param id      : the registration id
+     * @param fields  : fields to search
+     * @param source  : the source packet. If not present return default
+     * @param process : the process
+     * @return Map fields
+     */
+    @PreAuthorize("hasRole('DATA_READ')")
+    public Map<String, String> getFields(String id, List<String> fields, String source, String process, boolean bypassCache) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getFields for fields : " + fields.toString() + " source : " + source + " process : " + process);
+        Map<String, String> values;
+        if (bypassCache)
+            values = getProvider(source, process).getFields(id, fields, source, process);
+        else {
+            values = getAllFields(id, source, process).entrySet()
+                    .stream().filter(m -> fields.contains(m.getKey())).collect(Collectors.toMap(m -> m.getKey(), m -> m.getValue() != null ? m.getValue().toString() : null));
+        }
+        return values;
+    }
 
-		if (bypassCache) {
-			return providerRegistry.getReaderProvider(source, process).getFields(id, fields, source, process);
-		}
+    /**
+     * Get document by registration id, document name, source and process
+     *
+     * @param id           : the registration id
+     * @param documentName : the document name
+     * @param source       : the source packet. If not present return default
+     * @param process      : the process
+     * @return Document : document information
+     */
+    @PreAuthorize("hasRole('DOCUMENT_READ')")
+    @Cacheable(value = "packets",key = "'documents'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2).concat('-').concat(#p3)"
+    ,unless = "#result == null")
+    public Document getDocument(String id, String documentName, String source, String process) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getDocument for documentName : " + documentName + " source : " + source + " process : " + process);
+        return getProvider(source, process).getDocument(id, documentName, source, process);
+    }
 
-		return getAllFields(id, source, process).entrySet().stream().filter(entry -> fields.contains(entry.getKey()))
-				.collect(Collectors.toMap(Map.Entry::getKey,
-						e -> e.getValue() != null ? e.getValue().toString() : null));
-	}
+    /**
+     * Get biometric information by registration id, document name, source and process
+     *
+     * @param id         : the registration id
+     * @param person     : The person (ex - applicant, operator, supervisor, introducer etc)
+     * @param modalities : list of biometric modalities
+     * @param source     : the source packet. If not present return default
+     * @param process    : the process
+     * @return BiometricRecord : the biometric record
+     */
 
-	/**
-	 * Get document by registration id, document name, source and process
-	 *
-	 * @param id           : the registration id
-	 * @param documentName : the document name
-	 * @param source       : the source packet. If not present return default
-	 * @param process      : the process
-	 * @return Document : document information
-	 */
-	@Timed("packet.reader.getDocument")
-	@PreAuthorize("hasRole('DOCUMENT_READ')")
-	@Cacheable(value = "packets", key = "'documents'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2).concat('-').concat(#p3)")
-	public Document getDocument(String id, String documentName, String source, String process) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getDocument - documentName={}, source={}, process={}", documentName, source, process);
-		return providerRegistry.getReaderProvider(source, process).getDocument(id, documentName, source, process);
-	}
+    // The caching is removed from this method and moved to the implementation class as part of MOSIP-42180 JIRA. If we use the older implementation class logic (Customized Packet Reader Implementation) then caching logic will not work because of newly introduced getBiometric() method in IPacketReader interface i.e. we need to implement the caching logic in new getBiometric() method in implementation class.
+    @PreAuthorize("hasRole('BIOMETRIC_READ')")
+    public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source, String process, boolean bypassCache) {
 
-	/**
-	 * Get biometric information by registration id, document name, source and
-	 * process
-	 *
-	 * @param id         : the registration id
-	 * @param person     : The person (ex - applicant, operator, supervisor,
-	 *                   introducer etc)
-	 * @param modalities : list of biometric modalities
-	 * @param source     : the source packet. If not present return default
-	 * @param process    : the process
-	 * @return BiometricRecord : the biometric record
-	 */
-	@Timed("packet.reader.getBiometric")
-	@PreAuthorize("hasRole('BIOMETRIC_READ')")
-	@Cacheable(value = "packets", key = "'biometrics'.concat('-').#p0.concat('-').concat(#p1).concat('-').concat(#p2).concat('-').concat(#p3).concat('-').concat(#p4)", condition = "#p5 == false")
-	public BiometricRecord getBiometric(String id, String person, List<String> modalities, String source,
-			String process, boolean bypassCache) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getBiometric - source={}, process={}", source, process);
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getBiometric for source : " + source + " process : " + process);
+        return getProvider(source, process).getBiometric(id, person, modalities, source, process, bypassCache);
+    }
 
-		return providerRegistry.getReaderProvider(source, process).getBiometric(id, person, modalities, source,
-				process);
-	}
+    /**
+     * Get packet meta information by registration id, source and process
+     *
+     * @param id      : the registration id
+     * @param source  : the source packet. If not present return default
+     * @param process : the process
+     * @return Map fields
+     */
+    @PreAuthorize("hasRole('METADATA_READ')")
+    @Cacheable(value = "packets", key ="{'metaInfo'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false",unless = "#result == null")
+    public Map<String, String> getMetaInfo(String id, String source, String process, boolean bypassCache) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getMetaInfo for source : " + source + " process : " + process);
+        return getProvider(source, process).getMetaInfo(id, source, process);
+    }
 
-	/**
-	 * Get packet meta information by registration id, source and process
-	 *
-	 * @param id      : the registration id
-	 * @param source  : the source packet. If not present return default
-	 * @param process : the process
-	 * @return Map fields
-	 */
-	@Timed("packet.reader.getMetaInfo")
-	@PreAuthorize("hasRole('METADATA_READ')")
-	@Cacheable(value = "packets", key = "{'metaInfo'.concat('-').concat(#p0).concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false")
-	public Map<String, String> getMetaInfo(String id, String source, String process, boolean bypassCache) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getMetaInfo - source={}, process={}", source, process);
+    /**
+     * Get all field names from identity object
+     *
+     * @param id
+     * @return
+     */
+    @PreAuthorize("hasRole('DATA_READ')")
+    @Cacheable(value = "info", key = "#p0", condition = "@packetReader.isInfoCacheEnabled()" ,unless = "#result == null")
+    public List<ObjectDto> info(String id) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "info called");
+        return packetKeeper.getAll(id);
+    }
 
-		return providerRegistry.getReaderProvider(source, process).getMetaInfo(id, source, process);
-	}
+    /**
+     * Get all field names from identity object
+     *
+     * @param id
+     * @param source
+     * @param process
+     * @return
+     */
+    @PreAuthorize("hasRole('DATA_READ')")
+    public Set<String> getAllKeys(String id, String source, String process) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getAllKeys for source : " + source + " process : " + process);
+        return getProvider(source, process).getAll(id, source, process).keySet();
+    }
 
-	/**
-	 * Get all field names from identity object
-	 *
-	 * @param id
-	 * @param source
-	 * @param process
-	 * @return
-	 */
-	@Timed("packet.reader.info")
-	@PreAuthorize("hasRole('DATA_READ')")
-	public List<ObjectDto> info(String id) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "info called");
-		return packetKeeper.getAll(id);
-	}
+    /**
+     * Get all fields from packet by id, source and process
+     *
+     * @param id      : the registration id
+     * @param source  : the source packet. If not present return default
+     * @param process : the process
+     * @return Map fields
+     */
+    private Map<String, Object> getAllFields(String id, String source, String process) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getAllFields for source : " + source + " process : " + process);
+        return getProvider(source, process).getAll(id, source, process);
+    }
 
-	/**
-	 * Get all field names from identity object
-	 *
-	 * @param id
-	 * @param source
-	 * @param process
-	 * @return
-	 */
-	@Timed("packet.reader.getAllKeys")
-	@PreAuthorize("hasRole('DATA_READ')")
-	public Set<String> getAllKeys(String id, String source, String process) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getAllKeys - source={}, process={}", source, process);
-		return providerRegistry.getReaderProvider(source, process).getAll(id, source, process).keySet();
-	}
+    /**
+     * Get all fields from packet by id, source and process
+     *
+     * @param id      : the registration id
+     * @param source  : the source packet. If not present return default
+     * @param process : the process
+     * @return Map fields
+     */
+    @Cacheable(value = "packets", key = "{#p0.concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false" ,unless = "#result == null")
+    public List<Map<String, String>> getAudits(String id, String source, String process, boolean bypassCache) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                "getAllFields for source : " + source + " process : " + process);
+        return getProvider(source, process).getAuditInfo(id, source, process);
+    }
 
-	/**
-	 * Get all fields from packet by id, source and process
-	 *
-	 * @param id      : the registration id
-	 * @param source  : the source packet. If not present return default
-	 * @param process : the process
-	 * @return Map fields
-	 */
-	private Map<String, Object> getAllFields(String id, String source, String process) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getAllFields - source={}, process={}", source, process);
-		return providerRegistry.getReaderProvider(source, process).getAll(id, source, process);
-	}
+    @Cacheable(value = "tags", key = "{#p0}" ,unless = "#result == null")
+    public  Map<String, String>  getTags(String id) {
+        Map<String, String> tags = packetKeeper.getTags(id);
+        return tags;
+    }
 
-	/**
-	 * Get all fields from packet by id, source and process
-	 *
-	 * @param id      : the registration id
-	 * @param source  : the source packet. If not present return default
-	 * @param process : the process
-	 * @return Map fields
-	 */
-	@Timed("packet.reader.getAudits")
-	@Cacheable(value = "packets", key = "{#p0.concat('-').concat(#p1).concat('-').concat(#p2)}", condition = "#p3 == false")
-	public List<Map<String, String>> getAudits(String id, String source, String process, boolean bypassCache) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"getAudits - source={}, process={}", source, process);
+    public boolean validatePacket(String id, String source, String process) {
+        return getProvider(source, process).validatePacket(id, source, process);
+    }
 
-		return providerRegistry.getReaderProvider(source, process).getAuditInfo(id, source, process);
-	}
+    private IPacketReader getProvider(String source, String process) {
+        LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
+                "getProvider for source : " + source + " process : " + process);
+        IPacketReader provider = null;
+        if (referenceReaderProviders != null && !referenceReaderProviders.isEmpty()) {
+            Optional<IPacketReader> refProvider = referenceReaderProviders.stream().filter(refPr ->
+                    (PacketHelper.isSourceAndProcessPresent(refPr.getClass().getName(), source, process, PacketHelper.Provider.READER))).findAny();
+            if (refProvider.isPresent() && refProvider.get() != null)
+                provider = refProvider.get();
+        }
 
-	@Cacheable(value = "tags", key = "{#p0}")
-	public Map<String, String> getTags(String id) {
-		Map<String, String> tags = packetKeeper.getTags(id);
-		return tags;
-	}
+        if (provider == null) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, null,
+                    "No available provider found for source : " + source + " process : " + process);
+            throw new NoAvailableProviderException();
+        }
 
-	public boolean validatePacket(String id, String source, String process) {
-		return providerRegistry.getReaderProvider(source, process).validatePacket(id, source, process);
-	}
+        return provider;
+    }
+
+    public boolean isInfoCacheEnabled() {
+        LOGGER.info("isInfoCacheEnabled : {}", isInfoCacheEnabled);
+        return isInfoCacheEnabled;
+    }
+
 }

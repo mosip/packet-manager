@@ -34,7 +34,6 @@ import io.mosip.commons.packet.dto.packet.PacketDto;
 import io.mosip.commons.packet.exception.NoAvailableProviderException;
 import io.mosip.commons.packet.exception.PacketCreatorException;
 import io.mosip.commons.packet.facade.PacketWriter;
-import io.mosip.commons.packet.facade.PacketWriterProviderRegistry;
 import io.mosip.commons.packet.impl.PacketWriterImpl;
 import io.mosip.commons.packet.keeper.PacketKeeper;
 import io.mosip.commons.packet.spi.IPacketWriter;
@@ -47,253 +46,250 @@ import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.biometrics.entities.RegistryIDType;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ PacketHelper.class })
-@PowerMockIgnore({ "com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*" })
+@PrepareForTest({PacketHelper.class})
+@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*"})
 public class PacketWriterTest {
 
-	@InjectMocks
-	private PacketWriter packetWriter = new PacketWriter();
+    @InjectMocks
+    private PacketWriter packetWriter = new PacketWriter();
 
-	@Mock
-	private PacketWriterImpl packetWriterProvider;
+    @Mock
+    private PacketWriterImpl packetWriterProvider;
 
-	@Mock
-	private PacketWriterProviderRegistry providerRegistry;
+    private Map<String, Object> allFields;
 
-	private Map<String, Object> allFields;
+    private static final String source = "reg-client";
+    private static final String process = "NEW";
+    private static final String id = "110111101120191111121111";
+    
 
-	private static final String source = "reg-client";
-	private static final String process = "NEW";
-	private static final String id = "110111101120191111121111";
-
-	@Mock
+    @Mock
 	private PacketKeeper packetKeeper;
 
-	@Before
-	public void setup() {
-		PowerMockito.mockStatic(PacketHelper.class);
-		PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(), anyString(), anyString(), any()))
-				.thenReturn(true);
 
-		Mockito.when(providerRegistry.getWriterProvider(anyString(), anyString())).thenReturn(packetWriterProvider);
-		ReflectionTestUtils.setField(packetWriter, "providerRegistry", providerRegistry);
-	}
+    @Before
+    public void setup() {
+        PowerMockito.mockStatic(PacketHelper.class);
+        PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(),anyString(),anyString(),any())).thenReturn(true);
+        List<IPacketWriter> referenceWriterProviders = new ArrayList<>();
+        referenceWriterProviders.add(packetWriterProvider);
+        ReflectionTestUtils.setField(packetWriter, "referenceWriterProviders", referenceWriterProviders);
+    }
 
-	@Test
-	public void testSetField() {
-		Mockito.doNothing().when(packetWriterProvider).setField(anyString(), anyString(), anyString());
+    @Test
+    public void testSetField() {
+        Mockito.doNothing().when(packetWriterProvider).setField(anyString(),anyString(),anyString());
 
-		packetWriter.setField(id, "name", "mono", source, process);
-	}
+        packetWriter.setField(id, "name", "mono", source, process);
+    }
 
-	@Test
-	public void testSetFields() {
-		Map<String, String> fields = new HashMap<>();
-		Mockito.doNothing().when(packetWriterProvider).setFields(anyString(), anyMap());
+    @Test
+    public void testSetFields() {
+        Map<String, String> fields = new HashMap<>();
+        Mockito.doNothing().when(packetWriterProvider).setFields(anyString(),anyMap());
 
-		packetWriter.setFields(id, fields, source, process);
-	}
+        packetWriter.setFields(id, fields, source, process);
+    }
 
-	@Test
-	public void testSetDocument() {
-		Document document = new Document();
-		document.setValue("document");
-		Mockito.doNothing().when(packetWriterProvider).setDocument(anyString(), anyString(), any());
+    @Test
+    public void testSetDocument() {
+        Document document = new Document();
+        document.setValue("document");
+        Mockito.doNothing().when(packetWriterProvider).setDocument(anyString(), anyString(), any());
 
-		packetWriter.setDocument(id, "poa", document, source, process);
-	}
+        packetWriter.setDocument(id, "poa", document, source, process);
+    }
 
-	@Test
-	public void testSetBiometrics() {
-		List<io.mosip.kernel.biometrics.entities.BIR> birTypeList = new ArrayList<>();
-		io.mosip.kernel.biometrics.entities.BIR birType1 = new BIR.BIRBuilder().build();
-		io.mosip.kernel.biometrics.entities.BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
-		io.mosip.kernel.biometrics.entities.RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
-		io.mosip.kernel.biometrics.constant.QualityType quality = new QualityType();
-		quality.setAlgorithm(registryIDType);
-		quality.setScore(90l);
-		bdbInfoType1.setQuality(quality);
-		BiometricType singleType1 = BiometricType.FINGER;
-		List<BiometricType> singleTypeList1 = new ArrayList<>();
-		singleTypeList1.add(singleType1);
-		List<String> subtype1 = new ArrayList<>(Arrays.asList("Left", "RingFinger"));
-		bdbInfoType1.setSubtype(subtype1);
-		bdbInfoType1.setType(singleTypeList1);
-		birType1.setBdbInfo(bdbInfoType1);
-		birTypeList.add(birType1);
-		String source = "reg-client";
-		String process = "NEW";
-		String id = "110111101120191111121111";
-		BiometricRecord biometricRecord = new BiometricRecord();
-		biometricRecord.setSegments(birTypeList);
-		Mockito.doNothing().when(packetWriterProvider).setBiometric(anyString(), anyString(), any());
+    @Test
+    public void testSetBiometrics() {
+        List<BIR> birTypeList = new ArrayList<>();
+        BIR birType1 = new BIR.BIRBuilder().build();
+        BDBInfo bdbInfoType1 = new BDBInfo.BDBInfoBuilder().build();
+        RegistryIDType registryIDType = new RegistryIDType("Mosip", "257");
+        QualityType quality = new QualityType();
+        quality.setAlgorithm(registryIDType);
+        quality.setScore(90l);
+        bdbInfoType1.setQuality(quality);
+        BiometricType singleType1 = BiometricType.FINGER;
+        List<BiometricType> singleTypeList1 = new ArrayList<>();
+        singleTypeList1.add(singleType1);
+        List<String> subtype1 = new ArrayList<>(Arrays.asList("Left", "RingFinger"));
+        bdbInfoType1.setSubtype(subtype1);
+        bdbInfoType1.setType(singleTypeList1);
+        birType1.setBdbInfo(bdbInfoType1);
+        birTypeList.add(birType1);
+        String source = "reg-client";
+        String process = "NEW";
+        String id = "110111101120191111121111";
+        BiometricRecord biometricRecord = new BiometricRecord();
+        biometricRecord.setSegments(birTypeList);
+        Mockito.doNothing().when(packetWriterProvider).setBiometric(anyString(), anyString(), any());
 
-		packetWriter.setBiometric(id, "individualBiometrics", biometricRecord, source, process);
-	}
+        packetWriter.setBiometric(id, "individualBiometrics", biometricRecord, source, process);
+    }
 
-	@Test
-	public void testAddMetaInfo() {
-		Map<String, String> fields = new HashMap<>();
-		Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(), anyMap());
+    @Test
+    public void testAddMetaInfo() {
+        Map<String, String> fields = new HashMap<>();
+        Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(),anyMap());
 
-		packetWriter.addMetaInfo(id, fields, source, process);
-	}
+        packetWriter.addMetaInfo(id, fields, source, process);
+    }
 
-	@Test
-	public void testAddMetaInfoKeyValue() {
-		Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(), anyString(), anyString());
+    @Test
+    public void testAddMetaInfoKeyValue() {
+        Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(),anyString(),anyString());
 
-		packetWriter.addMetaInfo(id, "rid", "regid", source, process);
-	}
+        packetWriter.addMetaInfo(id, "rid", "regid", source, process);
+    }
 
-	@Test
-	public void testAddAudit() {
-		Map<String, String> fields = new HashMap<>();
-		Mockito.doNothing().when(packetWriterProvider).addAudit(anyString(), anyMap());
+    @Test
+    public void testAddAudit() {
+        Map<String, String> fields = new HashMap<>();
+        Mockito.doNothing().when(packetWriterProvider).addAudit(anyString(),anyMap());
 
-		packetWriter.addAudit(id, fields, source, process);
-	}
+        packetWriter.addAudit(id, fields, source, process);
+    }
 
-	@Test
-	public void testAddAudits() {
-		Map<String, String> auditMap = new HashMap<>();
-		auditMap.put("audit", "audit1");
-		List<Map<String, String>> auditList = new ArrayList<>();
-		auditList.add(auditMap);
-		Mockito.doNothing().when(packetWriterProvider).addAudits(anyString(), anyList());
+    @Test
+    public void testAddAudits() {
+        Map<String, String> auditMap = new HashMap<>();
+        auditMap.put("audit","audit1");
+        List<Map<String, String>> auditList = new ArrayList<>();
+        auditList.add(auditMap);
+        Mockito.doNothing().when(packetWriterProvider).addAudits(anyString(),anyList());
 
-		packetWriter.addAudits(id, auditList, source, process);
-	}
+        packetWriter.addAudits(id, auditList, source, process);
+    }
 
-	@Test
-	public void testPersistPacket() {
-		List<PacketInfo> packetInfos = new ArrayList<>();
-		Mockito.when(packetWriterProvider.persistPacket(id, "0.2", "schema", source, process, null, null, true))
-				.thenReturn(packetInfos);
 
-		List<PacketInfo> result = packetWriter.persistPacket(id, "0.2", "schema", source, process, null, null, true);
+    @Test
+    public void testPersistPacket() {
+        List<PacketInfo> packetInfos = new ArrayList<>();
+        Mockito.when(packetWriterProvider.persistPacket(id, "0.2", "schema", source, process, null, null, true)).thenReturn(packetInfos);
 
-		assertTrue(result.equals(packetInfos));
-	}
+        List<PacketInfo> result = packetWriter.persistPacket(id, "0.2", "schema", source, process, null, null, true);
 
-	@Test
-	public void testCreatePacket() {
-		PacketDto packetDto = new PacketDto();
-		packetDto.setId(id);
-		packetDto.setProcess(process);
-		packetDto.setSource(source);
-		packetDto.setAudits(new ArrayList<>());
-		packetDto.setBiometrics(new HashMap<>());
-		packetDto.setDocuments(new HashMap<>());
-		packetDto.setFields(new HashMap<>());
-		packetDto.setMetaInfo(new HashMap<>());
-		packetDto.setSchemaJson("schemajson");
-		packetDto.setSchemaVersion("0.2");
+        assertTrue(result.equals(packetInfos));
+    }
 
-		PacketInfo packetInfo = new PacketInfo();
-		packetInfo.setId(id);
-		packetInfo.setSource(source);
+    @Test
+    public void testCreatePacket() {
+        PacketDto packetDto = new PacketDto();
+        packetDto.setId(id);
+        packetDto.setProcess(process);
+        packetDto.setSource(source);
+        packetDto.setAudits(new ArrayList<>());
+        packetDto.setBiometrics(new HashMap<>());
+        packetDto.setDocuments(new HashMap<>());
+        packetDto.setFields(new HashMap<>());
+        packetDto.setMetaInfo(new HashMap<>());
+        packetDto.setSchemaJson("schemajson");
+        packetDto.setSchemaVersion("0.2");
 
-		List<PacketInfo> packetInfos = new ArrayList<>();
-		packetInfos.add(packetInfo);
+        PacketInfo packetInfo = new PacketInfo();
+        packetInfo.setId(id);
+        packetInfo.setSource(source);
 
-		Mockito.doNothing().when(packetWriterProvider).setField(anyString(), anyString(), anyString());
-		Mockito.doNothing().when(packetWriterProvider).setFields(anyString(), anyMap());
-		Mockito.doNothing().when(packetWriterProvider).setDocument(anyString(), anyString(), any());
-		Mockito.doNothing().when(packetWriterProvider).setBiometric(anyString(), anyString(), any());
-		Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(), anyString(), anyString());
-		Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(), anyMap());
-		Mockito.doNothing().when(packetWriterProvider).addAudit(anyString(), anyMap());
-		Mockito.doNothing().when(packetWriterProvider).addAudits(anyString(), anyList());
-		Mockito.when(packetWriterProvider.persistPacket(anyString(), anyString(), anyString(), anyString(), anyString(),
-				any(), any(), anyBoolean())).thenReturn(packetInfos);
+        List<PacketInfo> packetInfos = new ArrayList<>();
+        packetInfos.add(packetInfo);
 
-		List<PacketInfo> result = packetWriter.createPacket(packetDto);
+        Mockito.doNothing().when(packetWriterProvider).setField(anyString(),anyString(),anyString());
+        Mockito.doNothing().when(packetWriterProvider).setFields(anyString(),anyMap());
+        Mockito.doNothing().when(packetWriterProvider).setDocument(anyString(), anyString(), any());
+        Mockito.doNothing().when(packetWriterProvider).setBiometric(anyString(), anyString(), any());
+        Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(),anyString(),anyString());
+        Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(),anyMap());
+        Mockito.doNothing().when(packetWriterProvider).addAudit(anyString(),anyMap());
+        Mockito.doNothing().when(packetWriterProvider).addAudits(anyString(),anyList());
+        Mockito.when(packetWriterProvider.persistPacket(anyString(), anyString(),
+                anyString(), anyString(), anyString(), any(), any(), anyBoolean())).thenReturn(packetInfos);
 
-		assertTrue(result.equals(packetInfos));
-	}
+        List<PacketInfo> result = packetWriter.createPacket(packetDto);
 
-	@Test
-	public void testException() {
-		PacketDto packetDto = new PacketDto();
-		packetDto.setId(id);
-		packetDto.setProcess(process);
-		packetDto.setSource(source);
-		packetDto.setAudits(new ArrayList<>());
-		packetDto.setBiometrics(new HashMap<>());
-		packetDto.setDocuments(new HashMap<>());
-		packetDto.setFields(new HashMap<>());
-		packetDto.setMetaInfo(new HashMap<>());
-		packetDto.setSchemaJson("schemajson");
-		packetDto.setSchemaVersion("0.2");
+        assertTrue(result.equals(packetInfos));
+    }
 
-		PacketInfo packetInfo = new PacketInfo();
-		packetInfo.setId(id);
-		packetInfo.setSource(source);
+    @Test
+    public void testException() {
+        PacketDto packetDto = new PacketDto();
+        packetDto.setId(id);
+        packetDto.setProcess(process);
+        packetDto.setSource(source);
+        packetDto.setAudits(new ArrayList<>());
+        packetDto.setBiometrics(new HashMap<>());
+        packetDto.setDocuments(new HashMap<>());
+        packetDto.setFields(new HashMap<>());
+        packetDto.setMetaInfo(new HashMap<>());
+        packetDto.setSchemaJson("schemajson");
+        packetDto.setSchemaVersion("0.2");
 
-		List<PacketInfo> packetInfos = new ArrayList<>();
-		packetInfos.add(packetInfo);
+        PacketInfo packetInfo = new PacketInfo();
+        packetInfo.setId(id);
+        packetInfo.setSource(source);
 
-		Mockito.doNothing().when(packetWriterProvider).setField(anyString(), anyString(), anyString());
-		Mockito.doNothing().when(packetWriterProvider).setFields(anyString(), anyMap());
-		Mockito.doNothing().when(packetWriterProvider).setDocument(anyString(), anyString(), any());
-		Mockito.doNothing().when(packetWriterProvider).setBiometric(anyString(), anyString(), any());
-		Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(), anyString(), anyString());
-		Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(), anyMap());
-		Mockito.doNothing().when(packetWriterProvider).addAudit(anyString(), anyMap());
-		Mockito.doNothing().when(packetWriterProvider).addAudits(anyString(), anyList());
-		Mockito.when(packetWriterProvider.persistPacket(anyString(), anyString(), anyString(), anyString(), anyString(),
-				any(), any(), anyBoolean())).thenThrow(new PacketCreatorException("", ""));
+        List<PacketInfo> packetInfos = new ArrayList<>();
+        packetInfos.add(packetInfo);
 
-		List<PacketInfo> result = packetWriter.createPacket(packetDto);
+        Mockito.doNothing().when(packetWriterProvider).setField(anyString(),anyString(),anyString());
+        Mockito.doNothing().when(packetWriterProvider).setFields(anyString(),anyMap());
+        Mockito.doNothing().when(packetWriterProvider).setDocument(anyString(), anyString(), any());
+        Mockito.doNothing().when(packetWriterProvider).setBiometric(anyString(), anyString(), any());
+        Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(),anyString(),anyString());
+        Mockito.doNothing().when(packetWriterProvider).addMetaInfo(anyString(),anyMap());
+        Mockito.doNothing().when(packetWriterProvider).addAudit(anyString(),anyMap());
+        Mockito.doNothing().when(packetWriterProvider).addAudits(anyString(),anyList());
+        Mockito.when(packetWriterProvider.persistPacket(anyString(), anyString(),
+                anyString(), anyString(), anyString(), any(), any(), anyBoolean())).thenThrow(new PacketCreatorException("",""));
 
-		assertTrue(result == null);
-	}
+        List<PacketInfo> result = packetWriter.createPacket(packetDto);
 
-	@Test(expected = NoAvailableProviderException.class)
-	public void testProviderException() {
-		Mockito.when(providerRegistry.getWriterProvider(anyString(), anyString()))
-				.thenThrow(new NoAvailableProviderException());
+        assertTrue(result == null);
+    }
 
-		packetWriter.setField(id, "name", "mono", source, process);
-	}
+    @Test(expected = NoAvailableProviderException.class)
+    public void testProviderException() {
+        PowerMockito.when(PacketHelper.isSourceAndProcessPresent(anyString(),anyString(),anyString(),any())).thenReturn(false);
 
-	@Test
-	public void testAddTags() {
-		TagDto tagDto = new TagDto();
-		tagDto.setId(id);
-		Map<String, String> tags = new HashMap<>();
-		tags.put("test", "testValue");
-		tagDto.setTags(tags);
-		Mockito.when(packetKeeper.addTags(any())).thenReturn(tags);
+        packetWriter.setField(id, "name", "mono", source, process);
+    }
+    
+    @Test
+    public void testAddTags() {
+    	TagDto tagDto=new TagDto();
+    	tagDto.setId(id);
+    	Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+    	tagDto.setTags(tags);
+    	Mockito.when(packetKeeper.addTags(any())).thenReturn(tags);
 
-		Map<String, String> expectedTags = packetWriter.addTags(tagDto, tagDto.getId());
+       	Map<String, String> expectedTags= packetWriter.addTags(tagDto,tagDto.getId());
 
-		assertEquals(expectedTags, tags);
-	}
+        assertEquals(expectedTags,tags); 
+    }
+    @Test
+    public void testUpdateTags() {
+    	TagDto tagDto=new TagDto();
+    	tagDto.setId(id);
+    	Map<String, String> tags = new HashMap<>();
+        tags.put("test", "testValue");
+    	tagDto.setTags(tags);
+    	Mockito.when(packetKeeper.addorUpdate(any())).thenReturn(tags);
 
-	@Test
-	public void testUpdateTags() {
-		TagDto tagDto = new TagDto();
-		tagDto.setId(id);
-		Map<String, String> tags = new HashMap<>();
-		tags.put("test", "testValue");
-		tagDto.setTags(tags);
-		Mockito.when(packetKeeper.addorUpdate(any())).thenReturn(tags);
 
-		Map<String, String> expectedTags = packetWriter.addorUpdate(tagDto, tagDto.getId());
+       	Map<String, String> expectedTags= packetWriter.addorUpdate(tagDto,tagDto.getId());
 
-		assertEquals(expectedTags, tags);
-	}
+        assertEquals(expectedTags,tags); 
+    }
+    @Test
+    public void testDeleteTags() {
+    	TagRequestDto tagDto=new TagRequestDto();
+    	tagDto.setId(id);
+    	List<String> tags = new ArrayList<>();
+    	tags.add("test");
+    	tagDto.setTagNames(tags);
+		packetWriter.deleteTags(tagDto,tagDto.getId());
 
-	@Test
-	public void testDeleteTags() {
-		TagRequestDto tagDto = new TagRequestDto();
-		tagDto.setId(id);
-		List<String> tags = new ArrayList<>();
-		tags.add("test");
-		tagDto.setTagNames(tags);
-		packetWriter.deleteTags(tagDto, tagDto.getId());
-
-	}
+    }
+    
 }
