@@ -57,10 +57,10 @@ public class PacketHelper {
 	}
 
 	public static boolean isSourceAndProcessPresent(String providerName, String providerSource, String providerProcess,
-			Provider type) {
+													Provider type) {
 		List<ProviderDto> configurations = switch (type) {
-		case READER -> getReader(readerConfiguration);
-		case WRITER -> getWriter(writerConfiguration);
+			case READER -> getReader(readerConfiguration);
+			case WRITER -> getWriter(writerConfiguration);
 		};
 
 		if (configurations == null || configurations.isEmpty()) {
@@ -97,24 +97,24 @@ public class PacketHelper {
 	}
 
 	private static List<ProviderDto> parseConfiguration(Map<String, String> config) {
-	    List<ProviderDto> providers = new ArrayList<>();
-	    if (config != null && !config.isEmpty()) {
-	        for (String value : config.values()) {
-	            ProviderDto dto = new ProviderDto();
-	            for (String token : value.split(",")) {
-	                token = token.trim(); // Trim whitespace
-	                if (token.startsWith(SOURCE + ":")) {
-	                    dto.setSource(token.substring((SOURCE + ":").length()).trim());
-	                } else if (token.startsWith(PROCESS + ":")) {
-	                    dto.setProcess(token.substring((PROCESS + ":").length()).trim());
-	                } else if (token.startsWith(CLASSNAME + ":")) {
-	                    dto.setClassName(token.substring((CLASSNAME + ":").length()).trim());
-	                }
-	            }
-	            providers.add(dto);
-	        }
-	    }
-	    return providers;
+		List<ProviderDto> providers = new ArrayList<>();
+		if (config != null && !config.isEmpty()) {
+			for (String value : config.values()) {
+				ProviderDto dto = new ProviderDto();
+				for (String token : value.split(",")) {
+					token = token.trim(); // Trim whitespace
+					if (token.startsWith(SOURCE + ":")) {
+						dto.setSource(token.substring((SOURCE + ":").length()).trim());
+					} else if (token.startsWith(PROCESS + ":")) {
+						dto.setProcess(token.substring((PROCESS + ":").length()).trim());
+					} else if (token.startsWith(CLASSNAME + ":")) {
+						dto.setClassName(token.substring((CLASSNAME + ":").length()).trim());
+					}
+				}
+				providers.add(dto);
+			}
+		}
+		return providers;
 	}
 
 	private static Set<String> getProviderClassNames(List<ProviderDto> providers) {

@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Maps;
@@ -59,10 +61,9 @@ public class PacketReaderService {
 	private static final String SOURCE = "source";
 	private static final String PROCESS = "process";
 	private static final String PROVIDER = "provider";
-	private String key = null;
 	private static final String sourceInitial = "source:";
 	private static final String processInitial = "process:";
-	private JSONObject mappingJson = null;
+	private volatile JSONObject mappingJson = null;
 
 	@Value("${config.server.file.storage.uri}")
 	private String configServerUrl;
@@ -97,52 +98,55 @@ public class PacketReaderService {
 		try {
 			List<ObjectDto> allObjects = packetReader.info(id);
 			List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
+			Map<String, ContainerInfoDto> uniqueContainers = new LinkedHashMap<>();
+			String biometricKey = getKey();
 			for (ObjectDto o : allObjects) {
-				if (!containerInfoDtos.stream().anyMatch(info -> info.getSource().equalsIgnoreCase(o.getSource())
-						&& info.getProcess().equalsIgnoreCase(o.getProcess()))) {
-					ContainerInfoDto containerInfo = new ContainerInfoDto();
-					containerInfo.setSource(o.getSource());
-					containerInfo.setProcess(o.getProcess());
-					containerInfo.setLastModified(o.getLastModified());
+				String sourceProcessKey = (o.getSource() + "#" + o.getProcess()).toLowerCase();
+				if (uniqueContainers.containsKey(sourceProcessKey))
+					continue;
 
-					// get demographic fields
-					Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(),
-							containerInfo.getProcess());
-					// get biometrics
-					List<BiometricsDto> biometrics = null;
-					BiometricRecord br = packetReader.getBiometric(id, getKey(), Lists.newArrayList(), o.getSource(),
-							o.getProcess(), false);
-					if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
-						Map<String, List<String>> biomap = new HashMap<>();
-						for (BIR b : br.getSegments()) {
-							String key = b.getBdbInfo().getType().iterator().next().value();
-							String subtype = null;
-							if (b.getBdbInfo().getSubtype() != null) {
-								subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
-							}
+				ContainerInfoDto containerInfo = new ContainerInfoDto();
+				containerInfo.setSource(o.getSource());
+				containerInfo.setProcess(o.getProcess());
+				containerInfo.setLastModified(o.getLastModified());
 
-							if (biomap.get(key) == null)
-								biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
-							else {
-								List<String> finalVal = biomap.get(key);
-								finalVal.add(subtype);
-								biomap.put(key, finalVal);
-							}
+				// get demographic fields
+				Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+				// get biometrics
+				List<BiometricsDto> biometrics = null;
+				BiometricRecord br = packetReader.getBiometric(id, biometricKey, Lists.newArrayList(), o.getSource(),
+						o.getProcess(), false);
+				if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
+					Map<String, List<String>> biomap = new HashMap<>();
+					for (BIR b : br.getSegments()) {
+						String key = b.getBdbInfo().getType().iterator().next().value();
+						String subtype = null;
+						if (b.getBdbInfo().getSubtype() != null) {
+							subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
 						}
-						biometrics = new ArrayList<>();
-						for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
-							BiometricsDto bioDto = new BiometricsDto();
-							bioDto.setType(b.getKey());
-							bioDto.setSubtypes(b.getValue());
-							biometrics.add(bioDto);
+
+						if (biomap.get(key) == null)
+							biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
+						else {
+							List<String> finalVal = biomap.get(key);
+							finalVal.add(subtype);
+							biomap.put(key, finalVal);
 						}
 					}
-
-					containerInfo.setDemographics(demographics);
-					containerInfo.setBiometrics(biometrics);
-					containerInfoDtos.add(containerInfo);
+					biometrics = new ArrayList<>();
+					for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
+						BiometricsDto bioDto = new BiometricsDto();
+						bioDto.setType(b.getKey());
+						bioDto.setSubtypes(b.getValue());
+						biometrics.add(bioDto);
+					}
 				}
+
+				containerInfo.setDemographics(demographics);
+				containerInfo.setBiometrics(biometrics);
+				uniqueContainers.put(sourceProcessKey, containerInfo);
 			}
+			containerInfoDtos.addAll(uniqueContainers.values());
 			// get tags
 			Map<String, String> tags = packetReader.getTags(id);
 
@@ -173,8 +177,7 @@ public class PacketReaderService {
 		JSONObject jsonObject = getMappingJsonFile();
 		if (jsonObject != null) {
 			LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
-			key = individualBio.get(VALUE);
-			return key;
+			return individualBio.get(VALUE);
 		}
 		return null;
 	}
@@ -199,8 +202,7 @@ public class PacketReaderService {
 
 	public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process) {
 		SourceProcessDto sourceProcessDto = null;
-		InfoResponseDto infoResponseDto = infoInternal(id);
-		List<ContainerInfoDto> info = infoResponseDto.getInfo();
+		List<ContainerInfoDto> info = getLightweightContainerInfo(id, field);
 		// sorting in reverse order by process name to search from latest iteration
 		// first.
 		Collections.sort(info, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
@@ -228,6 +230,32 @@ public class PacketReaderService {
 		return sourceProcessDto;
 	}
 
+	/**
+	 * Lightweight source/process view for high-throughput flows where biometrics
+	 * and tags are not required.
+	 */
+	private List<ContainerInfoDto> getLightweightContainerInfo(String id, String field) {
+		List<ObjectDto> allObjects = packetReader.info(id);
+		Map<String, ContainerInfoDto> uniqueContainers = new LinkedHashMap<>();
+		boolean needDemographics = field != null && (additionalFieldsSearch == null || !additionalFieldsSearch.contains(field));
+		for (ObjectDto objectDto : allObjects) {
+			String sourceProcessKey = (objectDto.getSource() + "#" + objectDto.getProcess()).toLowerCase();
+			if (uniqueContainers.containsKey(sourceProcessKey))
+				continue;
+
+			ContainerInfoDto containerInfoDto = new ContainerInfoDto();
+			containerInfoDto.setSource(objectDto.getSource());
+			containerInfoDto.setProcess(objectDto.getProcess());
+			containerInfoDto.setLastModified(objectDto.getLastModified());
+			if (needDemographics) {
+				containerInfoDto.setDemographics(
+						packetReader.getAllKeys(id, objectDto.getSource(), objectDto.getProcess()));
+			}
+			uniqueContainers.put(sourceProcessKey, containerInfoDto);
+		}
+		return new ArrayList<>(uniqueContainers.values());
+	}
+
 	public ContainerInfoDto findPriority(String field, List<ContainerInfoDto> info) {
 		if (info.size() == 1)
 			return info.iterator().next();
@@ -249,7 +277,7 @@ public class PacketReaderService {
 									.filter(infoDto -> isFieldPresent(field, infoDto)
 											&& infoDto.getSource().equalsIgnoreCase(sourceStr)
 											&& PacketHelper.getProcessWithoutIteration(infoDto.getProcess())
-													.equalsIgnoreCase(process))
+											.equalsIgnoreCase(process))
 									.findAny();
 							// if container is not present then continue searching
 							if (containerDto.isPresent()) {
@@ -265,14 +293,23 @@ public class PacketReaderService {
 	}
 
 	private boolean isFieldPresent(String field, ContainerInfoDto infoDto) {
-		if (additionalFieldsSearch.contains(field))
+		if (additionalFieldsSearch != null && additionalFieldsSearch.contains(field))
 			return true;
 		else
 			return infoDto.getDemographics() != null && infoDto.getDemographics().contains(field);
 	}
 
 	private ContainerInfoDto getContainerInfoBySourceAndProcess(String field, String source, String process,
-			List<ContainerInfoDto> info) {
+																List<ContainerInfoDto> info) {
+		boolean additionalField = field != null && additionalFieldsSearch != null && additionalFieldsSearch.contains(field);
+		if (additionalField) {
+			Optional<ContainerInfoDto> containerDto = info.stream()
+					.filter(infoDto -> infoDto.getSource().equalsIgnoreCase(source)
+							&& PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process))
+					.findAny();
+			return containerDto.isPresent() ? containerDto.get() : null;
+		}
+
 		Optional<ContainerInfoDto> containerDto = info.stream()
 				.filter(infoDto -> infoDto.getDemographics() != null && infoDto.getDemographics().contains(field)
 						&& infoDto.getSource().equalsIgnoreCase(source)
@@ -383,7 +420,7 @@ public class PacketReaderService {
 		return identity != null ? new JSONObject(identity) : null;
 	}
 
-	private JSONObject getMappingJsonFile() throws IOException {
+	private synchronized JSONObject getMappingJsonFile() throws IOException {
 		if (mappingJson != null)
 			return mappingJson;
 
@@ -444,40 +481,35 @@ public class PacketReaderService {
 	 * @return InfoResponseDto
 	 */
 	private InfoResponseDto mergeProcessWithMultipleIteration(InfoResponseDto infoResponseDto) {
-		List<ContainerInfoDto> finalInfos = new ArrayList<>();
-		// map contains unique source process without iteration.
-		Map<String, List<String>> sourceProcessMap = new HashMap<>();
+		// Merge containers with same source + process (without iteration suffix).
+		// Use a map to avoid O(n^2) scans.
+		Map<String, ContainerInfoDto> merged = new LinkedHashMap<>();
 
 		for (ContainerInfoDto info : infoResponseDto.getInfo()) {
-			String process = PacketHelper.getProcessWithoutIteration(info.getProcess());
-			if (sourceProcessMap.containsKey(info.getSource())
-					&& sourceProcessMap.get(info.getSource()).contains(process)) {
-				// merge container info for same source process with multiple iteration
-				ContainerInfoDto finalInfo = setContainerInfo(finalInfos, info, process);
+			String baseProcess = PacketHelper.getProcessWithoutIteration(info.getProcess());
+			String key = (info.getSource() + "#" + baseProcess).toLowerCase();
 
-				finalInfo.setDemographics(mergeDemographics(finalInfo, info));
-				finalInfo.setBiometrics(mergeBiometrics(finalInfo, info));
-				finalInfo.setDocuments(mergeDocuments(finalInfo, info));
-
-				finalInfos.add(finalInfo);
-
+			if (merged.containsKey(key)) {
+				ContainerInfoDto existing = merged.get(key);
+				existing.setDemographics(mergeDemographics(existing, info));
+				existing.setBiometrics(mergeBiometrics(existing, info));
+				existing.setDocuments(mergeDocuments(existing, info));
+				if (existing.getLastModified() == null || (info.getLastModified() != null
+						&& existing.getLastModified().before(info.getLastModified()))) {
+					existing.setLastModified(info.getLastModified());
+				}
 			} else {
-				// add unique source process in the sourceProcessMap
-				List<String> processes = sourceProcessMap.get(info.getSource()) == null ? Lists.newArrayList()
-						: sourceProcessMap.get(info.getSource());
-				processes.add(process);
-				sourceProcessMap.put(info.getSource(), processes);
-				// add container to info response for unique source process
-				info.setProcess(process);
-				finalInfos.add(info);
+				info.setProcess(baseProcess);
+				merged.put(key, info);
 			}
 		}
-		infoResponseDto.setInfo(finalInfos);
+
+		infoResponseDto.setInfo(new ArrayList<>(merged.values()));
 		return infoResponseDto;
 	}
 
 	private ContainerInfoDto setContainerInfo(List<ContainerInfoDto> finalInfos, ContainerInfoDto info,
-			String process) {
+											  String process) {
 
 		Optional<ContainerInfoDto> optionalInfo = finalInfos.stream()
 				.filter(i -> i.getSource().equals(info.getSource()) && i.getProcess().equals(process)).findAny();
@@ -499,38 +531,59 @@ public class PacketReaderService {
 	}
 
 	private Set<String> mergeDemographics(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
-		if (newInfo.getDemographics() == null)
+		Set<String> newDemographics = newInfo.getDemographics();
+		if (newDemographics == null || newDemographics.isEmpty())
 			return existingInfo.getDemographics();
 
-		Set<String> existingDemographics = existingInfo.getDemographics();
-		for (String demoKey : newInfo.getDemographics())
-			if (!existingDemographics.contains(demoKey))
-				existingDemographics.add(demoKey);
-
-		return existingDemographics;
+		Set<String> merged = existingInfo.getDemographics() != null ? new HashSet<>(existingInfo.getDemographics())
+				: new HashSet<>();
+		merged.addAll(newDemographics);
+		return merged;
 	}
 
 	private List<BiometricsDto> mergeBiometrics(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
-		if (newInfo.getBiometrics() == null)
+		List<BiometricsDto> newBiometrics = newInfo.getBiometrics();
+		if (newBiometrics == null || newBiometrics.isEmpty())
 			return existingInfo.getBiometrics();
 
-		List<BiometricsDto> mergedBiometrics = new ArrayList<>();
-		List<BiometricsDto> newInfoBiometrics = newInfo.getBiometrics();
 		List<BiometricsDto> existingBiometrics = existingInfo.getBiometrics();
-		for (BiometricsDto biometric : newInfoBiometrics) {
-			Optional<BiometricsDto> existingBio = existingBiometrics.stream()
-					.filter(b -> b.getType().equals(biometric.getType())).findAny();
-			// if type is already present in existing biometrics then merge all new subtypes
-			if (existingBio.isPresent() && biometric.getSubtypes() != null && existingBio.get().getSubtypes() != null
-					&& !existingBio.get().getSubtypes().containsAll(biometric.getSubtypes())) {
-				BiometricsDto mergedBio = existingBio.get();
-				mergedBio.getSubtypes().addAll(biometric.getSubtypes());
-				mergedBiometrics.add(mergedBio);
-			} else
-				// else just add new biometrics
-				mergedBiometrics.add(biometric);
+		if (existingBiometrics == null || existingBiometrics.isEmpty())
+			return newBiometrics;
+
+		// Merge by biometric type.
+		Map<String, BiometricsDto> byType = new LinkedHashMap<>();
+		for (BiometricsDto b : existingBiometrics) {
+			if (b != null && b.getType() != null) {
+				byType.put(b.getType(), b);
+			}
 		}
-		return mergedBiometrics;
+
+		for (BiometricsDto incoming : newBiometrics) {
+			if (incoming == null || incoming.getType() == null) {
+				continue;
+			}
+			BiometricsDto existing = byType.get(incoming.getType());
+			if (existing == null) {
+				byType.put(incoming.getType(), incoming);
+				continue;
+			}
+
+			// Merge subtypes (unique, preserve order best-effort).
+			List<String> incomingSubtypes = incoming.getSubtypes();
+			if (incomingSubtypes == null || incomingSubtypes.isEmpty())
+				continue;
+
+			List<String> existingSubtypes = existing.getSubtypes();
+			if (existingSubtypes == null) {
+				existing.setSubtypes(new ArrayList<>(incomingSubtypes));
+			} else {
+				Set<String> mergedSubtypes = new LinkedHashSet<>(existingSubtypes);
+				mergedSubtypes.addAll(incomingSubtypes);
+				existing.setSubtypes(new ArrayList<>(mergedSubtypes));
+			}
+		}
+
+		return new ArrayList<>(byType.values());
 	}
 
 	private Map<String, String> mergeDocuments(ContainerInfoDto existingInfo, ContainerInfoDto newInfo) {
@@ -542,7 +595,7 @@ public class PacketReaderService {
 				: Maps.newHashMap();
 
 		for (String key : newInfo.getDocuments().keySet()) {
-			if (!existingInfo.getDocuments().containsKey(key))
+			if (!mergedDocuments.containsKey(key))
 				mergedDocuments.put(key, newInfo.getDocuments().get(key));
 		}
 

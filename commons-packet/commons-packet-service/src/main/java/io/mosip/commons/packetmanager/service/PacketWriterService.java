@@ -28,17 +28,17 @@ import io.mosip.kernel.core.logger.spi.Logger;
 
 @Component
 public class PacketWriterService {
-    private static Logger LOGGER = PacketManagerLogger.getLogger(PacketWriterService.class);
-    
-    @Autowired
-    private PacketReader packetReader;
-    
-    @Autowired
-    private PacketWriter packetWriter;
-    
-    
-    public TagResponseDto addTags(TagDto tagDto) {
-    	try {
+	private static Logger LOGGER = PacketManagerLogger.getLogger(PacketWriterService.class);
+
+	@Autowired
+	private PacketReader packetReader;
+
+	@Autowired
+	private PacketWriter packetWriter;
+
+
+	public TagResponseDto addTags(TagDto tagDto) {
+		try {
 			Map<String, String> requestedTags = tagDto.getTags() != null ? tagDto.getTags() : Collections.emptyMap();
 			if (requestedTags.isEmpty()) {
 				TagResponseDto emptyResponse = new TagResponseDto();
@@ -73,10 +73,10 @@ public class PacketWriterService {
 			}
 			throw new TagCreationException(e.getMessage());
 		}
-    }
-    
-    public TagResponseDto updateTags(TagDto tagDto) {
-    	try {
+	}
+
+	public TagResponseDto updateTags(TagDto tagDto) {
+		try {
 			Map<String, String> requestedTags = tagDto.getTags() != null ? tagDto.getTags() : Collections.emptyMap();
 			Map<String, String> newTags = new HashMap<String, String>();
 			Map<String, String> existingTags = packetReader.getTags(tagDto.getId());
@@ -119,11 +119,11 @@ public class PacketWriterService {
 			}
 			throw new TagCreationException(e.getMessage());
 		}
-    }
-    
-    public TagDeleteResponseDto deleteTags(TagRequestDto tagRequestDto) {
-    	try {
-    		List<String> deleteTags = new ArrayList<String>();
+	}
+
+	public TagDeleteResponseDto deleteTags(TagRequestDto tagRequestDto) {
+		try {
+			List<String> deleteTags = new ArrayList<String>();
 			Map<String, String> existingTags = packetReader.getTags(tagRequestDto.getId());
 			List<String> requestedTagNames = tagRequestDto.getTagNames() != null ? tagRequestDto.getTagNames()
 					: Collections.emptyList();
@@ -156,7 +156,7 @@ public class PacketWriterService {
 			}
 			throw new TagDeletionException(e.getMessage());
 		}
-    }
+	}
 
 	private boolean equalsIgnoreCaseNullable(String value1, String value2) {
 		if (Objects.equals(value1, value2))
