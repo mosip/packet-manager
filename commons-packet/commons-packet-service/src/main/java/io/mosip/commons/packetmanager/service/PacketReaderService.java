@@ -574,13 +574,28 @@ public class PacketReaderService {
     private int extractInt(String s) {
         if (s == null || s.isEmpty())
             return 0;
-        int index = s.length() - 1;
-        while (index >= 0 && Character.isDigit(s.charAt(index))) {
-            index--;
+
+        int end = -1;
+
+        // find end of last number
+        for (int i = s.length() - 1; i >= 0; i--) {
+            if (Character.isDigit(s.charAt(i))) {
+                end = i;
+                break;
+            }
         }
-        if (index == s.length() - 1)
+
+        if (end == -1)
             return 0;
-        return Integer.parseInt(s.substring(index + 1));
+
+        int start = end;
+
+        // move backward to find start of that number
+        while (start >= 0 && Character.isDigit(s.charAt(start))) {
+            start--;
+        }
+
+        return Integer.parseInt(s.substring(start + 1, end + 1));
     }
 
     private ContainerInfoDto getLatestContainer(String field, List<ContainerInfoDto> info, String source, String process,
