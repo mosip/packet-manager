@@ -64,6 +64,8 @@ public class PacketReaderService {
     private static final String sourceInitial = "source:";
     private static final String processInitial = "process:";
     private volatile JSONObject mappingJson = null;
+    private volatile String parsedPriorityRaw;
+    private volatile List<PriorityRule> parsedPriorityRules = Collections.emptyList();
 
     @Value("${config.server.file.storage.uri}")
     private String configServerUrl;
@@ -203,9 +205,6 @@ public class PacketReaderService {
     public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process) {
         SourceProcessDto sourceProcessDto = null;
         List<ContainerInfoDto> info = getLightweightContainerInfo(id, field);
-        // sorting in reverse order by process name to search from latest iteration
-        // first.
-        Collections.sort(info, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
         if (StringUtils.isEmpty(source)) {
             try {
                 if (defaultStrategy.equalsIgnoreCase(DefaultStrategy.DEFAULT_PRIORITY.getValue())) {
@@ -264,29 +263,11 @@ public class PacketReaderService {
     }
 
     private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info) {
-        if (StringUtils.isNotEmpty(defaultPriority)) {
-            String[] val = defaultPriority.split(",");
-            if (val != null && val.length > 0) {
-                for (String value : val) {
-                    String[] str = value.split("/");
-                    if (str != null && str.length > 0 && str[0].startsWith(sourceInitial)) {
-                        String sourceStr = str[0].substring(sourceInitial.length());
-                        String processStr = str[1].substring(processInitial.length());
-                        for (String process : processStr.split("\\|")) {
-                            Optional<ContainerInfoDto> containerDto = info.stream()
-                                    .filter(infoDto -> isFieldPresent(field, infoDto)
-                                            && infoDto.getSource().equalsIgnoreCase(sourceStr)
-                                            && PacketHelper.getProcessWithoutIteration(infoDto.getProcess())
-                                            .equalsIgnoreCase(process))
-                                    .findAny();
-                            // if container is not present then continue searching
-                            if (containerDto.isPresent()) {
-                                return containerDto.get();
-                            } else
-                                continue;
-                        }
-                    }
-                }
+        for (PriorityRule rule : getDefaultPriorityRules()) {
+            for (String ruleProcess : rule.processes) {
+                ContainerInfoDto match = getLatestContainer(field, info, rule.source, ruleProcess, true);
+                if (match != null)
+                    return match;
             }
         }
         return null;
@@ -303,52 +284,40 @@ public class PacketReaderService {
                                                                 List<ContainerInfoDto> info) {
         boolean additionalField = field != null && additionalFieldsSearch != null && additionalFieldsSearch.contains(field);
         if (additionalField) {
-            Optional<ContainerInfoDto> containerDto = info.stream()
-                    .filter(infoDto -> infoDto.getSource().equalsIgnoreCase(source)
-                            && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process))
-                    .findAny();
-            return containerDto.isPresent() ? containerDto.get() : null;
+            return getLatestContainer(field, info, source, process, false);
         }
-
-        Optional<ContainerInfoDto> containerDto = info.stream()
-                .filter(infoDto -> infoDto.getDemographics() != null && infoDto.getDemographics().contains(field)
-                        && infoDto.getSource().equalsIgnoreCase(source)
-                        && PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process))
-                .findAny();
-
-        return containerDto.isPresent() ? containerDto.get() : null;
+        return getLatestContainer(field, info, source, process, true);
     }
 
     private String getDefaultSource(String process) {
-        if (StringUtils.isNotEmpty(defaultPriority)) {
-            String[] val = defaultPriority.split(",");
-            if (val != null && val.length > 0) {
-                for (String value : val) {
-                    String[] str = value.split("/");
-                    if (str != null && str.length > 0 && str[0].startsWith(sourceInitial)) {
-                        String sourceStr = str[0].substring(sourceInitial.length());
-                        String processStr = str[1].substring(processInitial.length());
-                        String[] processes = processStr.split("\\|");
-                        if (Arrays.stream(processes).filter(p -> p.equalsIgnoreCase(process)).findAny().isPresent())
-                            return sourceStr;
-                    }
+        if (StringUtils.isEmpty(defaultPriority))
+            throw new SourceNotPresentException();
+        for (PriorityRule rule : getDefaultPriorityRules()) {
+            for (String configuredProcess : rule.processes) {
+                if (configuredProcess.equalsIgnoreCase(process)) {
+                    return rule.source;
                 }
             }
-        } else
-            throw new SourceNotPresentException();
+        }
         return null;
     }
 
     private ObjectDto searchProcessWithLatestIteration(String id, String source, String process) {
         List<ObjectDto> allObjects = packetReader.info(id);
-        Collections.sort(allObjects, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
-
-        Optional<ObjectDto> objectDto = allObjects.stream()
-                .filter(obj -> obj.getSource().equals(source)
-                        && PacketHelper.getProcessWithoutIteration(obj.getProcess()).equalsIgnoreCase(process))
-                .findAny();
-
-        return objectDto.isPresent() ? objectDto.get() : getObjectDto(source, process);
+        ObjectDto latest = null;
+        int latestIteration = Integer.MIN_VALUE;
+        for (ObjectDto obj : allObjects) {
+            if (!obj.getSource().equals(source))
+                continue;
+            if (!PacketHelper.getProcessWithoutIteration(obj.getProcess()).equalsIgnoreCase(process))
+                continue;
+            int iteration = extractInt(obj.getProcess());
+            if (latest == null || iteration > latestIteration) {
+                latest = obj;
+                latestIteration = iteration;
+            }
+        }
+        return latest != null ? latest : getObjectDto(source, process);
     }
 
     public String getSourceFromIdField(String process, String idField) throws IOException {
@@ -603,8 +572,79 @@ public class PacketReaderService {
     }
 
     private int extractInt(String s) {
-        String num = s.replaceAll("\\D", "");
-        // return 0 if no digits found
-        return num.isEmpty() ? 0 : Integer.parseInt(num);
+        if (s == null || s.isEmpty())
+            return 0;
+        int index = s.length() - 1;
+        while (index >= 0 && Character.isDigit(s.charAt(index))) {
+            index--;
+        }
+        if (index == s.length() - 1)
+            return 0;
+        return Integer.parseInt(s.substring(index + 1));
+    }
+
+    private ContainerInfoDto getLatestContainer(String field, List<ContainerInfoDto> info, String source, String process,
+                                                boolean requireFieldPresence) {
+        ContainerInfoDto latest = null;
+        int latestIteration = Integer.MIN_VALUE;
+        for (ContainerInfoDto infoDto : info) {
+            if (!infoDto.getSource().equalsIgnoreCase(source))
+                continue;
+            if (!PacketHelper.getProcessWithoutIteration(infoDto.getProcess()).equalsIgnoreCase(process))
+                continue;
+            if (requireFieldPresence && !isFieldPresent(field, infoDto))
+                continue;
+            int iteration = extractInt(infoDto.getProcess());
+            if (latest == null || iteration > latestIteration) {
+                latest = infoDto;
+                latestIteration = iteration;
+            }
+        }
+        return latest;
+    }
+
+    private List<PriorityRule> getDefaultPriorityRules() {
+        if (StringUtils.isEmpty(defaultPriority)) {
+            return Collections.emptyList();
+        }
+        if (defaultPriority.equals(parsedPriorityRaw) && parsedPriorityRules != null) {
+            return parsedPriorityRules;
+        }
+        synchronized (this) {
+            if (defaultPriority.equals(parsedPriorityRaw) && parsedPriorityRules != null) {
+                return parsedPriorityRules;
+            }
+            parsedPriorityRules = parsePriorityRules(defaultPriority);
+            parsedPriorityRaw = defaultPriority;
+            return parsedPriorityRules;
+        }
+    }
+
+    private List<PriorityRule> parsePriorityRules(String priorityConfig) {
+        List<PriorityRule> rules = new ArrayList<>();
+        String[] values = priorityConfig.split(",");
+        for (String value : values) {
+            String[] parts = value.split("/");
+            if (parts.length < 2 || !parts[0].startsWith(sourceInitial) || !parts[1].startsWith(processInitial))
+                continue;
+            String source = parts[0].substring(sourceInitial.length());
+            String[] processes = parts[1].substring(processInitial.length()).split("\\|");
+            List<String> normalized = Arrays.stream(processes).map(String::trim).filter(StringUtils::isNotEmpty)
+                    .collect(Collectors.toList());
+            if (!normalized.isEmpty()) {
+                rules.add(new PriorityRule(source, normalized));
+            }
+        }
+        return rules;
+    }
+
+    private static class PriorityRule {
+        private final String source;
+        private final List<String> processes;
+
+        private PriorityRule(String source, List<String> processes) {
+            this.source = source;
+            this.processes = processes;
+        }
     }
 }
