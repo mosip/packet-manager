@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -19,8 +20,8 @@ public class PacketHelper {
 	private static final String CLASSNAME = "classname";
 	private static final String DASH = "-";
 
-	private static List<ProviderDto> readerProvider = null;
-	private static List<ProviderDto> writerProvider = null;
+	private static volatile List<ProviderDto> readerProvider = null;
+	private static volatile List<ProviderDto> writerProvider = null;
 
 	public enum Provider {
 		READER, WRITER;
@@ -29,20 +30,30 @@ public class PacketHelper {
 	/**
 	 * The providerConfig.
 	 */
-	private static Map<String, String> readerConfiguration;
+	private static volatile Map<String, String> readerConfiguration;
 	/**
 	 * The providerConfig.
 	 */
-	private static Map<String, String> writerConfiguration;
+	private static volatile Map<String, String> writerConfiguration;
 
-	public static Set<String> getReaderProvider(Map<String, String> config) {
-		readerConfiguration = config;
-		return getProviderClassNames(getReader(config));
+	public static synchronized Set<String> getReaderProvider(Map<String, String> config) {
+		if (!Objects.equals(readerConfiguration, config)) {
+			readerConfiguration = config;
+			readerProvider = parseConfiguration(config);
+		} else if (readerProvider == null) {
+			readerProvider = parseConfiguration(config);
+		}
+		return getProviderClassNames(readerProvider);
 	}
 
-	public static Set<String> getWriterProvider(Map<String, String> config) {
-		writerConfiguration = config;
-		return getProviderClassNames(getWriter(config));
+	public static synchronized Set<String> getWriterProvider(Map<String, String> config) {
+		if (!Objects.equals(writerConfiguration, config)) {
+			writerConfiguration = config;
+			writerProvider = parseConfiguration(config);
+		} else if (writerProvider == null) {
+			writerProvider = parseConfiguration(config);
+		}
+		return getProviderClassNames(writerProvider);
 	}
 
 	public static boolean isSourceAndProcessPresent(String providerName, String providerSource, String providerProcess,
@@ -71,14 +82,14 @@ public class PacketHelper {
 		return idx > 0 ? providerName.substring(0, idx) : providerName;
 	}
 
-	private static List<ProviderDto> getReader(Map<String, String> config) {
+	private static synchronized List<ProviderDto> getReader(Map<String, String> config) {
 		if (readerProvider == null) {
 			readerProvider = parseConfiguration(config);
 		}
 		return readerProvider;
 	}
 
-	private static List<ProviderDto> getWriter(Map<String, String> config) {
+	private static synchronized List<ProviderDto> getWriter(Map<String, String> config) {
 		if (writerProvider == null) {
 			writerProvider = parseConfiguration(config);
 		}
@@ -121,14 +132,13 @@ public class PacketHelper {
 	 */
 	public static String getProcessWithoutIteration(String process) {
 		if (StringUtils.isNotEmpty(process)) {
-			// if number is present at the end preceded by '-' (DASH)
-			String[] processArr = process.split(DASH);
-			String lastElement = processArr[processArr.length - 1];
-			if (StringUtils.isNumeric(lastElement)) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(DASH);
-				sb.append(lastElement);
-				process = process.replace(sb.toString(), "");
+			// if numeric iteration suffix exists at the end (for example: PROCESS-2)
+			int lastDashIndex = process.lastIndexOf(DASH);
+			if (lastDashIndex > -1 && lastDashIndex < process.length() - 1) {
+				String suffix = process.substring(lastDashIndex + 1);
+				if (StringUtils.isNumeric(suffix)) {
+					return process.substring(0, lastDashIndex);
+				}
 			}
 		}
 		return process;
