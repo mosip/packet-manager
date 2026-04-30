@@ -572,30 +572,21 @@ public class PacketReaderService {
     }
 
     private int extractInt(String s) {
-        if (s == null || s.isEmpty())
-            return 0;
+        if (s == null || s.isEmpty()) return 0;
 
-        int end = -1;
+        int result = 0;
 
-        // find end of last number
-        for (int i = s.length() - 1; i >= 0; i--) {
-            if (Character.isDigit(s.charAt(i))) {
-                end = i;
-                break;
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (Character.isDigit(ch)) {
+                int digit = ch - '0';
+                if (result > (Integer.MAX_VALUE - digit) / 10) {
+                    return Integer.MAX_VALUE; // or throw, based on your preference
+                }
+                result = result * 10 + digit;
             }
         }
-
-        if (end == -1)
-            return 0;
-
-        int start = end;
-
-        // move backward to find start of that number
-        while (start >= 0 && Character.isDigit(s.charAt(start))) {
-            start--;
-        }
-
-        return Integer.parseInt(s.substring(start + 1, end + 1));
+        return result;
     }
 
     private ContainerInfoDto getLatestContainer(String field, List<ContainerInfoDto> info, String source, String process,
