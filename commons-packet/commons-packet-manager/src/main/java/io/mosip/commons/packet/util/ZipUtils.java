@@ -1,7 +1,5 @@
 package io.mosip.commons.packet.util;
 
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOCase;
 import org.apache.commons.io.IOUtils;
 
 import java.io.ByteArrayInputStream;
@@ -56,9 +54,7 @@ public final class ZipUtils {
                     continue;
                 }
 
-                String key = FilenameUtils
-                        .removeExtension(entry.getName())
-                        .toUpperCase();
+                String key = normalizeEntryName(entry.getName()).toUpperCase();
 
                 // Pre-size if size known (optimization)
                 ByteArrayOutputStream out =
@@ -106,20 +102,15 @@ public final class ZipUtils {
                     continue;
                 }
 
-                String fileNameWithoutExt =
-                        FilenameUtils.removeExtension(entry.getName());
-
-                if (FilenameUtils.equals(fileNameWithoutExt, file, true, IOCase.INSENSITIVE)) {
+                String fileNameWithoutExt = normalizeEntryName(entry.getName());
+                if (fileNameWithoutExt.equalsIgnoreCase(file)) {
 
                     ByteArrayOutputStream out =
                             entry.getSize() > 0 && entry.getSize() < Integer.MAX_VALUE
                                     ? new ByteArrayOutputStream((int) entry.getSize())
                                     : new ByteArrayOutputStream(BUFFER_SIZE);
 
-                    int len;
-                    while ((len = zis.read(buffer)) != -1) {
-                        out.write(buffer, 0, len);
-                    }
+                    IOUtils.copy(zis, out);
 
                     return new ByteArrayInputStream(out.toByteArray()); // Early return
                 }
@@ -152,10 +143,8 @@ public final class ZipUtils {
                     continue;
                 }
 
-                String fileNameWithoutExt =
-                        FilenameUtils.removeExtension(entry.getName());
-
-                if (FilenameUtils.equals(fileNameWithoutExt, file, true, IOCase.INSENSITIVE)) {
+                String fileNameWithoutExt = normalizeEntryName(entry.getName());
+                if (fileNameWithoutExt.equalsIgnoreCase(file)) {
 
                     ByteArrayOutputStream out =
                             entry.getSize() > 0 && entry.getSize() < Integer.MAX_VALUE
@@ -172,5 +161,18 @@ public final class ZipUtils {
         }
 
         return null;
+    }
+
+    /**
+     * Normalize ZIP entry name by stripping path and extension.
+     */
+    private static String normalizeEntryName(String entryName) {
+        if (entryName == null || entryName.isEmpty()) {
+            return "";
+        }
+        int pathSep = Math.max(entryName.lastIndexOf('/'), entryName.lastIndexOf('\\'));
+        String fileName = pathSep >= 0 ? entryName.substring(pathSep + 1) : entryName;
+        int dotIndex = fileName.lastIndexOf('.');
+        return dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
     }
 }

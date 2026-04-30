@@ -205,10 +205,11 @@ public class PacketReaderService {
     public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process) {
         SourceProcessDto sourceProcessDto = null;
         List<ContainerInfoDto> info = getLightweightContainerInfo(id, field);
+        Map<String, ContainerInfoDto> latestContainerIndex = buildLatestContainerIndex(info, field);
         if (StringUtils.isEmpty(source)) {
             try {
                 if (defaultStrategy.equalsIgnoreCase(DefaultStrategy.DEFAULT_PRIORITY.getValue())) {
-                    ContainerInfoDto containerInfoDto = findPriority(field, info);
+                    ContainerInfoDto containerInfoDto = findPriority(field, latestContainerIndex);
                     if (containerInfoDto == null)
                         return null;
                     sourceProcessDto = new SourceProcessDto(containerInfoDto.getSource(),
@@ -221,7 +222,7 @@ public class PacketReaderService {
             }
 
         } else {
-            ContainerInfoDto containerInfoDto = getContainerInfoBySourceAndProcess(field, source, process, info);
+            ContainerInfoDto containerInfoDto = getContainerInfoBySourceAndProcess(source, process, latestContainerIndex);
             sourceProcessDto = containerInfoDto != null
                     ? new SourceProcessDto(containerInfoDto.getSource(), containerInfoDto.getProcess())
                     : null;
@@ -262,12 +263,31 @@ public class PacketReaderService {
             return getContainerInfoByDefaultPriority(field, info);
     }
 
+    public ContainerInfoDto findPriority(String field, Map<String, ContainerInfoDto> latestContainerIndex) {
+        if (latestContainerIndex.size() == 1)
+            return latestContainerIndex.values().iterator().next();
+        else
+            return getContainerInfoByDefaultPriority(latestContainerIndex);
+    }
+
     private ContainerInfoDto getContainerInfoByDefaultPriority(String field, List<ContainerInfoDto> info) {
         for (PriorityRule rule : getDefaultPriorityRules()) {
             for (String ruleProcess : rule.processes) {
                 ContainerInfoDto match = getLatestContainer(field, info, rule.source, ruleProcess, true);
                 if (match != null)
                     return match;
+            }
+        }
+        return null;
+    }
+
+    private ContainerInfoDto getContainerInfoByDefaultPriority(Map<String, ContainerInfoDto> latestContainerIndex) {
+        for (PriorityRule rule : getDefaultPriorityRules()) {
+            for (String ruleProcess : rule.processes) {
+                ContainerInfoDto match = latestContainerIndex.get(buildSourceProcessKey(rule.source, ruleProcess));
+                if (match != null) {
+                    return match;
+                }
             }
         }
         return null;
@@ -287,6 +307,11 @@ public class PacketReaderService {
             return getLatestContainer(field, info, source, process, false);
         }
         return getLatestContainer(field, info, source, process, true);
+    }
+
+    private ContainerInfoDto getContainerInfoBySourceAndProcess(String source, String process,
+                                                                Map<String, ContainerInfoDto> latestContainerIndex) {
+        return latestContainerIndex.get(buildSourceProcessKey(source, process));
     }
 
     private String getDefaultSource(String process) {
@@ -642,6 +667,29 @@ public class PacketReaderService {
             }
         }
         return rules;
+    }
+
+    private Map<String, ContainerInfoDto> buildLatestContainerIndex(List<ContainerInfoDto> info, String field) {
+        Map<String, ContainerInfoDto> index = new HashMap<>();
+        boolean additionalField = field != null && additionalFieldsSearch != null && additionalFieldsSearch.contains(field);
+
+        for (ContainerInfoDto infoDto : info) {
+            if (!additionalField && !isFieldPresent(field, infoDto)) {
+                continue;
+            }
+            String baseProcess = PacketHelper.getProcessWithoutIteration(infoDto.getProcess());
+            String key = buildSourceProcessKey(infoDto.getSource(), baseProcess);
+
+            ContainerInfoDto existing = index.get(key);
+            if (existing == null || extractInt(infoDto.getProcess()) > extractInt(existing.getProcess())) {
+                index.put(key, infoDto);
+            }
+        }
+        return index;
+    }
+
+    private String buildSourceProcessKey(String source, String process) {
+        return source.toLowerCase() + "#" + process.toLowerCase();
     }
 
     private static class PriorityRule {
