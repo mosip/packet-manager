@@ -141,6 +141,7 @@ public class PacketKeeper {
      */
     public Packet getPacket(PacketInfo packetInfo) throws PacketKeeperException {
         String packetName = getName(packetInfo.getId(), packetInfo.getPacketName());
+        long totalByteLatencyStartMillis = System.currentTimeMillis();
         try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
                 packetInfo.getSource(), packetInfo.getProcess(), packetName)) {
 
@@ -153,6 +154,8 @@ public class PacketKeeper {
 
             // Convert stream to byte array (necessary for encryption/decryption and signature verification)
             byte[] encryptedSubPacket = IOUtils.toByteArray(is);
+            LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                    packetName, "Total byte latency (ms): " + (System.currentTimeMillis() - totalByteLatencyStartMillis));
 
             Packet packet = new Packet();
 
