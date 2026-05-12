@@ -141,18 +141,24 @@ public class PacketKeeper {
      */
     public Packet getPacket(PacketInfo packetInfo) throws PacketKeeperException {
         String packetName = getName(packetInfo.getId(), packetInfo.getPacketName());
-        try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
-                packetInfo.getSource(), packetInfo.getProcess(), packetName)) {
+        try {
+            final byte[] encryptedSubPacket;
+            long totalByteLatencyStartMillis = System.currentTimeMillis();
+            try (InputStream is = getAdapter().getObject(PACKET_MANAGER_ACCOUNT, packetInfo.getId(),
+                    packetInfo.getSource(), packetInfo.getProcess(), packetName)) {
 
-            if (is == null) {
-                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
-                        packetName, packetInfo.getProcess() + " Packet is not present in packet store.");
-                throw new PacketKeeperException(ErrorCode.PACKET_NOT_FOUND.getErrorCode(),
-                        ErrorCode.PACKET_NOT_FOUND.getErrorMessage());
+                if (is == null) {
+                    LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                            packetName, packetInfo.getProcess() + " Packet is not present in packet store.");
+                    throw new PacketKeeperException(ErrorCode.PACKET_NOT_FOUND.getErrorCode(),
+                            ErrorCode.PACKET_NOT_FOUND.getErrorMessage());
+                }
+
+                // Convert stream to byte array (necessary for encryption/decryption and signature verification)
+                encryptedSubPacket = IOUtils.toByteArray(is);
+                LOGGER.debug(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                        packetName, "Total byte latency (ms): " + (System.currentTimeMillis() - totalByteLatencyStartMillis));
             }
-
-            // Convert stream to byte array (necessary for encryption/decryption and signature verification)
-            byte[] encryptedSubPacket = IOUtils.toByteArray(is);
 
             Packet packet = new Packet();
 
