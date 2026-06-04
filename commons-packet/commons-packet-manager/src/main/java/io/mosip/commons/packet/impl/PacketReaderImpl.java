@@ -12,31 +12,34 @@ import static io.mosip.commons.packet.constants.PacketManagerConstants.VALUE;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import io.mosip.commons.packet.facade.PacketReader;
 import io.mosip.kernel.biometrics.constant.BiometricType;
 import io.mosip.kernel.core.util.JsonUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.assertj.core.util.Lists;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
+
+import jakarta.annotation.PostConstruct;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -72,6 +75,29 @@ public class PacketReaderImpl implements IPacketReader {
 	@Value("${mosip.commons.packetnames}")
 	private String packetNames;
 
+	// Split once at startup — avoids String.split() allocation on every request under high load
+	private volatile String[] packetNameArray;
+
+	@PostConstruct
+	public void init() {
+		packetNameArray = packetNames.split(",");
+	}
+
+	/**
+	 * Lazy accessor for packetNameArray.
+	 * In production, @PostConstruct ensures this is pre-populated.
+	 * In tests, @PostConstruct is not invoked by @InjectMocks, so we fall back
+	 * to splitting packetNames on first access — no test changes required.
+	 */
+	private String[] getPacketNames() {
+		String[] arr = packetNameArray;
+		if (arr == null) {
+			arr = (packetNames != null) ? packetNames.split(",") : new String[0];
+			packetNameArray = arr;
+		}
+		return arr;
+	}
+
 	@Autowired
 	private PacketReader packetReader;
 
@@ -89,6 +115,10 @@ public class PacketReaderImpl implements IPacketReader {
 
 	@Autowired
 	private CacheManager cacheManager;
+
+	@Autowired(required = false)
+	@Qualifier("packetFetchExecutor")
+	private Executor packetFetchExecutor;
 	/**
 	 * Perform packet validations and audit errors. List of validations - 1. schema
 	 * & idobject reference validation 2. files validation 3. decrypted packet
@@ -124,50 +154,122 @@ public class PacketReaderImpl implements IPacketReader {
     @Cacheable(value = "packet", key="{'allFields'.concat('-').concat(#p0).concat('-').concat(#p2)}" ,unless = "#result == null")
 	public Map<String, Object> getAll(String id, String source, String process) {
 		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-				"Getting all fields :: enrtry");
+				"Getting all fields :: entry");
+
 		Map<String, Object> finalMap = new LinkedHashMap<>();
-		String[] sourcePacketNames = packetNames.split(",");
 
 		try {
-			for (String srcPacket : sourcePacketNames) {
-                Packet packet = packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
-                InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID");
-                if (idJsonStream != null) {
-                    byte[] bytearray = IOUtils.toByteArray(idJsonStream);
-                    String jsonString = new String(bytearray);
-                    LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-                            .readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
+			String[] names = getPacketNames();
+			List<CompletableFuture<Packet>> futures = new ArrayList<>(names.length);
 
-                    currentIdMap.keySet().stream().forEach(key -> {
-                        Object value = currentIdMap.get(key);
-                        if (value != null && (value instanceof Number))
-                            finalMap.putIfAbsent(key, value);
-                        else if (value != null && (value instanceof String))
-                            finalMap.putIfAbsent(key, value.toString().replaceAll("(^\")|(\"$)", ""));
-                        else {
-                            try {
-                                finalMap.putIfAbsent(key,
-                                        value != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
-                            } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-                                LOGGER.error(ExceptionUtils.getStackTrace(e));
-                                throw new GetAllIdentityException(e.getMessage());
-                            }
-                        }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
-                    ExceptionUtils.getStackTrace(e));
-            if (e instanceof BaseCheckedException) {
-                BaseCheckedException ex = (BaseCheckedException) e;
-                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-            } else if (e instanceof BaseUncheckedException) {
-                BaseUncheckedException ex = (BaseUncheckedException) e;
-                throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
-            }
-            throw new GetAllIdentityException(e.getMessage());
-        }
+			for (String srcPacket : names) {
+				futures.add(CompletableFuture.supplyAsync(() -> {
+					try {
+						return packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+					} catch (Exception e) {
+						throw new CompletionException(e);
+					}
+				}, exec));
+			}
+
+			// Wait for all packets
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+			for (CompletableFuture<Packet> future : futures) {
+
+				Packet packet = future.join();
+
+				try (InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID")) {
+
+					if (idJsonStream == null) {
+						continue;
+					}
+
+					Map<String, Object> identityWrapper =
+							mapper.readValue(idJsonStream, LinkedHashMap.class);
+
+					Map<String, Object> currentIdMap =
+							(Map<String, Object>) identityWrapper.get(IDENTITY);
+
+					if (currentIdMap == null) {
+						continue;
+					}
+
+					for (Map.Entry<String, Object> entry : currentIdMap.entrySet()) {
+
+						String key = entry.getKey();
+
+						if (finalMap.containsKey(key)) {
+							continue;
+						}
+
+						Object value = entry.getValue();
+
+						if (value == null) {
+							finalMap.put(key, null);
+							continue;
+						}
+
+						if (value instanceof Number) {
+							finalMap.put(key, value);
+							continue;
+						}
+
+						if (value instanceof String str) {
+
+							if (!str.isEmpty() && str.charAt(0) == '"')
+								str = str.substring(1);
+							if (!str.isEmpty() && str.charAt(str.length() - 1) == '"')
+								str = str.substring(0, str.length() - 1);
+							finalMap.put(key, str);
+							continue;
+						}
+
+						try {
+							finalMap.put(key, JsonUtils.javaObjectToJsonString(value));
+						} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+							LOGGER.error(ExceptionUtils.getStackTrace(e));
+							throw new GetAllIdentityException(e.getMessage());
+						}
+					}
+				}
+			}
+
+		} catch (CompletionException ce) {
+
+			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					cause instanceof Exception
+							? ExceptionUtils.getStackTrace((Exception) cause)
+							: cause.toString());
+
+			if (cause instanceof BaseCheckedException ex) {
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+
+			if (cause instanceof BaseUncheckedException ex) {
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+
+			throw new GetAllIdentityException(cause.getMessage());
+
+		} catch (Exception e) {
+
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					ExceptionUtils.getStackTrace(e));
+
+			if (e instanceof BaseCheckedException ex) {
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+
+			if (e instanceof BaseUncheckedException ex) {
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+			}
+
+			throw new GetAllIdentityException(e.getMessage());
+		}
 
         return finalMap;
 	}
@@ -209,15 +311,16 @@ public class PacketReaderImpl implements IPacketReader {
 				String packetName = idSchemaUtils.getSource(documentName, schemaVersion);
 				Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
 				String value = documentMap.has(VALUE) ? documentMap.get(VALUE).toString() : null;
-				InputStream documentStream = ZipUtils.unzipAndGetFile(packet.getPacket(), value);
-				if (documentStream != null) {
-					Document document = new Document();
-					document.setDocument(IOUtils.toByteArray(documentStream));
-					document.setValue(value);
-					document.setType(documentMap.has(TYPE) ? documentMap.get(TYPE).toString() : null);
-					document.setFormat(documentMap.has(FORMAT) ? documentMap.get(FORMAT).toString() : null);
-					document.setRefNumber(documentMap.has(REFNUMBER) ? documentMap.get(REFNUMBER).toString() : null);
-					return document;
+				try (InputStream documentStream = ZipUtils.unzipAndGetFile(packet.getPacket(), value)) {
+					if (documentStream != null) {
+						Document document = new Document();
+						document.setDocument(IOUtils.toByteArray(documentStream));
+						document.setValue(value);
+						document.setType(documentMap.has(TYPE) ? documentMap.get(TYPE).toString() : null);
+						document.setFormat(documentMap.has(FORMAT) ? documentMap.get(FORMAT).toString() : null);
+						document.setRefNumber(documentMap.has(REFNUMBER) ? documentMap.get(REFNUMBER).toString() : null);
+						return document;
+					}
 				}
 			}
 		} catch (Exception e) {
@@ -301,8 +404,8 @@ public class PacketReaderImpl implements IPacketReader {
 			cache.put(cacheKey, bir);
 		}
 
-		return bir;
-	}
+			return bir;
+		}
 
 	private BIR loadBiometricsFromObjectStore(String id, String biometricFieldName, String source, String process) throws Exception {
 		String packetName = null;
@@ -340,40 +443,64 @@ public class PacketReaderImpl implements IPacketReader {
 			return null;
 
 		Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
-		InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
-		if (biometrics == null)
-			return null;
+		try (InputStream biometrics = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName)) {
+			if (biometrics == null)
+				return null;
 
-		return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+			return CbeffValidator.getBIRFromXML(IOUtils.toByteArray(biometrics));
+		}
 	}
 
 	@Override
 	public Map<String, String> getMetaInfo(String id, String source, String process) {
 		Map<String, String> finalMap = new LinkedHashMap<>();
-		String[] sourcePacketNames = packetNames.split(",");
 
 		try {
-			for (String packetName : sourcePacketNames) {
-				Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
-				InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO");
-				if (idJsonStream != null) {
-					byte[] bytearray = IOUtils.toByteArray(idJsonStream);
-					String jsonString = new String(bytearray);
-					LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
-							.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
+			String[] names = getPacketNames();
+			List<CompletableFuture<Packet>> futures = new ArrayList<>(names.length);
 
-					currentIdMap.keySet().stream().forEach(key -> {
-						try {
-							finalMap.putIfAbsent(key,
-									currentIdMap.get(key) != null ? JsonUtils
-											.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(^\")|(\"$)", "")
-											: null);
-						} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-							throw new GetAllMetaInfoException(e.getMessage());
-						}
-					});
+			for (String packetName : names) {
+				futures.add(CompletableFuture.supplyAsync(() -> {
+					try {
+						return packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
+					} catch (Exception e) {
+						throw new CompletionException(e);
+					}
+				}, exec));
+			}
+
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+			for (CompletableFuture<Packet> future : futures) {
+				Packet packet = future.join();
+				try (InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO")) {
+					if (idJsonStream != null) {
+						byte[] bytearray = IOUtils.toByteArray(idJsonStream);
+						String jsonString = new String(bytearray);
+						LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper
+								.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
+
+						currentIdMap.keySet().stream().forEach(key -> {
+							try {
+								finalMap.putIfAbsent(key,
+										currentIdMap.get(key) != null ? JsonUtils
+												.javaObjectToJsonString(currentIdMap.get(key)).replaceAll("(^\")|(\"$)", "")
+												: null);
+							} catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+								throw new GetAllMetaInfoException(e.getMessage());
+							}
+						});
+					}
 				}
 			}
+		} catch (CompletionException ce) {
+			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+			if (cause instanceof BaseCheckedException ex)
+				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
+			if (cause instanceof BaseUncheckedException ex)
+				throw new GetAllMetaInfoException(ex.getErrorCode(), ex.getMessage());
+			throw new GetAllMetaInfoException(cause.getMessage());
 		} catch (Exception e) {
 			if (e instanceof BaseCheckedException) {
 				BaseCheckedException ex = (BaseCheckedException) e;
@@ -389,21 +516,46 @@ public class PacketReaderImpl implements IPacketReader {
 
 	@Override
 	public List<Map<String, String>> getAuditInfo(String id, String source, String process) {
-		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "getAuditInfo :: enrtry");
+		LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "getAuditInfo :: entry");
 		List<Map<String, String>> finalMap = new ArrayList<>();
-		String[] sourcePacketNames = packetNames.split(",");
+
 		try {
-			for (String srcPacket : sourcePacketNames) {
-				Packet packet = packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
-				InputStream auditJson = ZipUtils.unzipAndGetFile(packet.getPacket(), "audit");
-				if (auditJson != null) {
-					byte[] bytearray = IOUtils.toByteArray(auditJson);
-					String jsonString = new String(bytearray);
-					List<Map<String, String>> currentMap = (List<Map<String, String>>) mapper.readValue(jsonString,
-							List.class);
-					finalMap.addAll(currentMap);
+			Executor exec = packetFetchExecutor != null ? packetFetchExecutor : ForkJoinPool.commonPool();
+			String[] names = getPacketNames();
+			List<CompletableFuture<Packet>> futures = new ArrayList<>(names.length);
+
+			for (String srcPacket : names) {
+				futures.add(CompletableFuture.supplyAsync(() -> {
+					try {
+						return packetKeeper.getPacket(getPacketInfo(id, srcPacket, source, process));
+					} catch (Exception e) {
+						throw new CompletionException(e);
+					}
+				}, exec));
+			}
+
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+			for (CompletableFuture<Packet> future : futures) {
+				Packet packet = future.join();
+				try (InputStream auditJson = ZipUtils.unzipAndGetFile(packet.getPacket(), "audit")) {
+					if (auditJson != null) {
+						byte[] bytearray = IOUtils.toByteArray(auditJson);
+						String jsonString = new String(bytearray);
+						List<Map<String, String>> currentMap = (List<Map<String, String>>) mapper.readValue(jsonString, List.class);
+						finalMap.addAll(currentMap);
+					}
 				}
 			}
+		} catch (CompletionException ce) {
+			Throwable cause = ce.getCause() != null ? ce.getCause() : ce;
+			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+					cause instanceof Exception ? ExceptionUtils.getStackTrace((Exception) cause) : cause.toString());
+			if (cause instanceof BaseCheckedException ex)
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
+			if (cause instanceof BaseUncheckedException ex)
+				throw new GetAllIdentityException(ex.getErrorCode(), ex.getMessage());
+			throw new GetAllIdentityException(cause.getMessage());
 		} catch (Exception e) {
 			LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
 					ExceptionUtils.getStackTrace(e));
@@ -429,35 +581,41 @@ public class PacketReaderImpl implements IPacketReader {
 	}
 
 	public List<BIR> filterByModalities(List<String> modalities,
-			List<BIR> birList) {
-		List<BIR> segments = new ArrayList<>();
+										List<BIR> birList) {
 		if (CollectionUtils.isEmpty(modalities)) {
 			return birList;
-		} else {
-			// first search modalities in subtype and if not present search in type
-			for (BIR bir : birList) {
-				if (CollectionUtils.isNotEmpty(bir.getBdbInfo().getSubtype())
-						&& isModalityPresentInTypeSubtype(bir.getBdbInfo().getSubtype(), modalities)) {
+		}
+		// Pre-split modality strings once before the BIR loop to avoid
+		// repeated String.split() calls for every BIR entry.
+		List<List<String>> parsedModalities = new ArrayList<>(modalities.size());
+		for (String modality : modalities) {
+			parsedModalities.add(Arrays.asList(modality.split(" ")));
+		}
+
+		List<BIR> segments = new ArrayList<>();
+		// first search modalities in subtype and if not present search in type
+		for (BIR bir : birList) {
+			if (CollectionUtils.isNotEmpty(bir.getBdbInfo().getSubtype())
+					&& isModalityPresent(bir.getBdbInfo().getSubtype(), parsedModalities)) {
+				segments.add(bir);
+			} else {
+				for (BiometricType type : bir.getBdbInfo().getType()) {
+					if (isModalityPresent(Collections.singletonList(type.value()), parsedModalities)) {
 						segments.add(bir);
-				} else {
-					for (BiometricType type : bir.getBdbInfo().getType()) {
-						if (isModalityPresentInTypeSubtype(Lists.newArrayList(type.value()), modalities))
-							segments.add(bir);
+						break;
 					}
 				}
 			}
 		}
-			return segments;
+		return segments;
 	}
 
-	private boolean isModalityPresentInTypeSubtype(List<String> typeSubtype, List<String> modalities) {
-		boolean isPresent = false;
-		for (String modality : modalities) {
-			String[] modalityArray = modality.split(" ");
-			if (ArrayUtils.isNotEmpty(modalityArray) && ListUtils.isEqualList(typeSubtype, Arrays.asList(modalityArray)))
-				isPresent = true;
+	private boolean isModalityPresent(List<String> typeSubtype, List<List<String>> parsedModalities) {
+		for (List<String> modalityParts : parsedModalities) {
+			if (ListUtils.isEqualList(typeSubtype, modalityParts))
+				return true;
 		}
-		return isPresent;
+		return false;
 	}
 
 }

@@ -18,7 +18,7 @@ import io.mosip.commons.packet.util.PacketManagerLogger;
 import io.mosip.kernel.biometrics.entities.BiometricRecord;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.logger.spi.Logger;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.core.util.JsonUtils;
 import io.mosip.kernel.core.util.StringUtils;
 import io.mosip.kernel.core.util.exception.JsonProcessingException;
@@ -169,7 +169,7 @@ public class PacketWriterImpl implements IPacketWriter {
                 packetInfo.setSource(source);
                 packetInfo.setProcess(process);
                 packetInfo.setPacketName(id + UNDERSCORE + subPacketName);
-                packetInfo.setCreationDate(DateUtils.getUTCCurrentDateTimeString());
+                packetInfo.setCreationDate(DateUtils2.getUTCCurrentDateTimeString());
                 packetInfo.setProviderVersion(defaultProviderVersion);
                 Packet packet = new Packet();
                 packet.setPacketInfo(packetInfo);

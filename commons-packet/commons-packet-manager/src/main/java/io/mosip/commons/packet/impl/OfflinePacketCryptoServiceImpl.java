@@ -9,7 +9,7 @@ import io.mosip.kernel.clientcrypto.dto.TpmSignVerifyRequestDto;
 import io.mosip.kernel.clientcrypto.dto.TpmSignVerifyResponseDto;
 import io.mosip.kernel.clientcrypto.service.spi.ClientCryptoManagerService;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.DateUtils;
+import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerRequestDto;
 import io.mosip.kernel.cryptomanager.service.CryptomanagerService;
 import io.mosip.kernel.cryptomanager.service.impl.CryptomanagerServiceImpl;
@@ -79,7 +79,7 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
         sRandom.nextBytes(aad);
         cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
         cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
-        cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
+        cryptomanagerRequestDto.setTimeStamp(DateUtils2.getUTCCurrentDateTime());
 
         byte[] encryptedData = CryptoUtil.decodeURLSafeBase64(getCryptomanagerService().encrypt(cryptomanagerRequestDto).getData());
         return EncryptionUtil.mergeEncryptedData(encryptedData, nonce, aad);
@@ -99,7 +99,7 @@ public class OfflinePacketCryptoServiceImpl implements IPacketCryptoService {
         cryptomanagerRequestDto.setAad(CryptoUtil.encodeToURLSafeBase64(aad));
         cryptomanagerRequestDto.setSalt(CryptoUtil.encodeToURLSafeBase64(nonce));
         cryptomanagerRequestDto.setData(CryptoUtil.encodeToURLSafeBase64(encryptedData));
-        cryptomanagerRequestDto.setTimeStamp(DateUtils.getUTCCurrentDateTime());
+        cryptomanagerRequestDto.setTimeStamp(DateUtils2.getUTCCurrentDateTime());
 
         return CryptoUtil.decodeURLSafeBase64(getCryptomanagerService().decrypt(cryptomanagerRequestDto).getData());
     }

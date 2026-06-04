@@ -3,6 +3,7 @@ package io.mosip.commons.packet.util;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.IDENTITY;
 import static io.mosip.commons.packet.constants.PacketManagerConstants.IDSCHEMA_VERSION;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,9 +15,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import io.mosip.commons.packet.exception.GetAllIdentityException;
 import io.mosip.commons.packet.facade.PacketReader;
+import io.mosip.kernel.core.exception.BaseCheckedException;
+import io.mosip.kernel.core.exception.BaseUncheckedException;
 import io.mosip.kernel.core.exception.ExceptionUtils;
 import io.mosip.kernel.core.util.HMACUtils2;
 import org.apache.commons.io.IOUtils;
@@ -25,6 +31,7 @@ import org.json.JSONException;
 import org.json.JSONTokener;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -84,32 +91,139 @@ public class PacketValidator {
     @Autowired
     private AuditLogEntry auditLogEntry;
 
+    @Autowired
+    @Qualifier("packetValidateExecutor")
+    private Executor packetValidateExecutor;
+
 
     public boolean validate(String id, String source, String process) throws IdObjectIOException, InvalidIdSchemaException, IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException, JSONException {
-        boolean result = validateSchema(id, source, process);
-        if(result) {
+        // Fetch all sub-packets ONCE and reuse for both schema validation and checksum
+        // validation — avoids a second round of S3 GET + decrypt calls.
+        Map<String, Packet> packetsMap = fetchAllPacketsInParallel(id, source, process);
+        Map<String, Object> identityFields = extractIdentityFields(packetsMap);
+
+        boolean result = validateSchema(id, process, identityFields);
+        if (result) {
             LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation successful for process name : " + process);
             auditLogEntry.addAudit("Id object validation successful", eventId, eventName, eventType, null, null, id);
-            result = fileAndChecksumValidation(id, source, process);
+            result = fileAndChecksumValidation(id, source, process, packetsMap);
         } else {
             LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Id object validation failed for process name : " + process);
             auditLogEntry.addAudit("Id object validation failed", eventId, eventName, eventType, null, null, id);
         }
-
         return result;
     }
 
-    private boolean validateSchema(String id, String source, String process) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
-        Map<String, Object> objectMap = new HashMap<>();
+    /**
+     * Extract identity fields from pre-fetched packets, iterating in packetNames order
+     * (same merge behaviour as PacketReaderImpl.getAll — later packets override earlier ones).
+     */
+    private Map<String, Object> extractIdentityFields(Map<String, Packet> packetsMap) {
+        Map<String, Object> finalMap = new LinkedHashMap<>();
+        for (String packetName : packetNames.split(",")) {
+            Packet packet = packetsMap.get(packetName.trim());
+            if (packet == null || packet.getPacket() == null) continue;
+            try (InputStream idJsonStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "ID")) {
+                if (idJsonStream == null) continue;
+                Map<String, Object> identityWrapper = mapper.readValue(idJsonStream, LinkedHashMap.class);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> currentIdMap = (Map<String, Object>) identityWrapper.get(IDENTITY);
+                for (Map.Entry<String, Object> entry : currentIdMap.entrySet()) {
+
+                    String key = entry.getKey();
+
+                    if (finalMap.containsKey(key)) {
+                        continue;
+                    }
+
+                    Object value = entry.getValue();
+
+                    if (value == null) {
+                        finalMap.put(key, null);
+                        continue;
+                    }
+
+                    if (value instanceof Number) {
+                        finalMap.put(key, value);
+                        continue;
+                    }
+
+                    if (value instanceof String str) {
+
+                        if (!str.isEmpty() && str.charAt(0) == '"')
+                            str = str.substring(1);
+                        if (!str.isEmpty() && str.charAt(str.length() - 1) == '"')
+                            str = str.substring(0, str.length() - 1);
+                        finalMap.put(key, str);
+                        continue;
+                    }
+
+                    try {
+                        finalMap.put(key, JsonUtils.javaObjectToJsonString(value));
+                    } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+                        LOGGER.error(ExceptionUtils.getStackTrace(e));
+                        throw new GetAllIdentityException(e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID,
+                        packetName, "Failed to extract identity fields: " + ExceptionUtils.getStackTrace(e));
+                if (e instanceof BaseCheckedException) {
+                    BaseCheckedException ex = (BaseCheckedException) e;
+                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+                } else if (e instanceof BaseUncheckedException) {
+                    BaseUncheckedException ex = (BaseUncheckedException) e;
+                    throw new GetAllIdentityException(ex.getErrorCode(), ex.getErrorText());
+                }
+                throw new GetAllIdentityException(e.getMessage());
+            }
+        }
+        return finalMap;
+    }
+
+    /**
+     * Fetch all packets in parallel to minimize S3/object store round-trip time.
+     * Each packet is uniquely identified by id, source, process and packetName.
+     */
+    private Map<String, Packet> fetchAllPacketsInParallel(String id, String source, String process) throws PacketKeeperException {
+        List<CompletableFuture<Map.Entry<String, Packet>>> futures = Arrays.stream(packetNames.split(","))
+                .map(packetName -> packetName.trim())
+                .map(packetName -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
+                        return Map.entry(packetName, packet);
+                    } catch (PacketKeeperException e) {
+                        throw new RuntimeException(e);
+                    }
+                }, packetValidateExecutor))
+                .collect(Collectors.toList());
+
+        Map<String, Packet> packetsMap = new HashMap<>();
+        for (CompletableFuture<Map.Entry<String, Packet>> future : futures) {
+            Map.Entry<String, Packet> entry = future.join();
+            packetsMap.put(entry.getKey(), entry.getValue());
+        }
+        return packetsMap;
+    }
+
+    private boolean validateSchema(String id, String process, Map<String, Object> identityFields) throws IOException, InvalidIdSchemaException, IdObjectIOException, JSONException {
         try {
             String idschemaValueFromMappingJson = idSchemaUtils.getIdschemaVersionFromMappingJson();
-            String idschemaVersion = reader.getField(id, idschemaValueFromMappingJson, source, process, false);
-            List<String> allFields = idSchemaUtils.getDefaultFields(Double.valueOf(idschemaVersion));
-            Map<String, String> fieldsMap = reader.getFields(id, allFields, source, process, false);
-            objectMap.putAll(fieldsMap);
+            Object versionObj = identityFields.get(idschemaValueFromMappingJson);
+            if (versionObj == null) {
+                LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id,
+                        "ID schema version field not found in packet identity");
+                return false;
+            }
+            double idschemaVersion = Double.parseDouble(versionObj.toString());
+            List<String> allFields = idSchemaUtils.getDefaultFields(idschemaVersion);
+            Map<String, Object> objectMap = new HashMap<>();
+            allFields.forEach(field ->
+                    objectMap.put(field, identityFields.get(field))
+            );
 
             if (convertIdschemaToDouble)
-                objectMap.put(idschemaValueFromMappingJson, Double.valueOf(fieldsMap.get(idschemaValueFromMappingJson)));
+                objectMap.put(idschemaValueFromMappingJson, idschemaVersion);
 
             String fields = env.getProperty(String.format(FIELD_LIST, IdObjectsSchemaValidationOperationMapper.getOperation(process)));
             if (fields != null) {
@@ -118,8 +232,7 @@ public class PacketValidator {
                 JSONObject finalIdObject = new JSONObject(finalMap);
 
                 return idObjectValidator.validateIdObject(
-                        idSchemaUtils.getIdSchema(
-                                Double.valueOf(objectMap.get(PacketManagerConstants.IDSCHEMA_VERSION).toString())),
+                        idSchemaUtils.getIdSchema(idschemaVersion),
                         finalIdObject, Arrays.asList(fields.split(",")));
 
             }
@@ -138,22 +251,33 @@ public class PacketValidator {
      *
      * @param id
      *            the registration id
+     * @param packetsMap pre-fetched packets (avoids duplicate S3 fetches)
      * @return true, if successful
      * @throws IOException
      */
-    public boolean fileAndChecksumValidation(String id, String source, String process) throws IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException {
+    public boolean fileAndChecksumValidation(String id, String source, String process, Map<String, Packet> packetsMap) throws IOException, JsonProcessingException, PacketKeeperException, NoSuchAlgorithmException {
         boolean isValid = false;
         // perform file and checksum validation for each source
         for (String packetName : packetNames.split(",")) {
-            Packet packet = packetKeeper.getPacket(getPacketInfo(id, packetName, source, process));
-            Map<String, String> finalMap = getMetaInfoJson(packet);
+            packetName = packetName.trim();
+            Packet packet = packetsMap.get(packetName);
+            if (packet == null) continue;
+
+            // Extract all ZIP entries in a single pass to avoid repeated traversal.
+            Map<String, byte[]> zipEntries = ZipUtils.unzipAll(packet.getPacket());
+
+            Map<String, String> finalMap = getMetaInfoJson(zipEntries);
             if (!finalMap.isEmpty()) {
 
-                List hashseq1List = finalMap.get("hashSequence1") != null ? mapper.readValue(finalMap.get("hashSequence1"), ArrayList.class) : null;
-                List hashseq2List = finalMap.get("hashSequence2") != null ? (ArrayList) mapper.readValue(finalMap.get("hashSequence2"), ArrayList.class) : null;
+                // Parse raw JSON lists to typed FieldValueArray lists once here;
+                // avoids repeated serialize+deserialize in validateFiles and checksumValidation.
+                List<FieldValueArray> hashSeq1 = toFieldValueArrayList(
+                        finalMap.get("hashSequence1") != null ? mapper.readValue(finalMap.get("hashSequence1"), ArrayList.class) : null);
+                List<FieldValueArray> hashSeq2 = toFieldValueArrayList(
+                        finalMap.get("hashSequence2") != null ? mapper.readValue(finalMap.get("hashSequence2"), ArrayList.class) : null);
                 Map<String, InputStream> checksumMap = new HashMap<>();
 
-                boolean fileValidation = validateFiles(hashseq1List, hashseq2List, checksumMap, packet);
+                boolean fileValidation = validateFiles(hashSeq1, hashSeq2, checksumMap, zipEntries);
 
                 if (fileValidation) {
                     LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "File validation successful for packet name : " + packetName);
@@ -164,7 +288,7 @@ public class PacketValidator {
                     return false;
                 }
 
-                boolean checksumValidation = checksumValidation(hashseq1List, hashseq2List, checksumMap, packet);
+                boolean checksumValidation = checksumValidation(hashSeq1, hashSeq2, checksumMap, zipEntries);
 
                 if (checksumValidation) {
                     LOGGER.info(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, "Checksum validation successful for packet name : " + packetName);
@@ -211,88 +335,77 @@ public class PacketValidator {
 
     }
 
-    private Map<String, String> getMetaInfoJson(Packet packet) throws PacketKeeperException, IOException {
+    private Map<String, String> getMetaInfoJson(Map<String, byte[]> zipEntries) throws IOException {
         Map<String, String> finalMap = new HashMap<>();
-        InputStream metaInfoJson = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_META_INFO");
-        if (metaInfoJson != null) {
-            byte[] bytearray = IOUtils.toByteArray(metaInfoJson);
-            String jsonString = new String(bytearray);
+        byte[] metaBytes = zipEntries.get("PACKET_META_INFO");
+        if (metaBytes != null) {
+            String jsonString = new String(metaBytes);
             LinkedHashMap<String, Object> currentIdMap = (LinkedHashMap<String, Object>) mapper.readValue(jsonString, LinkedHashMap.class).get(IDENTITY);
-
-            currentIdMap.keySet().stream().forEach(key -> {
-                try {
-                    finalMap.putIfAbsent(key, currentIdMap.get(key) != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
-                } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
-                    throw new GetAllMetaInfoException(e.getMessage());
-                }
-            });
+            if (currentIdMap != null) {
+                currentIdMap.keySet().stream().forEach(key -> {
+                    try {
+                        finalMap.putIfAbsent(key, currentIdMap.get(key) != null ? JsonUtils.javaObjectToJsonString(currentIdMap.get(key)) : null);
+                    } catch (io.mosip.kernel.core.util.exception.JsonProcessingException e) {
+                        throw new GetAllMetaInfoException(e.getMessage());
+                    }
+                });
+            }
         }
         return finalMap;
     }
 
-    private boolean validateFiles(List hashseq1List, List hashseq2List, Map<String, InputStream> checksumMap, Packet packet) throws JsonProcessingException, IOException {
+    /**
+     * Converts a raw Jackson-deserialized list (list of LinkedHashMaps) into a
+     * typed List<FieldValueArray> using convertValue — avoids an unnecessary
+     * serialize-then-deserialize round-trip through a JSON string.
+     */
+    private List<FieldValueArray> toFieldValueArrayList(List rawList) {
+        List<FieldValueArray> result = new ArrayList<>();
+        if (rawList != null) {
+            for (Object o : rawList) {
+                result.add(mapper.convertValue(o, FieldValueArray.class));
+            }
+        }
+        return result;
+    }
+
+    private boolean validateFiles(List<FieldValueArray> hashSeq1, List<FieldValueArray> hashSeq2, Map<String, InputStream> checksumMap, Map<String, byte[]> zipEntries) {
         List<String> allFileNames = new ArrayList<>();
-        if (hashseq1List != null && !hashseq1List.isEmpty()) {
-            for (Object o : hashseq1List) {
-                FieldValueArray fieldValueArray = mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class);
-                allFileNames.addAll(fieldValueArray.getValue());
-            }
+        for (FieldValueArray fva : hashSeq1) {
+            allFileNames.addAll(fva.getValue());
+        }
+        for (FieldValueArray fva : hashSeq2) {
+            allFileNames.addAll(fva.getValue());
         }
 
-        if (hashseq2List != null && !hashseq2List.isEmpty()) {
-            for (Object o : hashseq2List) {
-                FieldValueArray fieldValueArray = mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class);
-                allFileNames.addAll(fieldValueArray.getValue());
-            }
-        }
-
-        List<String> notFoundFiles = new ArrayList<>();
-        allFileNames.forEach(v -> notFoundFiles.add(v));
+        List<String> notFoundFiles = new ArrayList<>(allFileNames);
         for (String fileName : allFileNames) {
-            InputStream inputStream = ZipUtils.unzipAndGetFile(packet.getPacket(), fileName);
-            if (inputStream != null && inputStream.available() > 0)
-                checksumMap.put(fileName, inputStream);
+            byte[] fileBytes = zipEntries.get(fileName.toUpperCase());
+            if (fileBytes != null && fileBytes.length > 0)
+                checksumMap.put(fileName, new ByteArrayInputStream(fileBytes));
             notFoundFiles.remove(fileName);
         }
 
-        return (notFoundFiles.size() == 0);
+        return notFoundFiles.isEmpty();
     }
 
-    private boolean checksumValidation(List hashseq1List, List hashseq2List, Map<String, InputStream> checksumMap, Packet packet) throws JsonProcessingException, IOException, NoSuchAlgorithmException {
-        List<FieldValueArray> hashSequence1 = new ArrayList<>();
-        List<FieldValueArray> hashSequence2 = new ArrayList<>();
-        boolean isdataCheckSumEqual = false;
-        boolean isoperationsCheckSumEqual = false;
+    private boolean checksumValidation(List<FieldValueArray> hashSeq1, List<FieldValueArray> hashSeq2, Map<String, InputStream> checksumMap, Map<String, byte[]> zipEntries) throws IOException, NoSuchAlgorithmException {
+        // Map lookups replace two separate ZIP traversals.
+        byte[] dataHashBytes = zipEntries.get("PACKET_DATA_HASH");
+        byte[] operationsHashBytes = zipEntries.get("PACKET_OPERATIONS_HASH");
 
-        if (hashseq1List != null && !hashseq1List.isEmpty()) {
-            for (Object o : hashseq1List) {
-                FieldValueArray fieldValueArray = mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class);
-                hashSequence1.add(fieldValueArray);
-            }
-        }
+        boolean isdataCheckSumEqual;
+        boolean isoperationsCheckSumEqual;
 
-        if (hashseq2List != null && !hashseq2List.isEmpty()) {
-            for (Object o : hashseq2List) {
-                FieldValueArray fieldValueArray = mapper.readValue(JsonUtils.javaObjectToJsonString(o), FieldValueArray.class);
-                hashSequence2.add(fieldValueArray);
-            }
-        }
-
-        // Getting hash bytes from packet
-        InputStream dataHashStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_DATA_HASH");
-        InputStream operationsHashStream = ZipUtils.unzipAndGetFile(packet.getPacket(), "PACKET_OPERATIONS_HASH");
-
-        if (dataHashStream != null) {
-            byte[] dataHashByte = IOUtils.toByteArray(dataHashStream);
-            byte[] dataHash = generateHash(hashSequence1, checksumMap);
-            isdataCheckSumEqual = MessageDigest.isEqual(dataHash, dataHashByte);
+        if (dataHashBytes != null) {
+            byte[] dataHash = generateHash(hashSeq1, checksumMap);
+            isdataCheckSumEqual = MessageDigest.isEqual(dataHash, dataHashBytes);
         } else
             isdataCheckSumEqual = true;
 
-        if (operationsHashStream != null) {
-            byte[] operationsHashByte = IOUtils.toByteArray(operationsHashStream);
-            byte[] operationsHash = generateHash(hashSequence2, checksumMap);
-            isoperationsCheckSumEqual = MessageDigest.isEqual(operationsHash, operationsHashByte);
+        if (operationsHashBytes != null) {
+            byte[] operationsHash = generateHash(hashSeq2, checksumMap);
+            isoperationsCheckSumEqual = MessageDigest.isEqual(operationsHash, operationsHashBytes);
         } else
             isoperationsCheckSumEqual = true;
 

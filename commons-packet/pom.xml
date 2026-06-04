@@ -7,7 +7,7 @@
 
     <groupId>io.mosip.commons</groupId>
     <artifactId>commons-packet</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.4.0-SNAPSHOT</version>
     <name>common-packet</name>
     <description>Common packet manager for MOSIP</description>
     <url>https://github.com/mosip/packet-manager</url>
@@ -31,7 +31,7 @@
 		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
 		<maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
         <central.publishing.maven.plugin.version>0.7.0</central.publishing.maven.plugin.version>
-		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
+        <git.commit.plugin.version>3.0.1</git.commit.plugin.version>
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
     </properties>
@@ -51,7 +51,7 @@
             <url>https://central.sonatype.com/api/v1/publisher</url>
         </repository>
     </distributionManagement>
-        <build>
+    <build>
           
             <plugins>
                 <plugin>
@@ -156,7 +156,7 @@
                         <autoPublish>false</autoPublish>
                     </configuration>
                 </plugin>
-               <plugin>
+                <plugin>
                   <groupId>org.apache.maven.plugins</groupId>
                   <artifactId>maven-source-plugin</artifactId>
                   <inherited>true</inherited>
