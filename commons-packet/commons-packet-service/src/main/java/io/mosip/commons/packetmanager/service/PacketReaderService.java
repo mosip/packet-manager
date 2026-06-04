@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,48 +98,51 @@ public class PacketReaderService {
         try {
             List<ObjectDto> allObjects = packetReader.info(id);
             List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            String bioKey = getKey();
+
             for (ObjectDto o : allObjects) {
-                if (!containerInfoDtos.stream().anyMatch(info -> info.getSource().equalsIgnoreCase(o.getSource()) && info.getProcess().equalsIgnoreCase(o.getProcess()))) {
-                    ContainerInfoDto containerInfo = new ContainerInfoDto();
-                    containerInfo.setSource(o.getSource());
-                    containerInfo.setProcess(o.getProcess());
-                    containerInfo.setLastModified(o.getLastModified());
+                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
+                if (!seen.add(containerKey))
+                    continue;
 
-                    //get demographic fields
-                    Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
-                    // get biometrics
-                    List<BiometricsDto> biometrics = null;
-                    BiometricRecord br = packetReader.getBiometric(id, getKey(), Lists.newArrayList(), o.getSource(), o.getProcess(), false);
-                    if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
-                        Map<String, List<String>> biomap = new HashMap<>();
-                        for (BIR b : br.getSegments()) {
-                            String key = b.getBdbInfo().getType().iterator().next().value();
-							String subtype = null;
-							if (b.getBdbInfo().getSubtype() != null) {
-								subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
-							}
+                ContainerInfoDto containerInfo = new ContainerInfoDto();
+                containerInfo.setSource(o.getSource());
+                containerInfo.setProcess(o.getProcess());
+                containerInfo.setLastModified(o.getLastModified());
 
-                            if (biomap.get(key) == null)
-                                biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
-                            else {
-                                List<String> finalVal =  biomap.get(key);
-                                finalVal.add(subtype);
-                                biomap.put(key, finalVal);
-                            }
+                Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+
+                List<BiometricsDto> biometrics = null;
+                BiometricRecord br = packetReader.getBiometric(id, bioKey, Lists.newArrayList(), o.getSource(), o.getProcess(), false);
+                if (br != null && !CollectionUtils.isEmpty(br.getSegments())) {
+                    Map<String, List<String>> biomap = new HashMap<>();
+                    for (BIR b : br.getSegments()) {
+                        String key = b.getBdbInfo().getType().iterator().next().value();
+                        String subtype = null;
+                        if (b.getBdbInfo().getSubtype() != null) {
+                            subtype = b.getBdbInfo().getSubtype().stream().collect(Collectors.joining(" ")).strip();
                         }
-                        biometrics = new ArrayList<>();
-                        for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
-                            BiometricsDto bioDto = new BiometricsDto();
-                            bioDto.setType(b.getKey());
-                            bioDto.setSubtypes(b.getValue());
-                            biometrics.add(bioDto);
+                        if (biomap.get(key) == null)
+                            biomap.put(key, StringUtils.isNotEmpty(subtype) ? Lists.newArrayList(subtype) : null);
+                        else {
+                            List<String> finalVal = biomap.get(key);
+                            finalVal.add(subtype);
+                            biomap.put(key, finalVal);
                         }
                     }
-
-                    containerInfo.setDemographics(demographics);
-                    containerInfo.setBiometrics(biometrics);
-                    containerInfoDtos.add(containerInfo);
+                    biometrics = new ArrayList<>();
+                    for (Map.Entry<String, List<String>> b : biomap.entrySet()) {
+                        BiometricsDto bioDto = new BiometricsDto();
+                        bioDto.setType(b.getKey());
+                        bioDto.setSubtypes(b.getValue());
+                        biometrics.add(bioDto);
+                    }
                 }
+
+                containerInfo.setDemographics(demographics);
+                containerInfo.setBiometrics(biometrics);
+                containerInfoDtos.add(containerInfo);
             }
             // get tags
             Map<String, String> tags = packetReader.getTags(id);
@@ -155,7 +159,50 @@ public class PacketReaderService {
             if (e instanceof BaseUncheckedException) {
                 BaseUncheckedException ex = (BaseUncheckedException) e;
                 throw ex;
+            } else if (e instanceof BaseCheckedException) {
+                BaseCheckedException ex = (BaseCheckedException) e;
+                throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
+            } else
+                throw new BaseUncheckedException(PacketUtilityErrorCodes.UNKNOWN_EXCEPTION.getErrorCode(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Lightweight version of infoInternal used exclusively for source/process
+     * resolution. Only fetches demographic keys per container — skips biometric
+     * reads and tag fetches, which are not needed to decide which source/process
+     * owns a given field.
+     *
+     * This avoids N full biometric reads (object-store fetch + decrypt + ZIP
+     * extraction + CBEFF XML parse) that infoInternal would otherwise perform,
+     * one per source/process combination in the packet.
+     */
+    private InfoResponseDto infoInternalForSourceResolution(String id) {
+        try {
+            List<ObjectDto> allObjects = packetReader.info(id);
+            List<ContainerInfoDto> containerInfoDtos = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            for (ObjectDto o : allObjects) {
+                String containerKey = o.getSource().toLowerCase() + ":" + o.getProcess().toLowerCase();
+                if (!seen.add(containerKey))
+                    continue;
+                ContainerInfoDto containerInfo = new ContainerInfoDto();
+                containerInfo.setSource(o.getSource());
+                containerInfo.setProcess(o.getProcess());
+                containerInfo.setLastModified(o.getLastModified());
+                Set<String> demographics = packetReader.getAllKeys(id, containerInfo.getSource(), containerInfo.getProcess());
+                containerInfo.setDemographics(demographics);
+                containerInfoDtos.add(containerInfo);
             }
+            InfoResponseDto infoResponseDto = new InfoResponseDto();
+            infoResponseDto.setApplicationId(id);
+            infoResponseDto.setPacketId(id);
+            infoResponseDto.setInfo(containerInfoDtos);
+            return infoResponseDto;
+        } catch (Exception e) {
+            LOGGER.error(PacketManagerLogger.SESSIONID, PacketManagerLogger.REGISTRATIONID, id, ExceptionUtils.getStackTrace(e));
+            if (e instanceof BaseUncheckedException)
+                throw (BaseUncheckedException) e;
             else if (e instanceof BaseCheckedException) {
                 BaseCheckedException ex = (BaseCheckedException) e;
                 throw new BaseUncheckedException(ex.getErrorCode(), ex.getMessage(), ex);
@@ -166,16 +213,16 @@ public class PacketReaderService {
     }
 
     private String getKey() throws IOException {
-    	
-          JSONObject jsonObject = getMappingJsonFile();
-          if(jsonObject != null) {
-          LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
-          key = individualBio.get(VALUE);
-          return key;
-          }
-  		return null;
-          
-      }
+        if (key != null)
+            return key;
+        JSONObject jsonObject = getMappingJsonFile();
+        if(jsonObject != null) {
+            LinkedHashMap<String, String> individualBio = (LinkedHashMap) jsonObject.get(INDIVIDUAL_BIOMETRICS);
+            key = individualBio.get(VALUE);
+            return key;
+        }
+        return null;
+    }
 
 
     public SourceProcessDto getSourceAndProcess(String id, String source, String process) {
@@ -195,9 +242,16 @@ public class PacketReaderService {
         return new SourceProcessDto(objectDto.getSource(), objectDto.getProcess());
     }
 
+    public InfoResponseDto getInfoForSourceResolution(String id) {
+        return infoInternalForSourceResolution(id);
+    }
+
     public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process) {
+        return getSourceAndProcess(id, field, source, process, infoInternalForSourceResolution(id));
+    }
+
+    public SourceProcessDto getSourceAndProcess(String id, String field, String source, String process, InfoResponseDto infoResponseDto) {
         SourceProcessDto sourceProcessDto = null;
-        InfoResponseDto infoResponseDto = infoInternal(id);
         List<ContainerInfoDto> info = infoResponseDto.getInfo();
         // sorting in reverse order by process name to search from latest iteration first.
         Collections.sort(info, (i1, i2) -> extractInt(i2.getProcess()) - (extractInt(i1.getProcess())));
