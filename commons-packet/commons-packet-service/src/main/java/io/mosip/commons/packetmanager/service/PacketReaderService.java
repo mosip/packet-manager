@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 
 import io.mosip.commons.khazana.dto.ObjectDto;
 import io.mosip.commons.packet.constants.PacketUtilityErrorCodes;
+import io.mosip.commons.packet.constants.TagType;
 import io.mosip.commons.packet.dto.TagRequestDto;
 import io.mosip.commons.packet.dto.TagResponseDto;
 import io.mosip.commons.packet.exception.GetTagException;
@@ -51,6 +52,7 @@ import io.mosip.kernel.core.util.StringUtils;
 public class PacketReaderService {
 
     private static Logger LOGGER = PacketManagerLogger.getLogger(PacketReaderService.class);
+    private static final String ANONYMOUS_TAG_PREFIX = "anonymous";
     private static final String VALUE = "value";
     private static final String INDIVIDUAL_BIOMETRICS = "individualBiometrics";
     private static final String IDENTITY = "identity";
@@ -442,20 +444,14 @@ public class PacketReaderService {
     public TagResponseDto getTags(TagRequestDto tagRequestDto) {
     	try {
 			Map<String, String> existingTags = packetReader.getTags(tagRequestDto.getId());
-			List<String> tagNames=tagRequestDto.getTagNames();
-			String type = tagRequestDto.getType() == null ? null : tagRequestDto.getType().trim();
-		    TagResponseDto tagResponseDto = new TagResponseDto();
-			if (type != null && "anonymous".equalsIgnoreCase(type)) {
-				Map<String, String> result = new HashMap<>();
-				for (Map.Entry<String, String> e : existingTags.entrySet()) {
-					if (e.getKey() != null && e.getKey().toLowerCase().contains("anonymous")) {
-						result.put(e.getKey(), e.getValue());
-					}
-				}
-				tagResponseDto.setTags(result);
-				return tagResponseDto;
-			}
+			List<String> tagNames = tagRequestDto.getTagNames();
+			// Normalize blank/whitespace-only type to null so it falls to the default filter.
+			String rawType = tagRequestDto.getType();
+			String type = (rawType != null && !rawType.trim().isEmpty()) ? rawType.trim() : null;
+			TagResponseDto tagResponseDto = new TagResponseDto();
+
 			if (tagNames != null && !tagNames.isEmpty()) {
+				// Explicit tag-name lookup — TAG_NOT_FOUND is raised for any missing name.
 				Map<String, String> tags = new HashMap<String, String>();
 				for (String tag : tagNames) {
 					if (existingTags.containsKey(tag)) {
@@ -466,12 +462,22 @@ public class PacketReaderService {
 					}
 				}
 				tagResponseDto.setTags(tags);
-			} else if (type != null && "all".equalsIgnoreCase(type)) {
+			} else if (TagType.ANONYMOUS.getValue().equalsIgnoreCase(type)) {
+				// Return only tags whose name starts with the anonymous prefix.
+				Map<String, String> result = new HashMap<>();
+				for (Map.Entry<String, String> e : existingTags.entrySet()) {
+					if (e.getKey() != null && e.getKey().toLowerCase().startsWith(ANONYMOUS_TAG_PREFIX)) {
+						result.put(e.getKey(), e.getValue());
+					}
+				}
+				tagResponseDto.setTags(result);
+			} else if (TagType.ALL.getValue().equalsIgnoreCase(type)) {
 				tagResponseDto.setTags(existingTags);
 			} else {
+				// Default: exclude anonymous tags for privacy protection.
 				Map<String, String> filtered = new HashMap<>();
 				for (Map.Entry<String, String> e : existingTags.entrySet()) {
-					if (e.getKey() == null || !e.getKey().toLowerCase().contains("anonymous")) {
+					if (e.getKey() == null || !e.getKey().toLowerCase().startsWith(ANONYMOUS_TAG_PREFIX)) {
 						filtered.put(e.getKey(), e.getValue());
 					}
 				}

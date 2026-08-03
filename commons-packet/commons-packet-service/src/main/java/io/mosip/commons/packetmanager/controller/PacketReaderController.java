@@ -214,7 +214,15 @@ public class PacketReaderController {
     @PreAuthorize("hasAnyRole(@authorizedRoles.getPostgettags())")
     @ResponseFilter
 	@PostMapping(path = "/getTags", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "getTags", description = "getTags", tags = { "packet-reader-controller" })
+    @Operation(summary = "getTags",
+            description = "Retrieves tags for the given packet. " +
+                    "The 'type' field controls filtering: " +
+                    "'anonymous' returns only tags whose name starts with 'ANONYMOUS'; " +
+                    "'all' returns every tag; " +
+                    "omit or leave blank to return all tags except anonymous ones (default). " +
+                    "If 'tagNames' is provided it takes precedence over 'type' and TAG_NOT_FOUND is raised for any missing name. " +
+                    "Note: /info returns all tags including anonymous ones regardless of type.",
+            tags = { "packet-reader-controller" })
     @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "OK"),
             @ApiResponse(responseCode = "201", description = "Created", content = @Content(schema = @Schema(hidden = true))),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(hidden = true))),
