@@ -441,11 +441,22 @@ public class PacketReaderService {
 
     public TagResponseDto getTags(TagRequestDto tagRequestDto) {
     	try {
-			Map<String, String> tags = new HashMap<String, String>();
 			Map<String, String> existingTags = packetReader.getTags(tagRequestDto.getId());
 			List<String> tagNames=tagRequestDto.getTagNames();
+			String type = tagRequestDto.getType() == null ? null : tagRequestDto.getType().trim();
 		    TagResponseDto tagResponseDto = new TagResponseDto();
+			if (type != null && "anonymous".equalsIgnoreCase(type)) {
+				Map<String, String> result = new HashMap<>();
+				for (Map.Entry<String, String> e : existingTags.entrySet()) {
+					if (e.getKey() != null && e.getKey().toLowerCase().contains("anonymous")) {
+						result.put(e.getKey(), e.getValue());
+					}
+				}
+				tagResponseDto.setTags(result);
+				return tagResponseDto;
+			}
 			if (tagNames != null && !tagNames.isEmpty()) {
+				Map<String, String> tags = new HashMap<String, String>();
 				for (String tag : tagNames) {
 					if (existingTags.containsKey(tag)) {
 						tags.put(tag, existingTags.get(tag));
@@ -455,8 +466,16 @@ public class PacketReaderService {
 					}
 				}
 				tagResponseDto.setTags(tags);
-			} else {
+			} else if (type != null && "all".equalsIgnoreCase(type)) {
 				tagResponseDto.setTags(existingTags);
+			} else {
+				Map<String, String> filtered = new HashMap<>();
+				for (Map.Entry<String, String> e : existingTags.entrySet()) {
+					if (e.getKey() == null || !e.getKey().toLowerCase().contains("anonymous")) {
+						filtered.put(e.getKey(), e.getValue());
+					}
+				}
+				tagResponseDto.setTags(filtered);
 			}
            return tagResponseDto;
 		} catch (Exception e) {
