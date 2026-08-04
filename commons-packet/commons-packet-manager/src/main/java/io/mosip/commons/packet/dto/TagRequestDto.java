@@ -16,13 +16,6 @@ public class TagRequestDto implements Serializable {
 	
 	private String id;
 	private List<String> tagNames;
-
-	/**
-	 * Controls which tags are returned.
-	 * "anonymous" – tags whose name starts with "ANONYMOUS" only;
-	 * "all" – every tag;
-	 * null/blank – all non-anonymous tags (default).
-	 */
 	private String type;
 
 	public TagRequestDto(String id, List<String> tagNames) {
