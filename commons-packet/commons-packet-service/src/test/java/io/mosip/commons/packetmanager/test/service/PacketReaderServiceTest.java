@@ -229,7 +229,7 @@ public class PacketReaderServiceTest {
         tagRequestDto.setId("id");
         tagRequestDto.setType("all");
         TagResponseDto response = packetReaderService.getTags(tagRequestDto);
-        assertEquals(2, response.getTags().size());
+        assertEquals(tags, response.getTags());
     }
 
     @Test
