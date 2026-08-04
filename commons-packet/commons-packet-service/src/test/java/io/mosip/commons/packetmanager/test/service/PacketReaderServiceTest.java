@@ -173,6 +173,94 @@ public class PacketReaderServiceTest {
         packetReaderService.getTags(tagRequestDto);
     }
 
+    @Test
+    public void testGetTags_withAnonymousType_returnsOnlyAnonymousTags() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("ANONYMOUS_PROFILE", "someValue");
+        tags.put("META_INFO", "metaValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto = new TagRequestDto();
+        tagRequestDto.setId("id");
+        tagRequestDto.setType("anonymous");
+        TagResponseDto response = packetReaderService.getTags(tagRequestDto);
+        assertEquals(1, response.getTags().size());
+        assertTrue(response.getTags().containsKey("ANONYMOUS_PROFILE"));
+        assertFalse(response.getTags().containsKey("META_INFO"));
+    }
+
+    @Test
+    public void testGetTags_withTagNamesAndAnonymousType_tagNamesTakePrecedence() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("ANONYMOUS_PROFILE", "anonValue");
+        tags.put("META_INFO", "metaValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto = new TagRequestDto();
+        tagRequestDto.setId("id");
+        tagRequestDto.setType("anonymous");
+        List<String> tagNames = new ArrayList<>();
+        tagNames.add("META_INFO");
+        tagRequestDto.setTagNames(tagNames);
+        TagResponseDto response = packetReaderService.getTags(tagRequestDto);
+        assertEquals(1, response.getTags().size());
+        assertTrue(response.getTags().containsKey("META_INFO"));
+    }
+
+    @Test(expected = GetTagException.class)
+    public void testGetTags_withTagNamesAndAnonymousType_tagNotFound_throwsException() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("ANONYMOUS_PROFILE", "anonValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto = new TagRequestDto();
+        tagRequestDto.setId("id");
+        tagRequestDto.setType("anonymous");
+        List<String> tagNames = new ArrayList<>();
+        tagNames.add("MISSING_TAG");
+        tagRequestDto.setTagNames(tagNames);
+        packetReaderService.getTags(tagRequestDto);
+    }
+
+    @Test
+    public void testGetTags_withAllType_returnsAllTags() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("ANONYMOUS_PROFILE", "anonValue");
+        tags.put("META_INFO", "metaValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto = new TagRequestDto();
+        tagRequestDto.setId("id");
+        tagRequestDto.setType("all");
+        TagResponseDto response = packetReaderService.getTags(tagRequestDto);
+        assertEquals(tags, response.getTags());
+    }
+
+    @Test
+    public void testGetTags_withBlankType_returnsNonAnonymousTags() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("ANONYMOUS_PROFILE", "anonValue");
+        tags.put("META_INFO", "metaValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto = new TagRequestDto();
+        tagRequestDto.setId("id");
+        tagRequestDto.setType("   ");
+        TagResponseDto response = packetReaderService.getTags(tagRequestDto);
+        assertEquals(1, response.getTags().size());
+        assertTrue(response.getTags().containsKey("META_INFO"));
+        assertFalse(response.getTags().containsKey("ANONYMOUS_PROFILE"));
+    }
+
+    @Test
+    public void testGetTags_withNoTypeAndNoTagNames_returnsNonAnonymousTags() throws Exception {
+        Map<String, String> tags = new HashMap<>();
+        tags.put("ANONYMOUS_PROFILE", "anonValue");
+        tags.put("META_INFO", "metaValue");
+        when(packetReader.getTags(anyString())).thenReturn(tags);
+        TagRequestDto tagRequestDto = new TagRequestDto();
+        tagRequestDto.setId("id");
+        TagResponseDto response = packetReaderService.getTags(tagRequestDto);
+        assertEquals(1, response.getTags().size());
+        assertTrue(response.getTags().containsKey("META_INFO"));
+        assertFalse(response.getTags().containsKey("ANONYMOUS_PROFILE"));
+    }
+
     /**
      * Tests getSourceAndProcess when source is empty - should return info response
      */
