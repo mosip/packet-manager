@@ -42,8 +42,8 @@
          <mockito.core.version>3.11.2</mockito.core.version>
         <sonar.coverage.exclusions>**/constants/**,**/config/**,**/audit/**,**/util/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
+        <maven.sonar.plugin.version>5.2.0.4988</maven.sonar.plugin.version>
         <jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>
-
  </properties>
     <dependencyManagement>
 		<dependencies>
@@ -148,6 +148,12 @@
 				<artifactId>mockito-core</artifactId>
 				 <version>${mockito.core.version}</version>
 			</dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.core.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 
@@ -170,9 +176,7 @@
                     <configuration>
                         <skipTests>false</skipTests>
                         <skip>false</skip>
-                        <argLine>
-                             --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --enable-preview
-                        </argLine>
+                        <argLine>${jacocoArgLine} --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --enable-preview</argLine>
                     </configuration>
                 </plugin>
             <plugin>
@@ -263,8 +267,26 @@
                  <groupId>org.jacoco</groupId>
                  <artifactId>jacoco-maven-plugin</artifactId>
                  <version>${jacoco.maven.plugin.version}</version>
+                 <configuration>
+                     <propertyName>jacocoArgLine</propertyName>
+                     <excludes>
+                         <exclude>**/constants/**</exclude>
+                         <exclude>**/config/**</exclude>
+                         <exclude>**/audit/**</exclude>
+                         <exclude>**/dto/**</exclude>
+                         <exclude>**/entity/**</exclude>
+                         <exclude>**/model/**</exclude>
+                         <exclude>**/exception/**</exclude>
+                         <exclude>**/*Config.class</exclude>
+                         <exclude>**/*BootApplication.class</exclude>
+                         <exclude>**/*VertxApplication.class</exclude>
+                         <exclude>**/spi/**</exclude>
+                     </excludes>
+                 </configuration>
                  <executions>
                      <execution>
+                        <id>prepare-agent</id>
+                        <phase>initialize</phase>
                          <goals>
                              <goal>prepare-agent</goal>
                          </goals>
@@ -325,4 +347,36 @@
                   <organizationUrl>https://github.com/mosip/commons</organizationUrl>
                 </developer>
         </developers>
+    <profiles>
+        <profile>
+            <id>sonar</id>
+            <properties>
+                <sonar.sources>.</sonar.sources>
+                <sonar.inclusions>src/main/java/**,src/main/resources/**</sonar.inclusions>
+                <sonar.exclusions>${sonar.coverage.exclusions}</sonar.exclusions>
+                <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+            </properties>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonarsource.scanner.maven</groupId>
+                        <artifactId>sonar-maven-plugin</artifactId>
+                        <version>${maven.sonar.plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sonar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 	</project>

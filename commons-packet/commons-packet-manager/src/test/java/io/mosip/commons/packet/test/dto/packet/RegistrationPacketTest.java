@@ -22,7 +22,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFields_withArrayOfString_thenPass()
+    public void setFieldsWithArrayOfStringThenPass()
     {
         String arrayOfString="[\"handle1\", \"handle2\", \"handle3\"]";
         registrationPacket.setField("handle",arrayOfString);
@@ -35,7 +35,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFields_withObjectofMap_thenPass()
+    public void setFieldsWithObjectofMapThenPass()
     {
         String arrayofMapAsString="[\n" +
                 "        {\n" +
@@ -56,7 +56,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFields_withHashmap_thenPass()
+    public void setFieldsWithHashmapThenPass()
     {
         String mapAsString="{\n" +
                 "        \"format\": \"pdf\",\n" +
@@ -71,7 +71,7 @@ public class RegistrationPacketTest {
     }
 
     @Test
-    public void setFields_withString_thenPass()
+    public void setFieldsWithStringThenPass()
     {
         String string="ExpString";
         registrationPacket.setField("StringExp",string);

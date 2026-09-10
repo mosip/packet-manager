@@ -2,43 +2,32 @@ package io.mosip.commons.packet.test.impl;
 
 import io.mosip.commons.packet.constants.CryptomanagerConstant;
 import io.mosip.commons.packet.impl.OfflinePacketCryptoServiceImpl;
-import io.mosip.commons.packet.util.ZipUtils;
 import io.mosip.kernel.clientcrypto.dto.TpmSignResponseDto;
 import io.mosip.kernel.clientcrypto.dto.TpmSignVerifyResponseDto;
 import io.mosip.kernel.clientcrypto.service.spi.ClientCryptoManagerService;
-import io.mosip.kernel.core.signatureutil.model.SignatureResponse;
 import io.mosip.kernel.core.util.CryptoUtil;
-import io.mosip.kernel.core.util.JsonUtils;
 import io.mosip.kernel.cryptomanager.dto.CryptomanagerResponseDto;
 import io.mosip.kernel.cryptomanager.service.impl.CryptomanagerServiceImpl;
 import io.mosip.kernel.signature.service.SignatureService;
 import io.mosip.kernel.signature.service.impl.SignatureServiceImpl;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ZipUtils.class, IOUtils.class, JsonUtils.class})
+@RunWith(MockitoJUnitRunner.Silent.class)
 @PropertySource("classpath:application-test.properties")
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*"})
 public class OfflinePacketCryptoServiceTest {
 
     @InjectMocks
@@ -73,7 +62,26 @@ public class OfflinePacketCryptoServiceTest {
         Mockito.when(clientCryptoManagerService.csSign(any())).thenReturn(signatureResponse);
 
         byte[] result = offlinePacketCryptoService.sign(packetSignature.getBytes());
-        assertTrue(ArrayUtils.isEquals(packetSignature.getBytes(), result));
+        assertArrayEquals(packetSignature.getBytes(), result);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void signWhenCsSignReturnsNullThrowsNullPointerException() {
+        Mockito.when(clientCryptoManagerService.csSign(any())).thenReturn(null);
+        offlinePacketCryptoService.sign("packet".getBytes());
+    }
+
+    @Test
+    public void signWhenCsSignReturnsNullDataReturnsNull() {
+        TpmSignResponseDto signatureResponse = new TpmSignResponseDto();
+        signatureResponse.setData(null);
+
+        Mockito.when(clientCryptoManagerService.csSign(any()))
+                .thenReturn(signatureResponse);
+
+        byte[] result = offlinePacketCryptoService.sign("packet".getBytes());
+
+        assertNull(result);
     }
 
     @Test
@@ -90,6 +98,28 @@ public class OfflinePacketCryptoServiceTest {
     }
 
     @Test
+    public void encryptReturnsMergedBytesWhenCryptomanagerReturnsData() {
+        String id = "refId";
+        byte[] packet = "plain".getBytes();
+        byte[] encrypted = "encryptedBytes".getBytes();
+        String encBase64 = CryptoUtil.encodeToURLSafeBase64(encrypted);
+
+        CryptomanagerResponseDto cryptomanagerResponseDto = new CryptomanagerResponseDto();
+        cryptomanagerResponseDto.setData(encBase64);
+        Mockito.when(cryptomanagerService.encrypt(any())).thenReturn(cryptomanagerResponseDto);
+
+        // call real mergeEncryptedData from khazana (library present on classpath) and assert not null
+        byte[] result = offlinePacketCryptoService.encrypt(id, packet);
+        assertNotNull(result);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void encryptWhenCryptomanagerReturnsNullThrowsNullPointerException() {
+        Mockito.when(cryptomanagerService.encrypt(any())).thenReturn(null);
+        offlinePacketCryptoService.encrypt("id", "p".getBytes());
+    }
+
+    @Test
     public void decryptTest() {
         String id = "10001100770000320200720092256";
         String response = "10001100770000320200720092256_packetwithsignatureandaad";
@@ -103,6 +133,28 @@ public class OfflinePacketCryptoServiceTest {
     }
 
     @Test
+    public void decryptWithShortPacketCallsDecryptWithEmptyEncryptedData() {
+        String id = "10001100770000320200720092256";
+        // create packet with exactly nonce + aad (no encrypted data)
+        int len = CryptomanagerConstant.GCM_NONCE_LENGTH + CryptomanagerConstant.GCM_AAD_LENGTH;
+        byte[] shortPacket = new byte[len];
+
+        CryptomanagerResponseDto cryptomanagerResponseDto = new CryptomanagerResponseDto();
+        cryptomanagerResponseDto.setData(CryptoUtil.encodeToURLSafeBase64("result".getBytes()));
+        Mockito.when(cryptomanagerService.decrypt(any())).thenReturn(cryptomanagerResponseDto);
+
+        byte[] result = offlinePacketCryptoService.decrypt(id, shortPacket);
+        assertArrayEquals("result".getBytes(), result);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void decryptWhenCryptomanagerReturnsNullThrowsNullPointerException() {
+        Mockito.when(cryptomanagerService.decrypt(any())).thenReturn(null);
+        byte[] packet = new byte[CryptomanagerConstant.GCM_NONCE_LENGTH + CryptomanagerConstant.GCM_AAD_LENGTH + 5];
+        offlinePacketCryptoService.decrypt("id", packet);
+    }
+
+    @Test
     public void verifyTest() {
         String packetSignature = "signature";
 
@@ -110,15 +162,32 @@ public class OfflinePacketCryptoServiceTest {
         tpmSignVerifyResponseDto.setVerified(true);
         Mockito.when(clientCryptoManagerService.csVerify(any())).thenReturn(tpmSignVerifyResponseDto);
 
-        boolean result = offlinePacketCryptoService.verify("12345","packet".getBytes(), packetSignature.getBytes());
+        byte[] pkt = packetSignature.getBytes();
+        boolean result = offlinePacketCryptoService.verify("12345", pkt, packetSignature.getBytes());
         assertTrue(result);
+    }
+
+    @Test
+    public void verifyReturnsFalseWhenCsVerifyReturnsVerifiedFalse() {
+        TpmSignVerifyResponseDto tpmSignVerifyResponseDto = new TpmSignVerifyResponseDto();
+        tpmSignVerifyResponseDto.setVerified(false);
+        Mockito.when(clientCryptoManagerService.csVerify(any())).thenReturn(tpmSignVerifyResponseDto);
+
+        boolean result = offlinePacketCryptoService.verify("12345","packet".getBytes(), "sig".getBytes());
+        assertFalse(result);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void verifyWhenCsVerifyReturnsNullThrowsNullPointerException() {
+        Mockito.when(clientCryptoManagerService.csVerify(any())).thenReturn(null);
+        offlinePacketCryptoService.verify("12345","packet".getBytes(), "sig".getBytes());
     }
 
     /**
      * Tests getCryptomanagerService method when service is null - should create and return new instance
      */
     @Test
-    public void testGetCryptomanagerService_WhenServiceIsNull_CreatesAndReturnsNewInstance() {
+    public void testGetCryptomanagerServiceWhenServiceIsNullCreatesAndReturnsNewInstance() {
         ReflectionTestUtils.setField(offlinePacketCryptoService, "cryptomanagerService", null);
         CryptomanagerServiceImpl result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getCryptomanagerService");
         assertNotNull(result);
@@ -132,7 +201,7 @@ public class OfflinePacketCryptoServiceTest {
      * Tests getSignatureService method when service is null - should create and return new instance
      */
     @Test
-    public void testGetSignatureService_WhenServiceIsNull_CreatesAndReturnsNewInstance() {
+    public void testGetSignatureServiceWhenServiceIsNullCreatesAndReturnsNewInstance() {
         ReflectionTestUtils.setField(offlinePacketCryptoService, "signatureService", null);
         SignatureService result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getSignatureService");
         assertNotNull(result);
@@ -146,7 +215,7 @@ public class OfflinePacketCryptoServiceTest {
      * Tests getTpmCryptoService method when service is null - should create and return new instance
      */
     @Test
-    public void testGetTpmCryptoService_WhenServiceIsNull_CreatesAndReturnsNewInstance() {
+    public void testGetTpmCryptoServiceWhenServiceIsNullCreatesAndReturnsNewInstance() {
         ReflectionTestUtils.setField(offlinePacketCryptoService, "tpmCryptoService", null);
         ClientCryptoManagerService result = ReflectionTestUtils.invokeMethod(offlinePacketCryptoService, "getTpmCryptoService");
         assertNotNull(result);
