@@ -79,7 +79,16 @@ RUN mkdir -p ${loader_path}
 
 ENV loader_path_env=${loader_path}
 
-COPY ./target/commons-packet-service-*.jar commons-packet-service.jar
+# target/ holds more than one commons-packet-service-*.jar:
+#   CI    : the boot jar + the -lib jar
+#   local : also the -sources and -javadoc jars
+# Keep only the Spring Boot jar, renamed to commons-packet-service.jar.
+# The build fails if anything other than exactly one jar is left.
+COPY ./target/commons-packet-service-*.jar ./
+RUN boot_jar=$(ls commons-packet-service-*.jar | grep -Ev -- '-(lib|sources|javadoc|tests)\.jar$') \
+    && [ "$(echo "${boot_jar}" | wc -l)" -eq 1 ] \
+    && mv "${boot_jar}" commons-packet-service.jar \
+    && rm -f commons-packet-service-*.jar
 
 COPY configure_start.sh ${work_dir}/configure_start.sh
 
