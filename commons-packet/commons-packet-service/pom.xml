@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    commons-packet-service
+    ======================
+    Spring Boot REST service (context path /commons/v1/packetmanager) that exposes the
+    commons-packet-manager library to Registration Processor: read fields, documents,
+    biometrics, meta info, audits and tags; create packets; validate packets.
+
+    Version management
+    - All versions are declared once in <properties> below, grouped by owner.
+    - Spring Boot and Spring Cloud versions come from their BOMs (imported in
+      <dependencyManagement>); dependencies they manage carry no <version>.
+    - MOSIP libraries always reference a property; never hard-code a version.
+    - This module has no <parent>. Keep shared versions in sync with
+      commons-packet-manager/pom.xml.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -6,68 +21,123 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.mosip.commons</groupId>
     <artifactId>commons-packet-service</artifactId>
-    <version>1.4.0-SNAPSHOT</version>
+    <version>1.4.1-SNAPSHOT</version>
     <name>commons-packet-service</name>
-    <description>Mosip commons project </description>
-    <url>https://github.com/mosip/commons</url>
- <properties>
-        <!-- maven -->
+    <description>MOSIP packet manager REST service: Spring Boot application exposing packet read, write, validate and tag APIs on top of commons-packet-manager. Configuration is loaded from the Spring Cloud Config Server.</description>
+    <url>https://github.com/mosip/packet-manager</url>
+
+    <properties>
+        <!-- ============ Build ============ -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <maven.compiler.version>3.8.0</maven.compiler.version>
-        <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
-        <maven.war.plugin.version>3.1.0</maven.war.plugin.version>
-        <maven.javadoc.version>3.2.0</maven.javadoc.version>
-        <maven-shade-plugin.version>2.3</maven-shade-plugin.version>
+
+        <!-- ============ Maven plugins ============ -->
         <maven.deploy.plugin.version>3.1.1</maven.deploy.plugin.version>
-		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
-		<maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
-		<nexus.staging.plugin.version>1.6.14</nexus.staging.plugin.version>
-		<git.commit.plugin.version>3.0.1</git.commit.plugin.version>
+        <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
+        <maven.javadoc.version>3.2.0</maven.javadoc.version>
+        <maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
+        <central.publishing.maven.plugin.version>0.11.0</central.publishing.maven.plugin.version>
+        <git.commit.plugin.version>3.0.1</git.commit.plugin.version>
+        <jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>
 
-        <!-- spring -->
+        <!-- ============ MOSIP dependencies ============ -->
+        <packet.manager.version>1.4.1-SNAPSHOT</packet.manager.version>
+        <kernel.core.version>1.4.1-SNAPSHOT</kernel.core.version>
+        <!-- Used only by the openapi-doc-generate-profile -->
+        <kernel.auth.adaptor.version>1.4.1-SNAPSHOT</kernel.auth.adaptor.version>
+
+        <!-- ============ Spring (BOMs) ============ -->
+        <!-- spring.boot.version also sets the spring-boot-maven-plugin version -->
+        <spring.boot.version>4.1.0</spring.boot.version>
+        <spring.cloud.version>2025.1.2</spring.cloud.version>
+        <springdoc.version>3.0.1</springdoc.version>
+
+        <!-- ============ Third-party (not managed by the Spring BOMs) ============ -->
         <swagger.version>2.10.0</swagger.version>
+        <!-- 2.x (javax) on purpose: the CBEFF / biometrics APIs still use javax.xml.bind -->
+        <jaxb.runtime.version>2.3.9</jaxb.runtime.version>
+        <lombok.version>1.18.38</lombok.version>
 
-        <kernel.core.version>1.3.1-rc.1</kernel.core.version>
-        <kernel.biometrics.api.version>1.3.1</kernel.biometrics.api.version>
-        <kernel.auth.adaptor.version>1.3.1</kernel.auth.adaptor.version>
-        <kernel-dataaccess-hibernate.version>1.3.1-rc.1</kernel-dataaccess-hibernate.version>
-        <kernel.logger.logback.version>1.3.1-rc.1</kernel.logger.logback.version>
-        <khazana.version>1.4.0-SNAPSHOT</khazana.version>
-        <kernel.bom.version>1.3.1-rc.1</kernel.bom.version>
+        <!-- ============ Sonar ============ -->
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
-        <packet.manager.version>1.4.0-SNAPSHOT</packet.manager.version>
-        <jacoco.maven.plugin.version>0.8.11</jacoco.maven.plugin.version>
-        <central.publishing.maven.plugin.version>0.11.0</central.publishing.maven.plugin.version>
+    </properties>
 
- </properties>
- <dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>io.mosip.kernel</groupId>
-				<artifactId>kernel-bom</artifactId>
-				<version>${kernel.bom.version}</version>
-				<type>pom</type>
-			    <scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot BOM: manages versions of all Spring Boot starters and their libraries -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Cloud BOM: config client and bootstrap -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring.cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Overrides the Boot BOM (4.x, jakarta): kernel-biometrics-api / kernel-cbeffutil-api
+                 still use javax JAXB, which needs the 2.x runtime -->
+            <dependency>
+                <groupId>org.glassfish.jaxb</groupId>
+                <artifactId>jaxb-runtime</artifactId>
+                <version>${jaxb.runtime.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
+        <!-- ============ MOSIP dependencies ============ -->
+        <dependency>
+            <groupId>io.mosip.commons</groupId>
+            <artifactId>commons-packet-manager</artifactId>
+            <version>${packet.manager.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.mosip.kernel</groupId>
             <artifactId>kernel-core</artifactId>
             <version>${kernel.core.version}</version>
         </dependency>
+
+        <!-- ============ Spring Boot (versions from the Boot BOM) ============ -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.mosip.commons</groupId>
-            <artifactId>commons-packet-manager</artifactId>
-            <version>${packet.manager.version}</version>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ============ Spring Cloud (versions from the Cloud BOM) ============ -->
+        <!-- Loads bootstrap.properties and fetches configuration from the config server -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
+        </dependency>
+
+        <!-- ============ API documentation ============ -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-webmvc</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.springfox</groupId>
@@ -79,35 +149,37 @@
             <artifactId>springfox-swagger2</artifactId>
             <version>${swagger.version}</version>
         </dependency>
+
+        <!-- ============ Third-party ============ -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.mosip.kernel</groupId>
-            <artifactId>kernel-logger-logback</artifactId>
-            <version>${kernel.logger.logback.version}</version>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
         </dependency>
 
+        <!-- ============ Test ============ -->
         <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.5.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-webmvc</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
-
+        <!-- Boot 4 split MockMvc and security test support into separate modules -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
 
@@ -126,7 +198,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.2.3</version>
+                <version>${spring.boot.version}</version>
                 <configuration>
                     <executable>true</executable>
                     <layout>ZIP</layout>

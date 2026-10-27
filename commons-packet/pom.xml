@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    commons-packet (aggregator)
+    ===========================
+    Builds the two packet manager modules in order. It is NOT their <parent>:
+    each module declares its own versions in its own <properties>.
+      - commons-packet-manager : library (Registration Client, Resident Service)
+      - commons-packet-service : Spring Boot REST service (Registration Processor)
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -7,18 +15,20 @@
 
     <groupId>io.mosip.commons</groupId>
     <artifactId>commons-packet</artifactId>
-    <version>1.4.0-SNAPSHOT</version>
+    <version>1.4.1-SNAPSHOT</version>
     <name>common-packet</name>
-    <description>Common packet manager for MOSIP</description>
+    <description>Aggregator for the MOSIP packet manager library (commons-packet-manager) and REST service (commons-packet-service).</description>
     <url>https://github.com/mosip/packet-manager</url>
     
     <packaging>pom</packaging>
 
     <properties>
-        <!-- maven -->
+        <!-- ============ Build ============ -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+
+        <!-- ============ Maven plugins ============ -->
         <maven.compiler.version>3.8.0</maven.compiler.version>
          <maven.surefire.plugin.version>2.22.0</maven.surefire.plugin.version>
         <maven.jar.plugin.version>3.0.2</maven.jar.plugin.version>
@@ -26,12 +36,15 @@
          <maven.jacoco.version>0.8.11</maven.jacoco.version>
          <maven.sonar.plugin.version>3.7.0.1746</maven.sonar.plugin.version>
         <maven.javadoc.version>3.2.0</maven.javadoc.version>
-        <maven-shade-plugin.version>2.3</maven-shade-plugin.version>
         <maven.deploy.plugin.version>2.8.1</maven.deploy.plugin.version>
 		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
 		<maven.gpg.plugin.version>1.5</maven.gpg.plugin.version>
         <central.publishing.maven.plugin.version>0.11.0</central.publishing.maven.plugin.version>
         <git.commit.plugin.version>3.0.1</git.commit.plugin.version>
+        <!-- Keep in sync with spring.boot.version in the module POMs -->
+        <spring.boot.version>4.1.0</spring.boot.version>
+
+        <!-- ============ Sonar ============ -->
         <sonar.coverage.exclusions>**/constant/**,**/config/**,**/httpfilter/**,**/cache/**,**/dto/**,**/entity/**,**/model/**,**/exception/**,**/repository/**,**/security/**,**/*Config.java,**/*BootApplication.java,**/*VertxApplication.java,**/cbeffutil/**,**/*Utils.java,**/*Validator.java,**/*Helper.java,**/verticle/**,**/VidWriter.java/**,**/masterdata/utils/**,**/spi/**,**/core/http/**,"**/LocationServiceImpl.java","**/RegistrationCenterMachineServiceImpl.java","**/RegistrationCenterServiceImpl.java","**/pridgenerator/**","**/idgenerator/prid","**/proxy/**","**/cryptosignature/**"</sonar.coverage.exclusions>
         <sonar.cpd.exclusions>**/dto/**,**/entity/**,**/config/**</sonar.cpd.exclusions>
     </properties>
@@ -57,7 +70,7 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>3.2.3</version>
+                    <version>${spring.boot.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

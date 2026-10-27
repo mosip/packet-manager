@@ -16,7 +16,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import io.mosip.commons.packet.dto.TagDto;
 import io.mosip.commons.packet.dto.TagRequestDto;
@@ -28,7 +28,7 @@ import io.mosip.commons.packet.facade.PacketWriter;
 import io.mosip.commons.packetmanager.service.PacketWriterService;
 import io.mosip.kernel.core.exception.BaseUncheckedException;
 
-@RunWith(SpringRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class PacketWriterServiceTest {
 	@Mock
     private PacketReader packetReader;
