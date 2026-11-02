@@ -57,8 +57,7 @@ java -jar commons-packet/commons-packet-service/target/commons-packet-service-*.
 
 Swagger UI: `http://localhost:8093/commons/v1/packetmanager/swagger-ui/index.html`
 
-Three runtime JARs must be on the classpath (not bundled):
-- `kernel-auth-adapter.jar` — adds MOSIP IAM headers to outbound REST calls
+Two runtime JARs must be on the classpath (not bundled); `configure_start.sh` downloads them into `loader.path`:
 - `kernel-ref-idobjectvalidator.jar` — ID object schema validation
 - `cache-provider.jar` — Spring cache backend
 
@@ -176,7 +175,7 @@ All runtime config lives in the Spring Cloud Config Server. Important properties
 GitHub Actions (`.github/workflows/push-trigger.yml`) triggers on push to `develop`, `master`, `release*`, and `MOSIP*` branches:
 1. Maven build via `mosip/kattu` reusable workflow (Java 21).
 2. Build and push `commons-packet-service` Docker image to Docker Hub.
-4. SonarCloud analysis (project key: `mosip_packet-manager`).
+3. SonarCloud analysis (project key: `mosip_packet-manager`).
 
 Kubernetes deployment: `deploy/install.sh` installs the `packetmanager` Helm chart into the `packetmanager` namespace with Istio sidecar injection enabled.
 
@@ -185,7 +184,7 @@ Kubernetes deployment: `deploy/install.sh` installs the `packetmanager` Helm cha
 - Tests use JUnit 4, Mockito, and PowerMock.
 - Surefire is configured with `--add-opens` for Java 21 module compatibility.
 - SonarQube excludes DTOs, entities, config classes, exceptions, and SPIs from coverage; target is ~70% on business logic.
-- Test bootstrap: `commons-packet-service/src/test/java/.../TestBootApplication.java` with `application-test.properties`.
+- Test bootstrap: `commons-packet-service/src/test/java/.../TestBootApplication.java` with `src/test/resources/application.properties`. Manager tests use `application-test.properties`.
 - Spring 7 doesn't initialise `@Mock` under `SpringRunner`. Pure-mock tests use `@RunWith(MockitoJUnitRunner.Silent.class)`.
 - Spring-context tests use `@MockitoBean` (`@MockBean` was removed). `spring-boot-webmvc-test` and `spring-boot-security-test` are required; without the latter MockMvc returns 401.
 
@@ -195,4 +194,7 @@ Kubernetes deployment: `deploy/install.sh` installs the `packetmanager` Helm cha
 - Give every MOSIP dependency a `${property}` version. When an artifact has no snapshot build, use its latest release candidate.
 - `kernel-core` bundles idobjectvalidator, logger-logback, pdfgenerator, dataaccess-hibernate, idgenerator, idvalidator, templatemanager and websub. Never add those jars separately, and exclude them where another MOSIP artifact pulls them in.
 - `PacketServiceApp` and `TestBootApplication` exclude every kernel-core auto-config except `IdObjectValidatorConfig`. Keep both lists identical.
+- `kernel-auth-adapter` is a fat jar that bundles its own copies of Spring, Netty, Jackson, etc.:
+  - Service: packaged inside the service jar. Only its `io/mosip/kernel/auth/**` and `io/mosip/kernel/openid/**` classes are unpacked; the jar itself is kept out of `BOOT-INF/lib`. Never add it as a plain packaged dependency, or its bundled classes will override the real Spring jars.
+  - Packet manager library (`commons-packet-manager`): must not depend on it. `kernel-keymanager-service` brings it in transitively, so it is excluded there. The host application (e.g. `commons-packet-service`, admin, Registration Client) provides it.
 - Don't upgrade `jaxb-runtime` to 4.x while the CBEFF/biometrics APIs use `javax.xml.bind`. Don't move the manager's `mockito-core` past what PowerMock supports.

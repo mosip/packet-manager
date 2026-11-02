@@ -33,6 +33,8 @@
         <maven.compiler.target>21</maven.compiler.target>
 
         <!-- ============ Maven plugins ============ -->
+        <maven.jar.plugin.version>3.4.1</maven.jar.plugin.version>
+        <maven.dependency.plugin.version>3.7.0</maven.dependency.plugin.version>
         <maven.deploy.plugin.version>3.1.1</maven.deploy.plugin.version>
         <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
         <maven.javadoc.version>3.2.0</maven.javadoc.version>
@@ -44,17 +46,15 @@
         <!-- ============ MOSIP dependencies ============ -->
         <packet.manager.version>1.4.1-SNAPSHOT</packet.manager.version>
         <kernel.core.version>1.4.1-SNAPSHOT</kernel.core.version>
-        <!-- Used only by the openapi-doc-generate-profile -->
         <kernel.auth.adaptor.version>1.4.1-SNAPSHOT</kernel.auth.adaptor.version>
 
         <!-- ============ Spring (BOMs) ============ -->
         <!-- spring.boot.version also sets the spring-boot-maven-plugin version -->
-        <spring.boot.version>4.1.0</spring.boot.version>
-        <spring.cloud.version>2025.1.2</spring.cloud.version>
+        <spring.boot.version>4.1.1</spring.boot.version>
+        <spring.cloud.version>2025.1.3</spring.cloud.version>
         <springdoc.version>3.0.1</springdoc.version>
 
         <!-- ============ Third-party (not managed by the Spring BOMs) ============ -->
-        <swagger.version>2.10.0</swagger.version>
         <!-- 2.x (javax) on purpose: the CBEFF / biometrics APIs still use javax.xml.bind -->
         <jaxb.runtime.version>2.3.9</jaxb.runtime.version>
         <lombok.version>1.18.38</lombok.version>
@@ -103,6 +103,27 @@
             <groupId>io.mosip.kernel</groupId>
             <artifactId>kernel-core</artifactId>
             <version>${kernel.core.version}</version>
+            <exclusions>
+                <!-- kernel-core leaks mockito-core at compile scope -->
+                <exclusion>
+                    <groupId>org.mockito</groupId>
+                    <artifactId>mockito-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Needed by kernel-ref-idobjectvalidator.jar (loaded from loader.path at runtime).
+             kernel-core 1.3.x leaked it via spring-boot-starter-test; 1.4.x does not. -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+        </dependency>
+        <!-- Published as a fat jar that also bundles Spring, Netty, Jackson etc. Kept as a dependency
+             for compile/tests and for its transitive dependencies; only its MOSIP classes
+             (io/mosip/kernel/auth and the bundled io/mosip/kernel/openid bridge) are packaged (see maven-dependency-plugin and spring-boot-maven-plugin below). -->
+        <dependency>
+            <groupId>io.mosip.kernel</groupId>
+            <artifactId>kernel-auth-adapter</artifactId>
+            <version>${kernel.auth.adaptor.version}</version>
         </dependency>
 
         <!-- ============ Spring Boot (versions from the Boot BOM) ============ -->
@@ -138,16 +159,6 @@
                     <artifactId>spring-webmvc</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger-ui</artifactId>
-            <version>${swagger.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.springfox</groupId>
-            <artifactId>springfox-swagger2</artifactId>
-            <version>${swagger.version}</version>
         </dependency>
 
         <!-- ============ Third-party ============ -->
@@ -201,6 +212,14 @@
                 <version>${spring.boot.version}</version>
                 <configuration>
                     <layout>ZIP</layout>
+                    <!-- Keep the kernel-auth-adapter fat jar out of BOOT-INF/lib: its bundled Spring and
+                         library classes would shadow the real jars. Its MOSIP classes are unpacked instead. -->
+                    <excludes>
+                        <exclude>
+                            <groupId>io.mosip.kernel</groupId>
+                            <artifactId>kernel-auth-adapter</artifactId>
+                        </exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
@@ -216,6 +235,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -224,6 +244,37 @@
                         </goals>
                         <configuration>
                             <classifier>lib</classifier>
+                            <excludes>
+                                <exclude>io/mosip/kernel/auth/**</exclude>
+                                <exclude>io/mosip/kernel/openid/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Unpack only kernel-auth-adapter's MOSIP classes (auth + openid bridge) into target/classes so
+                 they are packaged in BOOT-INF/classes (the fat jar is excluded from BOOT-INF/lib above). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${maven.dependency.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>unpack-kernel-auth-adapter</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>io.mosip.kernel</groupId>
+                                    <artifactId>kernel-auth-adapter</artifactId>
+                                    <version>${kernel.auth.adaptor.version}</version>
+                                    <includes>io/mosip/kernel/auth/**,io/mosip/kernel/openid/**</includes>
+                                    <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
                         </configuration>
                     </execution>
                 </executions>
@@ -380,11 +431,6 @@
             <id>openapi-doc-generate-profile</id>
             <dependencies>
                 <dependency>
-                    <groupId>io.mosip.kernel</groupId>
-                    <artifactId>kernel-auth-adapter</artifactId>
-                    <version>${kernel.auth.adaptor.version}</version>
-                </dependency>
-                <dependency>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-starter-webflux</artifactId>
                 </dependency>
@@ -444,7 +490,7 @@
                         </executions>
                         <configuration>
                             <apiDocsUrl>http://localhost:8090/app/generic/v3/api-docs</apiDocsUrl>
-                            <outputFileName>${name}-openapi.json</outputFileName>
+                            <outputFileName>${project.name}-openapi.json</outputFileName>
                             <outputDir>${project.build.directory}</outputDir>
                             <skip>false</skip>
                         </configuration>

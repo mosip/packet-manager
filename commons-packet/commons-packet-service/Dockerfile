@@ -54,9 +54,6 @@ ENV spring_config_url_env=${spring_config_url}
 # environment variable to pass artifactory url, at docker runtime
 ENV artifactory_url_env=${artifactory_url}
 
-# environment variable to pass iam_adapter url, at docker runtime
-ENV iam_adapter_url_env=${iam_adapter_url}
-
 # environment variable to pass cache_provider url, at docker runtime
 ENV cache_provider_url_env=${cache_provider_url}
 

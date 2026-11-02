@@ -7,7 +7,6 @@ echo "Starting prerequisite setup..."
 echo "Downloading mandatory dependencies..."
 
 wget -q --show-progress "${kernel_ref_idobjectvalidator_url}" \-O "${loader_path_env}/kernel-ref-idobjectvalidator.jar"
-wget -q --show-progress "${iam_adapter_url_env}" \-O "${loader_path_env}/kernel-auth-adapter.jar"
 
 if [ -n "$cache_provider_url_env" ]; then
 
