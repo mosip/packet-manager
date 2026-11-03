@@ -22,7 +22,6 @@ import io.mosip.kernel.core.util.DateUtils2;
 import io.mosip.kernel.core.util.JsonUtils;
 import io.mosip.kernel.core.util.StringUtils;
 import io.mosip.kernel.core.util.exception.JsonProcessingException;
-import org.assertj.core.util.Lists;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -320,7 +319,7 @@ public class PacketWriterImpl implements IPacketWriter {
                     PacketManagerHelper.generateHash(hashSequenceMetaInfo.getValue(), hashSequenceMetaInfo.getHashSource()),
                     zipOutputStream);
 
-            registrationPacket.getMetaData().put(HASHSEQUENCE2, Lists.newArrayList(hashSequenceMetaInfo));
+            registrationPacket.getMetaData().put(HASHSEQUENCE2, new ArrayList<>(List.of(hashSequenceMetaInfo)));
         }
 
         addPacketDataHash(registrationPacket, hashSequences, zipOutputStream);

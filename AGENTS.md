@@ -10,6 +10,16 @@ The module ships as two artifacts:
 - **`commons-packet-manager`** — a library embedded in Registration Client and Resident Service for on-device packet operations.
 - **`commons-packet-service`** — a Spring Boot REST service used by Registration Processor to read/write packets during server-side processing.
 
+## Agent Rules (speed / token budget)
+
+- **Use the Repository Map below instead of exploring.** No `ls`/`find`/`tree` and no search subagents. Open the exact file you need.
+- Grep for the method first, then read only that range. Large files are `PacketReaderImpl`, `PacketReaderService`, `PacketWriterImpl` and `PacketValidator` (450–620 lines).
+- Never read `target/`, `licenses/`, `THIRD-PARTY-NOTICES`, `CREDITS`, `NOTICE`, `LICENSE`, `.travis.yml`, `.lgtm.yml` or `helm/**/converters/`. DTOs, exceptions and constants are boilerplate; open them only when a field matters.
+- Filter Maven output: `mvn -q ... 2>&1 | grep -E '^\[ERROR\]|Tests run:.*Fail'`. For failures, read `*/target/surefire-reports/*.txt`.
+- To verify, build one module (`-pl <module> -am`) and one test class (`-Dtest=`). Add `-o` when dependencies are already cached.
+- Work inline. Spawn subagents only when the user asks.
+- Keep diffs minimal: edit in place and don't move or reformat unrelated content.
+
 ## Build Commands
 
 All build commands run from `commons-packet/` (the Maven parent):
@@ -47,19 +57,37 @@ java -jar commons-packet/commons-packet-service/target/commons-packet-service-*.
 
 Swagger UI: `http://localhost:8093/commons/v1/packetmanager/swagger-ui/index.html`
 
-Three runtime JARs must be on the classpath (not bundled):
-- `kernel-auth-adapter.jar` — adds MOSIP IAM headers to outbound REST calls
+Two runtime JARs must be on the classpath (not bundled); `configure_start.sh` downloads them into `loader.path`:
 - `kernel-ref-idobjectvalidator.jar` — ID object schema validation
 - `cache-provider.jar` — Spring cache backend
 
 ## Architecture
 
-### Two-Module Split
+### Repository Map
 
 ```
-commons-packet/
-├── commons-packet-manager/   # Core library — SPI definitions, facades, PacketKeeper, crypto, OfflineConfig
-└── commons-packet-service/   # Spring Boot app — REST controllers, PacketReaderService, PacketWriterService
+packet-manager/
+├── docs/configuration.md          config property reference
+├── .github/workflows/             push-trigger.yml (build + docker + sonar via mosip/kattu)
+├── deploy/*.sh, helm/packetmanager/   helm install into ns packetmanager
+└── commons-packet/                aggregator pom (not the modules' parent) — run mvn here
+    ├── commons-packet-manager/    LIBRARY  io.mosip.commons.packet — own versions in pom.xml <properties>
+    │   ├── facade/                PacketReader, PacketWriter   (@PreAuthorize, @Cacheable, @RefreshScope)
+    │   ├── spi/                   IPacketReader, IPacketWriter, IPacketCryptoService
+    │   ├── impl/                  PacketReaderImpl, PacketWriterImpl (zip / ID.json / CBEFF),
+    │   │                          OnlinePacketCryptoServiceImpl (keymanager REST), OfflinePacketCryptoServiceImpl (TPM)
+    │   ├── keeper/PacketKeeper    ONLY object-store I/O + encrypt/decrypt/sign/verify
+    │   ├── config/                PacketManagerConfig (provider registry), PacketReaderAndWriterConfig, OfflineConfig, AsyncConfig
+    │   ├── util/                  PacketHelper (source/process match), PacketManagerHelper, PacketValidator, IdSchemaUtils, ZipUtils
+    │   ├── constants/             PacketManagerConstants (file names, meta keys), ErrorCode, PacketUtilityErrorCodes
+    │   └── test/…/test/           facade/, impl/, keeper/, dto/packet/, config/{TestConfig,TestSecurityConfig}
+    └── commons-packet-service/    BOOT APP  io.mosip.commons.packetmanager — own versions in pom.xml <properties>
+        ├── PacketServiceApp       @SpringBootApplication (excludes unused kernel-core auto-configs)
+        ├── controller/            PacketReaderController, PacketWriterController, PacketServiceControllerAdvice
+        ├── service/               PacketReaderService (source/process + field priority), PacketWriterService
+        ├── config/                PacketServiceConfig, PacketSwaggerConfig, OpenApiProperties
+        ├── resources/             bootstrap.properties (config server, springdoc), logback.xml
+        └── test/…/test/           TestBootApplication (same excludes as app), controller/, service/
 ```
 
 ### Provider SPI Pattern
@@ -147,7 +175,7 @@ All runtime config lives in the Spring Cloud Config Server. Important properties
 GitHub Actions (`.github/workflows/push-trigger.yml`) triggers on push to `develop`, `master`, `release*`, and `MOSIP*` branches:
 1. Maven build via `mosip/kattu` reusable workflow (Java 21).
 2. Build and push `commons-packet-service` Docker image to Docker Hub.
-4. SonarCloud analysis (project key: `mosip_packet-manager`).
+3. SonarCloud analysis (project key: `mosip_packet-manager`).
 
 Kubernetes deployment: `deploy/install.sh` installs the `packetmanager` Helm chart into the `packetmanager` namespace with Istio sidecar injection enabled.
 
@@ -156,4 +184,17 @@ Kubernetes deployment: `deploy/install.sh` installs the `packetmanager` Helm cha
 - Tests use JUnit 4, Mockito, and PowerMock.
 - Surefire is configured with `--add-opens` for Java 21 module compatibility.
 - SonarQube excludes DTOs, entities, config classes, exceptions, and SPIs from coverage; target is ~70% on business logic.
-- Test bootstrap: `commons-packet-service/src/test/java/.../TestBootApplication.java` with `application-test.properties`.
+- Test bootstrap: `commons-packet-service/src/test/java/.../TestBootApplication.java` with `src/test/resources/application.properties`. Manager tests use `application-test.properties`.
+- Spring 7 doesn't initialise `@Mock` under `SpringRunner`. Pure-mock tests use `@RunWith(MockitoJUnitRunner.Silent.class)`.
+- Spring-context tests use `@MockitoBean` (`@MockBean` was removed). `spring-boot-webmvc-test` and `spring-boot-security-test` are required; without the latter MockMvc returns 401.
+
+## Dependencies
+
+- No `kernel-bom`. Each module imports the `spring-boot-dependencies` and `spring-cloud-dependencies` BOMs. Versions live in each module's grouped `<properties>` (read them there). Keep both modules in sync and don't add a shared parent POM.
+- Give every MOSIP dependency a `${property}` version. When an artifact has no snapshot build, use its latest release candidate.
+- `kernel-core` bundles idobjectvalidator, logger-logback, pdfgenerator, dataaccess-hibernate, idgenerator, idvalidator, templatemanager and websub. Never add those jars separately, and exclude them where another MOSIP artifact pulls them in.
+- `PacketServiceApp` and `TestBootApplication` exclude every kernel-core auto-config except `IdObjectValidatorConfig`. Keep both lists identical.
+- `kernel-auth-adapter` is a fat jar that bundles its own copies of Spring, Netty, Jackson, etc.:
+  - Service: packaged inside the service jar. Only its `io/mosip/kernel/auth/**` and `io/mosip/kernel/openid/**` classes are unpacked; the jar itself is kept out of `BOOT-INF/lib`. Never add it as a plain packaged dependency, or its bundled classes will override the real Spring jars.
+  - Packet manager library (`commons-packet-manager`): must not depend on it. `kernel-keymanager-service` brings it in transitively, so it is excluded there. The host application (e.g. `commons-packet-service`, admin, Registration Client) provides it.
+- Don't upgrade `jaxb-runtime` to 4.x while the CBEFF/biometrics APIs use `javax.xml.bind`. Don't move the manager's `mockito-core` past what PowerMock supports.

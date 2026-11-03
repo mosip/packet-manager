@@ -1,7 +1,7 @@
 # Packet Manager
 
-[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml/badge.svg?branch=release-1.3.x)](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.3.x&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/summary/overall?id=mosip_packet-manager&branch=release-1.3.x)
+[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml/badge.svg?branch=develop)](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=develop&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/summary/overall?id=mosip_packet-manager&branch=develop)
 
 ## Overview
 
@@ -49,7 +49,6 @@ Before you begin, ensure you have the following installed:
 
 Ensure the following artifacts are available in the classpath or loader path:
 
-- `kernel-auth-adapter.jar` - For IAM authentication.
 - `kernel-ref-idobjectvalidator.jar` - For ID object validation.
 - `cache-provider.jar` - For caching support.
 
@@ -84,7 +83,7 @@ mvn clean install -Dmaven.javadoc.skip=true -Dgpg.skip=true
 4. Start the application:
     - Run via IDE or command line: `java -jar commons-packet-service/target/commons-packet-service-*.jar`
 
-5. Verify Swagger is accessible at: `http://localhost:<port>/packetmanager/swagger-ui/index.html`
+5. Verify Swagger is accessible at: `http://localhost:8093/commons/v1/packetmanager/swagger-ui/index.html`
 
 ### Local Setup with Docker (Easy Setup for Demos)
 

@@ -54,9 +54,6 @@ ENV spring_config_url_env=${spring_config_url}
 # environment variable to pass artifactory url, at docker runtime
 ENV artifactory_url_env=${artifactory_url}
 
-# environment variable to pass iam_adapter url, at docker runtime
-ENV iam_adapter_url_env=${iam_adapter_url}
-
 # environment variable to pass cache_provider url, at docker runtime
 ENV cache_provider_url_env=${cache_provider_url}
 
@@ -79,7 +76,16 @@ RUN mkdir -p ${loader_path}
 
 ENV loader_path_env=${loader_path}
 
-COPY ./target/commons-packet-service-*.jar commons-packet-service.jar
+# target/ holds more than one commons-packet-service-*.jar:
+#   CI    : the boot jar + the -lib jar
+#   local : also the -sources and -javadoc jars
+# Keep only the Spring Boot jar, renamed to commons-packet-service.jar.
+# The build fails if anything other than exactly one jar is left.
+COPY ./target/commons-packet-service-*.jar ./
+RUN boot_jar=$(ls commons-packet-service-*.jar | grep -Ev -- '-(lib|sources|javadoc|tests)\.jar$') \
+    && [ "$(echo "${boot_jar}" | wc -l)" -eq 1 ] \
+    && mv "${boot_jar}" commons-packet-service.jar \
+    && rm -f commons-packet-service-*.jar
 
 COPY configure_start.sh ${work_dir}/configure_start.sh
 

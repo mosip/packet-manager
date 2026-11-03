@@ -20,6 +20,7 @@ on:
       - 'master'
       - '1.*'
       - 'release*'
+      - 'issue*'
 
 jobs:
   build-maven-packet-manager:
@@ -27,6 +28,10 @@ jobs:
     with:
       SERVICE_LOCATION: commons-packet
       BUILD_ARTIFACT: commons-packet
+      # Boot 4 removed fully-executable JARs (no Unix +x bit). Kattu's default zip
+      # step only packs -executable JARs; list the deployable boot JAR here so the
+      # commons-packet artifact is uploaded for docker-build.
+      MAVEN_NON_EXEC_ARTIFACTS: commons-packet-service.jar
     secrets:
       OSSRH_USER: ${{ secrets.OSSRH_USER }}
       OSSRH_SECRET: ${{ secrets.OSSRH_SECRET }}
