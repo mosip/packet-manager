@@ -93,13 +93,13 @@ mvn clean install -Dmaven.javadoc.skip=true -Dgpg.skip=true
 Recommended for quick demos and testing.
 
 ```text
-docker pull mosipid/kernel-packet-manager:1.4.0
+docker pull mosipid/kernel-packet-manager:1.4.x
 ```
 
 Run the service:
 
 ```text
-docker run -d -p 8086:8086 --name packet-manager mosipid/kernel-packet-manager:1.4.0
+docker run -d -p 8086:8086 --name packet-manager mosipid/kernel-packet-manager:1.4.x
 ```
 
 #### Option 2: Build Docker Images Locally
