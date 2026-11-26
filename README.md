@@ -1,7 +1,7 @@
 # Packet Manager
 
-[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml/badge.svg?branch=release-1.3.x)](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.3.x&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/summary/overall?id=mosip_packet-manager&branch=release-1.3.x)
+[![Maven Package upon a push](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml/badge.svg?branch=release-1.4.x)](https://github.com/mosip/packet-manager/actions/workflows/push-trigger.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?branch=release-1.4.x&project=mosip_packet-manager&id=mosip_packet-manager2&metric=alert_status)](https://sonarcloud.io/summary/overall?id=mosip_packet-manager&branch=release-1.4.x)
 
 ## Overview
 
@@ -93,13 +93,13 @@ mvn clean install -Dmaven.javadoc.skip=true -Dgpg.skip=true
 Recommended for quick demos and testing.
 
 ```text
-docker pull mosipid/kernel-packet-manager:1.3.0
+docker pull mosipid/kernel-packet-manager:1.4.x
 ```
 
 Run the service:
 
 ```text
-docker run -d -p 8086:8086 --name packet-manager mosipid/kernel-packet-manager:1.3.0
+docker run -d -p 8086:8086 --name packet-manager mosipid/kernel-packet-manager:1.4.x
 ```
 
 #### Option 2: Build Docker Images Locally
